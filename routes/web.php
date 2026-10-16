@@ -6,6 +6,9 @@ use App\Http\Controllers\ShopeeController;
 use App\Http\Controllers\StoreController;
 use App\Http\Controllers\ShopeeMappingController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\TiktokController;
+use App\Http\Controllers\TiktokImportController;
+use App\Http\Controllers\TiktokMappingController;
 
 Route::get('/', function () {
     return redirect('/shopee');
@@ -56,3 +59,24 @@ Route::post('/import/shopee-both', [ImportController::class, 'importShopeeBoth']
 Route::get('/shopee/compare', [ShopeeController::class, 'compare'])->name('shopee.compare');
 Route::get('/shopee/sku-table', [ShopeeController::class, 'skuTableHtml'])->name('shopee.sku.table');
 Route::get('/shopee/export-pdf', [ShopeeController::class, 'exportPdf'])->name('shopee.export.pdf');
+
+// TikTok
+Route::get('/tiktok/import', [TiktokImportController::class, 'index'])->name('tiktok.import');
+Route::post('/tiktok/import', [TiktokImportController::class, 'importBoth'])->name('tiktok.import.both');
+
+// TikTok Mapping
+Route::get('/tiktok/mapping/{store}', [TiktokMappingController::class, 'index'])->name('tiktok.mapping');
+Route::post('/tiktok/mapping/{store}/ajax', [TiktokMappingController::class, 'saveAjax'])->name('tiktok.mapping.save.ajax');
+Route::get('/tiktok/mapping/{store}/products-html', [TiktokMappingController::class, 'productsHtml'])->name('tiktok.mapping.products.html');
+Route::get('/tiktok/mapping/{store}/table-html', [TiktokMappingController::class, 'tableHtml'])->name('tiktok.mapping.table.html');
+
+// TikTok Laporan
+Route::get('/tiktok', [TiktokController::class, 'index'])->name('tiktok.index');
+Route::post('/tiktok/reconcile/{store}', [TiktokController::class, 'reconcile'])->name('tiktok.reconcile');
+Route::get('/tiktok/sku-table', [TiktokController::class, 'skuTableHtml'])->name('tiktok.sku.table');
+
+// TikTok Perbandingan
+Route::get('/tiktok/compare', [TiktokController::class, 'compare'])->name('tiktok.compare');
+
+// TikTok Export PDF
+Route::get('/tiktok/export-pdf', [TiktokController::class, 'exportPdf'])->name('tiktok.export.pdf');

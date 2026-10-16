@@ -145,4 +145,11 @@ class StoreController extends Controller
             'message' => "Toko '{$nama}' berhasil dihapus.",
         ]);
     }
+
+    public function tableHtml()
+    {
+        $stores = Store::orderBy('marketplace')->orderBy('nama_toko')->paginate(25);
+
+        return view('stores.partials.table', compact('stores'))->render();
+    }
 }

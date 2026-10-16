@@ -25,13 +25,15 @@
         [
             'section' => 'Utama',
             'items' => [
-                ['route' => 'shopee.index',   'label' => 'Laporan Shopee', 'icon' => 'mdi:shopping-outline'],
+                ['route' => 'shopee.index', 'label' => 'Laporan Shopee', 'icon' => 'mdi:shopping-outline'],
+                ['route' => 'tiktok.index', 'label' => 'Laporan TikTok', 'icon' => 'mdi:music-note-outline'],
             ],
         ],
         [
             'section' => 'Data Master',
             'items' => [
-                ['route' => 'import.index',   'label' => 'Import',          'icon' => 'mdi:import'],
+                ['route' => 'import.index',   'label' => 'Import Shopee',   'icon' => 'mdi:import'],
+                ['route' => 'tiktok.import',  'label' => 'Import TikTok',   'icon' => 'mdi:music-note'],
                 ['route' => 'products.index', 'label' => 'Produk',          'icon' => 'mdi:package-variant-closed'],
                 ['route' => 'stores.index',   'label' => 'Toko',            'icon' => 'mdi:store-outline'],
             ],
