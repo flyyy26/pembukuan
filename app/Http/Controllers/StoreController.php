@@ -33,7 +33,7 @@ class StoreController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada',
+            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
             'seller_id'   => 'nullable|string|max:100',
         ]);
@@ -54,7 +54,7 @@ class StoreController extends Controller
     public function update(Request $request, Store $store)
     {
         $validated = $request->validate([
-            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada',
+            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
             'seller_id'   => 'nullable|string|max:100',
         ]);
@@ -88,7 +88,7 @@ class StoreController extends Controller
     public function storeAjax(Request $request)
     {
         $validated = $request->validate([
-            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada',
+            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
             'seller_id'   => 'nullable|string|max:100',
         ]);
@@ -107,7 +107,7 @@ class StoreController extends Controller
     public function updateAjax(Request $request, Store $store)
     {
         $validated = $request->validate([
-            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada',
+            'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
             'seller_id'   => 'nullable|string|max:100',
         ]);

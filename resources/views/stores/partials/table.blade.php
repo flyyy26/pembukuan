@@ -37,11 +37,12 @@
                 @forelse($stores as $store)
                 @php
                     $market = match($store->marketplace) {
-                        'shopee'    => ['icon' => 'mdi:shopping',      'bg' => 'bg-orange-50',  'text' => 'text-orange-700',  'badge' => 'bg-orange-100 text-orange-700'],
-                        'tiktok'    => ['icon' => 'mdi:music-note',    'bg' => 'bg-gray-900',   'text' => 'text-white',       'badge' => 'bg-gray-100 text-gray-800'],
-                        'tokopedia' => ['icon' => 'mdi:storefront',    'bg' => 'bg-green-50',   'text' => 'text-green-700',   'badge' => 'bg-green-100 text-green-700'],
-                        'lazada'    => ['icon' => 'mdi:shopping-outline', 'bg' => 'bg-red-50', 'text' => 'text-red-700',     'badge' => 'bg-red-100 text-red-700'],
-                        default     => ['icon' => 'mdi:store',         'bg' => 'bg-gray-100',   'text' => 'text-gray-700',    'badge' => 'bg-gray-100 text-gray-700'],
+                        'shopee'    => ['icon' => 'mdi:shopping',         'bg' => 'bg-orange-50',  'text' => 'text-orange-700',  'badge' => 'bg-orange-100 text-orange-700'],
+                        'tiktok'    => ['icon' => 'mdi:music-note',       'bg' => 'bg-gray-900',   'text' => 'text-white',       'badge' => 'bg-gray-100 text-gray-800'],
+                        'tokopedia' => ['icon' => 'mdi:storefront',       'bg' => 'bg-green-50',   'text' => 'text-green-700',   'badge' => 'bg-green-100 text-green-700'],
+                        'lazada'    => ['icon' => 'mdi:shopping-outline', 'bg' => 'bg-red-50',     'text' => 'text-red-700',     'badge' => 'bg-red-100 text-red-700'],
+                        'brilink'   => ['icon' => 'mdi:bank',             'bg' => 'bg-emerald-50', 'text' => 'text-emerald-700', 'badge' => 'bg-emerald-100 text-emerald-700'],
+                        default     => ['icon' => 'mdi:store',            'bg' => 'bg-gray-100',   'text' => 'text-gray-700',    'badge' => 'bg-gray-100 text-gray-700'],
                     };
                 @endphp
                 <tr id="store-row-{{ $store->id }}" class="hover:bg-gray-50 transition">
@@ -85,7 +86,7 @@
                 @empty
                 <tr>
                     <td colspan="4" class="py-12 text-center text-gray-500">
-                        <iconify-icon icon="mdi:store-off-outline" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
+                        <iconify-icon icon="mdi:store-off-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                         <div class="mb-2">Belum ada toko.</div>
                         <button type="button"
                                 onclick="openModal('create')"

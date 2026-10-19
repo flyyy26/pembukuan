@@ -30,17 +30,17 @@ class TiktokReconcile extends Command
         // Hapus sales TikTok lama untuk store ini
         Sale::where('store_id', $storeId)->where('marketplace', 'tiktok')->delete();
 
-        // Mapping
+        // Mapping produk
         $mappings = ProductMapping::where('store_id', $storeId)
             ->pluck('product_id', 'marketplace_sku')
             ->toArray();
 
         $products = Product::pluck('hpp', 'id')->toArray();
 
-        // Income per order
+        // Ambil Income per order
         $incomeByOrder = TiktokIncome::all()->keyBy('order_id');
 
-        // Order items (status Selesai / Delivered)
+        // Ambil Order Items (status Selesai/Delivered)
         $orderItems = TiktokOrderItem::whereIn('order_status', ['Selesai', 'Delivered', 'Completed'])
             ->get()
             ->groupBy('order_id');
@@ -60,30 +60,45 @@ class TiktokReconcile extends Command
                     continue;
                 }
 
-                // Hitung total untuk proporsi
-                $totalHarga = $items->sum(fn($item) => $item->sku_subtotal_after_discount);
+                // Hitung total subtotal setelah diskon dari Order Items
+                $totalSubtotal = $items->sum(fn($item) => $item->sku_subtotal_after_discount);
 
-                if ($totalHarga <= 0) {
+                if ($totalSubtotal <= 0) {
                     $skipped++;
                     continue;
                 }
 
-                $netRevenueOrder = (int) $income->total_pendapatan;
+                $itemsArray = $items->values();
 
-                foreach ($items as $item) {
+                foreach ($itemsArray as $index => $item) {
                     $nilaiItem = $item->sku_subtotal_after_discount;
-                    $proporsi = $nilaiItem / $totalHarga;
+                    $proporsi = $nilaiItem / $totalSubtotal;
 
-                    $netRevenue = (int) round($netRevenueOrder * $proporsi);
+                    // 1. HITUNG BIAYA-BIAYA PLATFORM (Proporsional)
+                    $biayaKomisi    = (int) round(abs($income->biaya_komisi_platform ?? 0) * $proporsi);
+                    $biayaLayanan   = (int) round((abs($income->biaya_pemrosesan_pesanan ?? 0) + abs($income->biaya_growth_xtra ?? 0)) * $proporsi);
+                    $biayaOngkir    = (int) round(abs($income->ongkir ?? 0) * $proporsi);
+                    $biayaAfiliasi  = (int) round(abs($income->komisi_afiliasi ?? 0) * $proporsi);
+                    $biayaPajak     = (int) round(abs($income->pph_22 ?? 0) * $proporsi);
+                    $biayaLainnya   = (int) round(abs($income->komisi_dinamis ?? 0) * $proporsi);
+                    
+                    $totalBiaya = $biayaKomisi + $biayaLayanan + $biayaOngkir + $biayaAfiliasi + $biayaPajak + $biayaLainnya;
 
+                    // 2. NET REVENUE (Uang Bersih) = Subtotal Barang - Total Biaya Platform
+                    $netRevenue = $nilaiItem - $totalBiaya;
+
+                    // Mapping SKU
                     $sku = trim($item->seller_sku ?? '');
                     $productId = $mappings[$sku] ?? null;
 
                     $hppTotal = null;
                     $profit = null;
+                    
                     if ($productId && isset($products[$productId])) {
-                        $hppTotal = $products[$productId] * $item->quantity;
-                        $profit = $netRevenue - $hppTotal;
+                        $hppTotal = $products[$productId] * $item->quantity; // HPP per unit x Qty
+                        
+                        // 3. PROFIT = Net Revenue (Uang Bersih) - HPP
+                        $profit = $netRevenue - $hppTotal; 
                     }
 
                     Sale::create([
@@ -100,16 +115,21 @@ class TiktokReconcile extends Command
                         'diskon_platform' => $item->sku_platform_discount,
                         'diskon_seller'   => $item->sku_seller_discount,
                         'subtotal'        => $item->sku_subtotal_after_discount,
-                        'net_revenue'     => $netRevenue,
-                        'biaya_komisi'    => (int) round(abs($income->biaya_komisi_platform) * $proporsi),
-                        'biaya_layanan'   => (int) round((abs($income->biaya_pemrosesan_pesanan) + abs($income->biaya_growth_xtra)) * $proporsi),
-                        'biaya_ongkir'    => (int) round(abs($income->ongkir) * $proporsi),
-                        'biaya_afiliasi'  => (int) round(abs($income->komisi_afiliasi) * $proporsi),
+                        
+                        // Net Revenue sekarang sudah bersih (dipotong biaya)
+                        'net_revenue'     => $netRevenue, 
+                        
+                        // Tetap simpan rincian biaya untuk arsip/laporan
+                        'biaya_komisi'    => $biayaKomisi,
+                        'biaya_layanan'   => $biayaLayanan,
+                        'biaya_ongkir'    => $biayaOngkir,
+                        'biaya_afiliasi'  => $biayaAfiliasi,
                         'biaya_promosi'   => 0,
-                        'biaya_pajak'     => (int) round(abs($income->pph_22) * $proporsi),
-                        'biaya_lainnya'   => (int) round(abs($income->komisi_dinamis) * $proporsi),
+                        'biaya_pajak'     => $biayaPajak,
+                        'biaya_lainnya'   => $biayaLainnya,
+                        
                         'hpp_total'       => $hppTotal,
-                        'profit'          => $profit,
+                        'profit'          => $profit, // Profit = Net Revenue - HPP
                         'status'          => $productId ? 'matched' : 'orphan',
                     ]);
                     $inserted++;

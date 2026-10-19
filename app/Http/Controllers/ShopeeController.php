@@ -515,4 +515,23 @@ class ShopeeController extends Controller
 
         return $pdf->download($fileName);
     }
+
+    public function skuDetailHtml(Request $request)
+    {
+        $storeId = $request->input('store');
+        $sku     = $request->input('sku');
+        $from    = $request->input('from');
+        $to      = $request->input('to');
+
+        $query = Sale::where('marketplace', 'shopee')
+                     ->where('marketplace_sku', $sku);
+
+        if ($storeId) $query->where('store_id', $storeId);
+        if ($from)    $query->whereDate('tanggal', '>=', $from);
+        if ($to)      $query->whereDate('tanggal', '<=', $to);
+
+        $sales = $query->orderBy('tanggal', 'desc')->get();
+
+        return view('shopee.partials.sku-detail-modal', compact('sales', 'sku'))->render();
+    }
 }

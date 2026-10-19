@@ -40,7 +40,7 @@
             <a href="{{ route('shopee.mapping', $storeId) }}"
             class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
                 <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                Mapping Produk
+                Cocokan Produk
             </a>
         </div>
         @endif
@@ -59,7 +59,7 @@
             <iconify-icon icon="mdi:alert" class="text-yellow-600 text-lg mt-0.5"></iconify-icon>
             <div>
                 <strong>Belum ada toko Shopee.</strong>
-                Silakan <a href="{{ route('stores.create') }}" class="underline font-semibold">tambah toko</a> dulu.
+                Silakan <a href="{{ route('stores.index', ['modal' => 'create']) }}" class="underline font-semibold">tambah toko</a> dulu.
             </div>
         </div>
     @else
@@ -404,7 +404,7 @@
             </div>
             @else
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <iconify-icon icon="mdi:chart-line" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
+                    <iconify-icon icon="mdi:chart-line" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                     <div class="text-gray-500">Belum ada data bulanan.</div>
                 </div>
             @endif
@@ -577,12 +577,12 @@
                 </div>
             @else
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <iconify-icon icon="mdi:trophy" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
-                    <div class="text-gray-500">Belum ada SKU yang dimapping. Mapping produk dulu untuk melihat Top 10.</div>
+                    <iconify-icon icon="mdi:trophy" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                    <div class="text-gray-500">Belum ada SKU yang dimapping. Cocokan produk dulu untuk melihat Top 10.</div>
                     <a href="{{ route('shopee.mapping', $storeId) }}"
                        class="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                         <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                        Mapping Produk
+                        Cocokan Produk
                     </a>
                 </div>
             @endif

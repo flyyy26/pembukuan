@@ -79,6 +79,7 @@
                             'tiktok'    => ['label' => 'TikTok Shop',  'icon' => 'mdi:music-note'],
                             'tokopedia' => ['label' => 'Tokopedia',    'icon' => 'mdi:storefront'],
                             'lazada'    => ['label' => 'Lazada',       'icon' => 'mdi:shopping-outline'],
+                            'brilink'   => ['label' => 'BRILink',      'icon' => 'mdi:bank'],
                         ];
                     @endphp
                     <div class="grid grid-cols-2 gap-2">

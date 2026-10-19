@@ -103,7 +103,7 @@
                 @empty
                 <tr>
                     <td colspan="5" class="py-12 text-center text-gray-500">
-                        <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
+                        <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                         Belum ada SKU. Import file Order.all dulu.
                     </td>
                 </tr>

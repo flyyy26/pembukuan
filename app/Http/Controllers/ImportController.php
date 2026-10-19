@@ -17,10 +17,15 @@ class ImportController extends Controller
     public function index()
     {
         $imports = Import::with('store')
+            // TAMBAHKAN FILTER INI: Hanya ambil tipe shopee
+            ->whereIn('tipe', ['shopee_order', 'shopee_income']) 
             ->orderByDesc('id')
             ->paginate(15);
 
-        $stores = Store::where('is_active', true)->orderBy('marketplace')->get();
+        $stores = Store::where('marketplace', 'shopee')
+            ->where('is_active', true)
+            ->orderBy('nama_toko')
+            ->get();
 
         return view('import.index', compact('imports', 'stores'));
     }

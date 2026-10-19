@@ -34,6 +34,7 @@ class Store extends Model
             'tiktok'    => 'TikTok Shop',
             'tokopedia' => 'Tokopedia',
             'lazada'    => 'Lazada',
+            'brilink'   => 'BRILink',
             default     => ucfirst($this->marketplace),
         };
     }

@@ -17,7 +17,7 @@
             </div>
         </div>
 
-        <a href="{{ route('tiktok.import') }}"
+        <a href="{{ route('tiktok.index') }}"
            class="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
             <iconify-icon icon="mdi:arrow-left" class="text-lg"></iconify-icon>
             Kembali ke Import

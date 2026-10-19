@@ -43,7 +43,7 @@
             <a href="{{ route('tiktok.mapping', $storeId) }}"
             class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
                 <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                Mapping Produk
+                Cocokan Produk
             </a>
         </div>
         @endif
@@ -78,16 +78,6 @@
                         @endforeach
                     </select>
                 </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Dari</label>
-                    <input type="date" name="from" value="{{ $from }}"
-                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent">
-                </div>
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Sampai</label>
-                    <input type="date" name="to" value="{{ $to }}"
-                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent">
-                </div>
                 <div class="flex-1 min-w-[220px]">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Cari SKU / Produk</label>
                     <div class="relative">
@@ -101,6 +91,16 @@
                             class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm
                                     focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent">
                     </div>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Dari</label>
+                    <input type="date" name="from" value="{{ $from }}"
+                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Sampai</label>
+                    <input type="date" name="to" value="{{ $to }}"
+                        class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-800 focus:border-transparent">
                 </div>
                 <button type="submit"
                         class="inline-flex items-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition text-sm font-medium">
@@ -368,7 +368,7 @@
             </div>
             @else
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <iconify-icon icon="mdi:chart-line" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
+                    <iconify-icon icon="mdi:chart-line" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                     <div class="text-gray-500">Belum ada data bulanan.</div>
                 </div>
             @endif
@@ -435,12 +435,12 @@
                 </div>
             @else
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <iconify-icon icon="mdi:trophy" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
-                    <div class="text-gray-500">Belum ada SKU yang dimapping. Mapping produk dulu untuk melihat Top 10.</div>
+                    <iconify-icon icon="mdi:trophy" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                    <div class="text-gray-500">Belum ada SKU yang dimapping. Cocokan produk dulu untuk melihat Top 10.</div>
                     <a href="{{ route('tiktok.mapping', $storeId) }}"
                        class="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
                         <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                        Mapping Produk
+                        Cocokan Produk
                     </a>
                 </div>
             @endif

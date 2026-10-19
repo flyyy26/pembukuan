@@ -85,7 +85,7 @@
                 @empty
                 <tr>
                     <td colspan="6" class="py-12 text-center text-gray-500">
-                        <iconify-icon icon="mdi:package-variant" class="text-4xl text-gray-300 block mb-2"></iconify-icon>
+                        <iconify-icon icon="mdi:package-variant" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                         <div class="mb-2">Belum ada produk.</div>
                         <button type="button"
                                 onclick="openProductModal('create')"

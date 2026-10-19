@@ -304,7 +304,7 @@ class TiktokImportController extends Controller
                 'waktu_pemesanan'                  => $this->toDate($assoc['Waktu pemesanan'] ?? null),
                 'waktu_pembayaran_pesanan'         => $this->toDate($assoc['Waktu pembayaran pesanan'] ?? null),
                 'jumlah_penyelesaian_pembayaran'   => $this->toInt($assoc['Jumlah penyelesaian pembayaran'] ?? 0),
-                'total_pendapatan'                 => $this->toInt($assoc['Total Pendapatan'] ?? 0),
+                'total_pendapatan' => $this->toInt($assoc['Total Pendapatan'] ?? 0),
                 'subtotal_setelah_diskon_penjual'  => $this->toInt($assoc['Subtotal setelah diskon penjual'] ?? 0),
                 'subtotal_sebelum_diskon'          => $this->toInt($assoc['Subtotal sebelum diskon'] ?? 0),
                 'diskon_penjual'                   => $this->toInt($assoc['Diskon penjual'] ?? 0),

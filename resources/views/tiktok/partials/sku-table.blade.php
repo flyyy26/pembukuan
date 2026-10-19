@@ -8,7 +8,17 @@
     </div>
 
     <div class="overflow-x-auto">
-        <table class="w-full text-sm">
+        <table class="w-full text-sm table-fixed">
+            <colgroup>
+                <col style="width: 50px;">   {{-- No --}}
+                <col style="width: 160px;">  {{-- SKU Varian --}}
+                <col style="width: 200px;">  {{-- Produk Internal --}}
+                <col style="width: 60px;">   {{-- Qty --}}
+                <col style="width: 110px;">  {{-- Net Revenue --}}
+                <col style="width: 100px;">  {{-- HPP --}}
+                <col style="width: 110px;">  {{-- Profit --}}
+                <col style="width: 100px;">  {{-- Status --}}
+            </colgroup>
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
                     <th class="text-center py-3 px-3 w-12 text-xs font-semibold text-gray-500 uppercase tracking-wider">No</th>
@@ -25,8 +35,17 @@
                 @forelse($perProduk as $p)
                 <tr class="hover:bg-gray-50 transition">
                     <td class="py-3 px-3 text-center text-gray-400 text-xs">{{ ($page - 1) * $perPage + $loop->iteration }}</td>
-                    <td class="py-3 px-3"><span class="font-mono text-xs bg-gray-100 px-2 py-1 rounded text-gray-700">{{ $p['marketplace_sku'] }}</span></td>
-                    <td class="py-3 px-3 text-gray-700">{{ $p['nama_produk'] }}</td>
+                    <td class="py-3 px-3">
+                        <button type="button" 
+                                onclick="showSkuDetail('{{ $p['marketplace_sku'] }}')"
+                                class="font-mono text-xs bg-gray-100 hover:bg-blue-100 hover:text-blue-700 px-2 py-1 rounded text-gray-700 transition flex items-center gap-1">
+                            {{ $p['marketplace_sku'] }}
+                            <iconify-icon icon="mdi:eye-outline" class="text-xs"></iconify-icon>
+                        </button>
+                    </td>
+                    <td class="py-3 px-3 text-gray-700 text-xs leading-snug break-words">
+                        {{ $p['nama_produk'] }}
+                    </td>
                     <td class="py-3 px-3 text-center font-medium text-gray-700">{{ $p['total_qty'] }}</td>
                     <td class="py-3 px-3 text-right text-gray-700">{{ number_format($p['net_revenue'], 0, ',', '.') }}</td>
                     <td class="py-3 px-3 text-right text-orange-600">{{ number_format($p['hpp_total'], 0, ',', '.') }}</td>
@@ -83,3 +102,54 @@
         </div>
     @endif
 </div>
+
+{{-- MODAL DETAIL SKU --}}
+<div id="skuDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeSkuDetail()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+        <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center">
+            <h3 class="font-bold text-gray-800">Rincian Biaya & Net Revenue: <span id="detailSkuLabel" class="text-blue-600 font-mono"></span></h3>
+            <button onclick="closeSkuDetail()" class="text-gray-400 hover:text-gray-700">
+                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+        <div id="skuDetailContent" class="p-4 overflow-y-auto flex-1">
+            {{-- Konten di-load via AJAX --}}
+        </div>
+    </div>
+</div>
+
+<script>
+    function showSkuDetail(sku) {
+        const modal = document.getElementById('skuDetailModal');
+        const content = document.getElementById('skuDetailContent');
+        document.getElementById('detailSkuLabel').textContent = sku;
+        
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        content.innerHTML = '<div class="text-center py-8 text-gray-500"><iconify-icon icon="mdi:loading" class="animate-spin text-2xl"></iconify-icon><br>Memuat data...</div>';
+
+        // Ambil data via AJAX
+        const params = new URLSearchParams({
+            store: '{{ $storeId ?? "" }}',
+            sku: sku,
+            from: '{{ $from ?? "" }}',
+            to: '{{ $to ?? "" }}'
+        });
+
+        fetch(`{{ route('tiktok.sku.detail') }}?${params}`)
+            .then(res => res.text())
+            .then(html => {
+                content.innerHTML = html;
+            })
+            .catch(err => {
+                content.innerHTML = `<div class="text-red-500 text-center py-4">Gagal memuat data: ${err.message}</div>`;
+            });
+    }
+
+    function closeSkuDetail() {
+        const modal = document.getElementById('skuDetailModal');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+</script>

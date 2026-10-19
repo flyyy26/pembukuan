@@ -450,4 +450,23 @@ class TiktokController extends Controller
         if ($a !== null && $b === null) return 'hilang';
         return 'tetap';
     }
+
+    public function skuDetailHtml(Request $request)
+    {
+        $storeId = $request->input('store');
+        $sku     = $request->input('sku');
+        $from    = $request->input('from');
+        $to      = $request->input('to');
+
+        $query = Sale::where('marketplace', 'tiktok')
+                     ->where('marketplace_sku', $sku);
+
+        if ($storeId) $query->where('store_id', $storeId);
+        if ($from)    $query->whereDate('tanggal', '>=', $from);
+        if ($to)      $query->whereDate('tanggal', '<=', $to);
+
+        $sales = $query->orderBy('tanggal', 'desc')->get();
+
+        return view('tiktok.partials.sku-detail-modal', compact('sales', 'sku'))->render();
+    }
 }

@@ -127,67 +127,6 @@
         @endforeach
     </div>
 
-    {{-- ============ SKU BARU & HILANG ============ --}}
-    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2 bg-gradient-to-r from-green-50 to-white">
-                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <iconify-icon icon="mdi:plus-circle" class="text-green-600 text-lg"></iconify-icon>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-gray-800 text-sm">SKU Baru di Periode B</h4>
-                    <p class="text-[10px] text-gray-500">Muncul pertama kali di periode ini</p>
-                </div>
-            </div>
-            <div class="divide-y divide-gray-100">
-                @forelse($skuBaru as $p)
-                <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition">
-                    <div class="min-w-0 flex-1">
-                        <div class="font-mono text-[11px] text-gray-700 truncate">{{ $p['sku'] }}</div>
-                        <div class="text-[10px] text-gray-500 truncate">{{ \Illuminate\Support\Str::limit($p['nama_produk'], 35, '…') }}</div>
-                    </div>
-                    <div class="text-right flex-shrink-0">
-                        <div class="text-xs font-bold {{ $p['profit_b'] > 0 ? 'text-green-600' : 'text-red-600' }}">
-                            {{ number_format($p['profit_b'], 0, ',', '.') }}
-                        </div>
-                        <div class="text-[10px] text-gray-400">{{ $p['qty_b'] }} unit</div>
-                    </div>
-                </div>
-                @empty
-                <div class="px-4 py-8 text-center text-xs text-gray-400">Tidak ada SKU baru</div>
-                @endforelse
-            </div>
-        </div>
-
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-            <div class="px-4 py-3 border-b border-gray-100 flex items-center gap-2 bg-gradient-to-r from-red-50 to-white">
-                <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                    <iconify-icon icon="mdi:minus-circle" class="text-red-600 text-lg"></iconify-icon>
-                </div>
-                <div>
-                    <h4 class="font-semibold text-gray-800 text-sm">SKU Hilang di Periode B</h4>
-                    <p class="text-[10px] text-gray-500">Ada di periode A, tapi tidak ada di B</p>
-                </div>
-            </div>
-            <div class="divide-y divide-gray-100">
-                @forelse($skuHilang as $p)
-                <div class="flex items-center gap-3 px-4 py-2.5 hover:bg-gray-50 transition">
-                    <div class="min-w-0 flex-1">
-                        <div class="font-mono text-[11px] text-gray-700 truncate">{{ $p['sku'] }}</div>
-                        <div class="text-[10px] text-gray-500 truncate">{{ \Illuminate\Support\Str::limit($p['nama_produk'], 35, '…') }}</div>
-                    </div>
-                    <div class="text-right flex-shrink-0">
-                        <div class="text-xs font-bold text-gray-500">{{ number_format($p['profit_a'], 0, ',', '.') }}</div>
-                        <div class="text-[10px] text-gray-400">{{ $p['qty_a'] }} unit (A)</div>
-                    </div>
-                </div>
-                @empty
-                <div class="px-4 py-8 text-center text-xs text-gray-400">Tidak ada SKU hilang</div>
-                @endforelse
-            </div>
-        </div>
-    </div>
-
     {{-- ============ TABEL PERBANDINGAN PER SKU ============ --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
