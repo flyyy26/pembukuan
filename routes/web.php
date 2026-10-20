@@ -116,6 +116,12 @@ Route::middleware('auth')->group(function () {
 
     Route::get('/brilink/saldo-keseluruhan', [BrilinkController::class, 'saldoKeseluruhan'])->name('brilink.saldo-keseluruhan');
 
+    // Print invoice 1 item piutang (per baris)
+    Route::get('/brilink/pengeluaran/{pengeluaran}/invoice-pdf', [BrilinkController::class, 'printInvoicePiutang'])->name('brilink.pengeluaran.invoice-pdf');
+
+    // Print invoice SEMUA piutang pada filter aktif (dari tombol di header tab)
+    Route::get('/brilink/pengeluaran/invoice-bulk-pdf', [BrilinkController::class, 'printInvoicePiutangBulk'])->name('brilink.pengeluaran.invoice-bulk-pdf');
+
     Route::get('/brilink/profit', [BrilinkController::class, 'profit'])->name('brilink.profit');
     Route::post('/brilink/log-ppob', [BrilinkController::class, 'storeLogPpob'])->name('brilink.log-ppob.store');
     Route::post('/brilink/log-ppob/ajax', [BrilinkController::class, 'storeLogPpobAjax'])->name('brilink.log-ppob.store-ajax');

@@ -16,10 +16,11 @@
             </div>
             <div>
                 <h2 class="text-xl font-bold text-gray-800">Laporan Pengeluaran</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
+                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
             </div>
         </div>
 
+        {{-- 🔥 TOMBOL TAMBAH SELALU MUNCUL --}}
         <button type="button" onclick="openPengeluaranModal()" class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
             Tambah Pengeluaran
@@ -30,12 +31,11 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
         <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
             
-            {{-- Pertahankan Tab Aktif saat filter --}}
             <input type="hidden" name="tab" value="{{ $activeTab }}">
 
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
-                <select name="store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
+                <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
                     <option value="all" {{ $storeId === 'all' ? 'selected' : '' }}>Semua Toko</option>
                     @foreach($stores as $s)
                         <option value="{{ $s->id }}" {{ $storeId == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
@@ -70,8 +70,8 @@
                 <button type="submit" class="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium w-full md:w-auto flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
-                @if($from || $to || $search)
-                    <a href="{{ route('brilink.pengeluaran', ['store' => $storeId]) }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg w-full md:w-auto text-center transition">
+                @if($from || $to || $search || $storeId !== 'all')
+                    <a href="{{ route('brilink.pengeluaran', ['tab' => $activeTab]) }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg w-full md:w-auto text-center transition">
                         Reset
                     </a>
                 @endif
@@ -82,7 +82,6 @@
     {{-- TABS DINAMIS --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div class="flex border-b border-gray-100 overflow-x-auto">
-            {{-- Tab Semua --}}
             <a href="{{ request()->fullUrlWithQuery(['tab' => 'semua']) }}"
                class="flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap transition border-b-2
                       {{ strtolower($activeTab) === 'semua' ? 'text-gray-900 border-red-600 bg-gray-50/50' : 'text-gray-600 border-transparent hover:text-gray-800 hover:bg-gray-50' }}">
@@ -90,16 +89,11 @@
                 Semua Kategori
             </a>
 
-            {{-- Tab Kategori Lainnya --}}
             @foreach($kategoriList as $kategori)
-                @php 
-                    $isActive = strtolower($activeTab) === strtolower($kategori); 
-                @endphp
+                @php $isActive = strtolower($activeTab) === strtolower($kategori); @endphp
                 <a href="{{ request()->fullUrlWithQuery(['tab' => strtolower($kategori)]) }}"
                    class="flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap transition border-b-2
-                          {{ $isActive
-                              ? 'text-gray-900 border-red-600 bg-gray-50/50'
-                              : 'text-gray-600 border-transparent hover:text-gray-800 hover:bg-gray-50' }}">
+                          {{ $isActive ? 'text-gray-900 border-red-600 bg-gray-50/50' : 'text-gray-600 border-transparent hover:text-gray-800 hover:bg-gray-50' }}">
                     <iconify-icon icon="mdi:folder-outline" class="text-lg"></iconify-icon>
                     {{ $kategori }}
                 </a>
@@ -109,15 +103,35 @@
 
     {{-- TABEL DATA HORIZONTAL --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+        @php
+            $isPiutangTab = str_contains(strtolower(trim($activeTab)), 'piutang');
+        @endphp
+
         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:table" class="text-red-600 text-lg"></iconify-icon>
                 <h3 class="font-semibold text-gray-800">Rincian Pengeluaran: {{ ucwords($activeTab) }}</h3>
             </div>
-            <div class="text-xs text-gray-500">{{ $groupedByReport->flatten()->count() }} Transaksi</div>
+
+            @if($isPiutangTab)
+                <a href="{{ route('brilink.pengeluaran.invoice-bulk-pdf', [
+                        'store'    => $storeId,
+                        'from'     => $from,
+                        'to'       => $to,
+                        'search'   => $search,
+                        'kategori' => $activeTab,
+                    ]) }}"
+                target="_blank"
+                class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
+                    <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon>
+                    Print Invoice {{ ucwords($activeTab) }}
+                </a>
+            @else
+                <div class="text-xs text-gray-500">{{ $groupedByReport->flatten()->count() }} Transaksi</div>
+            @endif
         </div>
 
-                <div class="overflow-x-auto p-5">
+        <div class="overflow-x-auto p-5">
             @if($groupedByReport->isEmpty())
                 <div class="py-12 text-center text-gray-500">
                     <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
@@ -194,7 +208,6 @@
                                 @endforeach
                             @endforeach
                             
-                            {{-- BARIS TOTAL REKAP --}}
                             <tr class="bg-red-50 border-t-2 border-red-300">
                                 <td colspan="{{ $storeId === 'all' ? '2' : '1' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-left">
                                     TOTAL
@@ -229,7 +242,11 @@
                         <thead>
                             <tr class="bg-gray-100">
                                 <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Tanggal Report</th>
-                                <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Toko</th>
+                                
+                                @if($storeId === 'all')
+                                    <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Toko</th>
+                                @endif
+
                                 <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
                                 <th class="border border-gray-200 p-3 text-right text-xs font-semibold text-gray-600 uppercase">Nominal</th>
                                 <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase">Kategori Akuntansi</th>
@@ -245,12 +262,14 @@
                                         <td class="border border-gray-200 p-3 text-gray-700 font-medium">
                                             {{ $report->periode_label ?? '-' }}
                                         </td>
+
                                         @if($storeId === 'all')
                                             <td class="border border-gray-200 p-3 text-xs text-gray-600">
                                                 <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
                                                 {{ $item->report->store->nama_toko ?? '-' }}
                                             </td>
                                         @endif
+
                                         <td class="border border-gray-200 p-3 text-gray-800">
                                             {{ $item->keterangan ?? 'Tanpa catatan' }}
                                         </td>
@@ -282,7 +301,6 @@
                                 @endforeach
                             @endforeach
                             
-                            {{-- BARIS TOTAL REKAP --}}
                             <tr class="bg-red-50 border-t-2 border-red-300">
                                 <td colspan="{{ $storeId === 'all' ? '3' : '2' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-right">
                                     TOTAL PENGELUARAN
@@ -301,7 +319,6 @@
 
 </div>
 
-{{-- MODAL TAMBAH PENGELUARAN MANUAL --}}
 {{-- MODAL TAMBAH / EDIT PENGELUARAN --}}
 <div id="pengeluaranModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closePengeluaranModal()"></div>
@@ -318,12 +335,25 @@
 
         <form id="pengeluaranForm" onsubmit="submitPengeluaranForm(event)">
             @csrf
-            <input type="hidden" name="store_id" value="{{ $storeId }}">
+            {{-- Value store_id di form akan diupdate via JS --}}
+            <input type="hidden" name="store_id" id="pengeluaranStoreId" value="{{ $storeId }}">
             <input type="hidden" id="pengeluaranId" name="pengeluaran_id" value="">
             <input type="hidden" id="pengeluaranMode" value="create">
 
             <div class="p-5 space-y-4">
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorPengeluaran"></div>
+
+                {{-- 🔥 DROPDOWN TOKO (Hanya Tampil jika Semua Toko) --}}
+                <div id="tokoFieldWrapper" class="hidden">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko <span class="text-red-500">*</span></label>
+                    <select id="pengeluaranStoreSelect" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-red-500 focus:outline-none bg-white">
+                        <option value="">-- Pilih Toko --</option>
+                        @foreach($stores as $s)
+                            <option value="{{ $s->id }}">{{ $s->nama_toko }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
                 {{-- Tanggal: hanya tampil saat CREATE --}}
                 <div id="tanggalFieldWrapper">
@@ -384,6 +414,9 @@
 <script>
     const CSRF_TOKEN_PENGELUARAN = document.querySelector('meta[name="csrf-token"]').content;
 
+    // Cek status filter saat ini dari PHP
+    const CURRENT_STORE_ID = "{{ $storeId }}";
+
     function todayLocal() {
         const d = new Date();
         const yyyy = d.getFullYear();
@@ -392,9 +425,6 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
-    // ===================================================
-    // FORMAT NOMINAL (dipakai di modal)
-    // ===================================================
     function formatNominalInput(input) {
         let value = input.value.replace(/[^0-9]/g, '');
         if (value) {
@@ -424,19 +454,34 @@
         form.reset();
         errors.classList.add('hidden');
 
-        // Set mode create
         document.getElementById('pengeluaranMode').value = 'create';
         document.getElementById('pengeluaranId').value = '';
         document.getElementById('pengeluaranModalTitle').textContent = 'Tambah Pengeluaran';
         document.getElementById('pengeluaranModalIcon').setAttribute('icon', 'mdi:plus-circle');
         document.getElementById('btnSubmitPengeluaranText').textContent = 'Simpan';
 
-        // Tampilkan tanggal input, sembunyikan readonly
         document.getElementById('tanggalFieldWrapper').classList.remove('hidden');
         document.getElementById('tanggalReadonlyWrapper').classList.add('hidden');
         document.getElementById('pengeluaranTanggal').value = todayLocal();
 
         document.getElementById('inputNominalPengeluaran').value = '';
+
+        // 🔥 LOGIKA TAMPILKAN/SEMBUNYIKAN DROPDOWN TOKO
+        const tokoWrapper = document.getElementById('tokoFieldWrapper');
+        const tokoSelect = document.getElementById('pengeluaranStoreSelect');
+        const storeIdHidden = document.getElementById('pengeluaranStoreId');
+
+        if (CURRENT_STORE_ID === 'all') {
+            // Jika Semua Toko, tampilkan dropdown dan kosongkan value hidden
+            tokoWrapper.classList.remove('hidden');
+            tokoSelect.required = true;
+            storeIdHidden.value = '';
+        } else {
+            // Jika Toko Spesifik, sembunyikan dropdown dan isi hidden
+            tokoWrapper.classList.add('hidden');
+            tokoSelect.required = false;
+            storeIdHidden.value = CURRENT_STORE_ID;
+        }
 
         modal.classList.remove('hidden');
         modal.classList.add('flex');
@@ -453,27 +498,26 @@
         form.reset();
         errors.classList.add('hidden');
 
-        // Set mode edit
         document.getElementById('pengeluaranMode').value = 'edit';
         document.getElementById('pengeluaranId').value = id;
         document.getElementById('pengeluaranModalTitle').textContent = 'Edit Pengeluaran';
         document.getElementById('pengeluaranModalIcon').setAttribute('icon', 'mdi:pencil');
         document.getElementById('btnSubmitPengeluaranText').textContent = 'Simpan Perubahan';
 
-        // Sembunyikan tanggal input, tampilkan readonly
+        // Sembunyikan dropdown toko saat edit (karena toko tidak diubah)
+        document.getElementById('tokoFieldWrapper').classList.add('hidden');
+        document.getElementById('pengeluaranStoreSelect').required = false;
+
         document.getElementById('tanggalFieldWrapper').classList.add('hidden');
         document.getElementById('tanggalReadonlyWrapper').classList.remove('hidden');
 
-        // Ambil tanggal dari baris tabel (kolom pertama)
         const row = document.getElementById('pengeluaran-row-' + id);
         const tanggalText = row ? row.querySelector('td').innerText.trim() : '-';
         document.getElementById('pengeluaranTanggalReadonly').textContent = tanggalText;
 
-        // Isi field
         document.getElementById('pengeluaranKeterangan').value = keterangan || '';
         document.getElementById('pengeluaranKategori').value = kategori || '';
 
-        // Format nominal dengan titik
         if (nominal > 0) {
             document.getElementById('inputNominalPengeluaran').value =
                 new Intl.NumberFormat('id-ID').format(nominal);
@@ -512,12 +556,24 @@
         btnText.textContent = 'Menyimpan...';
         errorDiv.classList.add('hidden');
 
-        // Bersihkan titik dari nominal
         const nominalInput = document.getElementById('inputNominalPengeluaran');
         const nominalRaw = nominalInput.value.replace(/[^0-9]/g, '');
 
         const formData = new FormData(form);
-        formData.set('nominal', nominalRaw); // override dengan angka bersih
+        formData.set('nominal', nominalRaw);
+
+        // Jika create dan sedang di mode 'all', pastikan store_id terambil dari dropdown modal
+        if (mode === 'create' && CURRENT_STORE_ID === 'all') {
+            const selectedStore = document.getElementById('pengeluaranStoreSelect').value;
+            if (!selectedStore) {
+                errorDiv.textContent = 'Silakan pilih toko terlebih dahulu.';
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btnText.textContent = originalText;
+                return;
+            }
+            formData.set('store_id', selectedStore);
+        }
 
         let url, method;
         if (mode === 'create') {
@@ -585,9 +641,6 @@
         }
     }
 
-    // ===================================================
-    // ESC = tutup modal
-    // ===================================================
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closePengeluaranModal();
     });

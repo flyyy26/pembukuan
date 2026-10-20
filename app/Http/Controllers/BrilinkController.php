@@ -12,13 +12,10 @@ use App\Models\Store;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Barryvdh\DomPDF\Facade\Pdf;
 
 class BrilinkController extends Controller
 {
-    /**
-     * Dashboard utama BRILink.
-     * Menampilkan agregat lintas report untuk store + filter periode.
-     */
     public function index(Request $request)
     {
         $request->validate([
@@ -26,35 +23,27 @@ class BrilinkController extends Controller
             'to'   => ['nullable', 'date_format:Y-m-d'],
         ]);
 
-        $storeId = $request->input('store'); // Bisa berisi ID toko atau 'all'
-        
-        // Simpan input asli untuk View (HTML)
+        $storeId = $request->input('store');
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database (Default: Hari Ini)
         $from = $fromInput ?? now()->format('Y-m-d');
         $to   = $toInput;
 
-        // JIKA HANYA SALAH SATU YANG DIISI, JADIKAN FILTER 1 HARI
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
             $from = $to;
         }
 
-        $stores = Store::where('marketplace', 'brilink')
-            ->orderBy('nama_toko')
-            ->get();
+        $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
 
-        // Jika belum pilih toko, default ke 'all'
         if (!$storeId) {
             $storeId = 'all';
         }
         
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // ================= QUERY REPORTS =================
         $reportQuery = BrilinkReport::with([
                 'accounts',
                 'ppobItems',
@@ -62,7 +51,6 @@ class BrilinkController extends Controller
                 'tarikTunaiItems',
                 'pengeluaranItems',
             ])
-            // Hanya filter store_id jika bukan 'all'
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->when($from, fn($q) => $q->whereRaw(
                 'COALESCE(periode_end, periode_start, DATE(created_at)) >= ?', [$from]
@@ -77,7 +65,6 @@ class BrilinkController extends Controller
 
         $totalOmsetPpobDariDetail = $reports->flatMap->ppobItems->sum('nominal');
 
-        // ================= SUMMARY (agregat awal) =================
         $summary = [
             'total_omset_ppob'         => (int) $totalOmsetPpobDariDetail,
             'total_tarik_edc'          => (int) $reports->sum('total_tarik_tunai_edc'),
@@ -111,50 +98,53 @@ class BrilinkController extends Controller
         // ================= BREAKDOWN PENGELUARAN =================
         $allPengeluaran = $reports->flatMap->pengeluaranItems;
 
-        // Filter Pengeluaran Riil (Bukan Pindah Saldo Internal)
-        $pengeluaranRiil = $allPengeluaran->filter(function ($p) {
-            $kategori = strtolower(trim($p->kategori ?? ''));
-            return $kategori !== 'pindah saldo internal';
-        });
+        $cariPengeluaran = function($keywords) use ($allPengeluaran) {
+            return $allPengeluaran->filter(function ($p) use ($keywords) {
+                // Cek di kolom kategori (paling akurat sesuai Excel)
+                $kategori = strtolower(trim($p->kategori ?? ''));
+                foreach ((array) $keywords as $kw) {
+                    if ($kategori === strtolower($kw)) return true;
+                }
+                // Fallback cek keterangan jika kategori kosong
+                $keterangan = strtolower(trim($p->keterangan ?? ''));
+                foreach ((array) $keywords as $kw) {
+                    if (str_contains($keterangan, strtolower($kw))) return true;
+                }
+                return false;
+            })->sum('nominal_kas');
+        };
 
-        $pengeluaranPindah = $allPengeluaran->filter(function ($p) {
-            $kategori = strtolower(trim($p->kategori ?? ''));
-            return $kategori === 'pindah saldo internal';
-        });
+        $totalPindahSaldo = $cariPengeluaran('PINDAH SALDO KAS INTERNAL');
+        $totalTopupPpob   = $cariPengeluaran('TOP UP PPOB');
+        $totalTopupPulsa  = $cariPengeluaran('TOP UP PULSA');
+        $totalPiutangHaji = $cariPengeluaran('PIUTANG BU HAJI');
+        $totalPiutangIyus = $cariPengeluaran('PIUTANG IYUS');
+        $totalPiutangLain = $cariPengeluaran('PIUTANG LAIN LAIN');
+        $totalPrive       = $cariPengeluaran('PRIVE');
+        $totalOperasional = $cariPengeluaran(['OP KONVEKSI', 'OPERASIONAL KONVEKSI']); // Support dua penulisan
 
-        $totalPengeluaranRiil = $pengeluaranRiil->sum('nominal_kas');
-        $totalPindahSaldo = $pengeluaranPindah->sum('nominal_kas');
+        $totalPengeluaranRiil = $totalTopupPpob + $totalTopupPulsa + $totalPiutangHaji + $totalPiutangIyus + $totalPiutangLain + $totalPrive + $totalOperasional;
 
-        // Timpa nilai summary dengan hasil filter yang lebih akurat
         $summary['total_pengeluaran_riil'] = (int) $totalPengeluaranRiil;
         $summary['total_pindah_saldo']     = (int) $totalPindahSaldo;
 
-        $summary['tarik_edc_admin']     = (int) $tarikEdcAdmin;
-        $summary['tarik_mb_admin']     = (int) $tarikMbAdmin;
-        $summary['setoran_admin']     = (int) $setoranAdmin;
+        $summary['tarik_edc_admin'] = (int) $tarikEdcAdmin;
+        $summary['tarik_mb_admin']  = (int) $tarikMbAdmin;
+        $summary['setoran_admin']   = (int) $setoranAdmin;
 
+        // Rangkuman untuk tabel di View (Pastikan key-nya sama dengan yang dipakai di blade)
         $breakdownPengeluaran = [
-            'riil' => $pengeluaranRiil
-                ->groupBy(fn($p) => $p->kategori ?: 'Tanpa Kategori')
-                ->map(fn($g, $k) => [
-                    'kategori' => $k,
-                    'total'    => (int) $g->sum('nominal_kas'),
-                    'jumlah'   => $g->count(),
-                    'items'    => $g->map(fn($item) => [
-                        'keterangan' => $item->keterangan,
-                        'nominal'    => $item->nominal_kas
-                    ])->values()->toArray(),
-                ])
-                ->sortByDesc('total')
-                ->values()
-                ->toArray(),
-            'pindah_saldo' => $summary['total_pindah_saldo'],
-            'pindah_count' => $pengeluaranPindah->count(),
+            'pindah_saldo' => $totalPindahSaldo,
+            'topup_ppob'   => $totalTopupPpob,
+            'topup_pulsa'  => $totalTopupPulsa,
+            'piutang_haji' => $totalPiutangHaji,
+            'piutang_iyus' => $totalPiutangIyus,
+            'piutang_lain' => $totalPiutangLain,
+            'prive'        => $totalPrive,
+            'operasional'  => $totalOperasional,
         ];
 
-        // ===================================================
-        // HITUNG UANG MASUK & UANG KELUAR (SETELAH DATA FINAL)
-        // ===================================================
+        // HITUNG UANG MASUK & UANG KELUAR
         $summary['uang_masuk'] = $summary['total_omset_ppob']
                                 + $summary['total_setoran']
                                 + $summary['tarik_edc_admin']
@@ -202,36 +192,23 @@ class BrilinkController extends Controller
 
         $saldoPerRekening = [];
         if ($latestReport) {
-            // Definisikan urutan prioritas
-            $prioritasUrutan = [
-                'brangkas'  => 1,
-                'kas'       => 2,
-                'mbanking'  => 3,
-                'ppob'      => 4,
-                'pulsa'     => 5,
-            ];
-
-            // Kumpulkan semua akun dari report terbaru (bisa dari banyak toko)
+            $prioritasUrutan = ['brangkas' => 1, 'kas' => 2, 'mbanking' => 3, 'ppob' => 4, 'pulsa' => 5];
             $allAccounts = $reports->flatMap->accounts;
-
-            // Gabungkan berdasarkan nama rekening
             $groupedAccounts = $allAccounts->groupBy('nama_rekening');
 
             $saldoPerRekening = $groupedAccounts->map(function ($items, $nama) {
                 return [
                     'nama'      => $nama,
-                    'keterangan'=> $items->first()->keterangan, // Ambil keterangan pertama
-                    'saldo_awal'=> $items->sum('saldo_awal'),   // Jumlahkan saldo awal
-                    'saldo'     => $items->sum('saldo_akhir'),  // Jumlahkan saldo akhir
-                    'selisih'   => $items->sum('selisih'),      // Jumlahkan selisih
+                    'keterangan'=> $items->first()->keterangan,
+                    'saldo_awal'=> $items->sum('saldo_awal'),
+                    'saldo'     => $items->sum('saldo_akhir'),
+                    'selisih'   => $items->sum('selisih'),
                 ];
             })
             ->sortBy(function ($item) use ($prioritasUrutan) {
                 $namaBawah = strtolower($item['nama']);
                 foreach ($prioritasUrutan as $keyword => $bobot) {
-                    if (str_contains($namaBawah, $keyword)) {
-                        return $bobot;
-                    }
+                    if (str_contains($namaBawah, $keyword)) return $bobot;
                 }
                 return 99;
             })
@@ -250,21 +227,25 @@ class BrilinkController extends Controller
             ->values()
             ->toArray();
 
-        // Hitung Jumlah Kas Uang dari Rekening "KAS"
-        $kasData = collect($saldoPerRekening)->firstWhere('nama', 'KAS');
-        $summary['jml_kas_uang'] = $kasData ? $kasData['saldo'] : 0;
+                // 🛠️ PERUBAHAN: Ambil Jumlah Kas Uang dari nilai input di Excel (B24)
+        // manual_validasi_kas_uang di sini menyimpan nilai "Jumlah Kas Uang" dari Excel
+        $summary['jml_kas_uang'] = $latestReport ? (int) $latestReport->manual_validasi_kas_uang : 0;
 
-        // Hitung Selisih Kas Uang (Jumlah Kas - Validasi Kas dari Excel)
+        // Selisih Kas Uang = Jumlah Kas Uang - Jumlah Penjualan Net
+        // (Ini sesuai dengan rumus Excel Anda: B24 - B23)
         $summary['selisih_kas_uang'] = $summary['jml_kas_uang'] - $summary['jml_penjualan'];
 
-        $summary['validasi_kas_uang'] = $latestReport ? (int) $latestReport->manual_validasi_kas_uang : 0;
-
+        // Karena B24 sekarang adalah 'Jumlah Kas Uang', kolom validasi fisik bisa jadi kosong (0) 
+        // sampai user memasukkan angka validasi secara manual dari aplikasi.
+        // Tapi kita tetap butuh field ini untuk form input manual Anda di view.
+        // Untuk sementara kita set 0 atau sesuaikan dengan alur aplikasi Anda.
+        
+        // *Catatan: Jika Anda tetap ingin menampilkan Selisih Validasi (B25), rumusnya B25 = B24 - D24*
+        $summary['validasi_kas_uang'] = 0; // Atur ke 0, karena B24 sudah jadi Jumlah Kas Uang
         $summary['selisih_validasi'] = $summary['selisih_kas_uang'] - $summary['validasi_kas_uang'];
 
-        // ================= TREND BULANAN =================
         $monthlyTrend = $this->buildMonthlyTrend($reports);
 
-        // ================= LIST REPORT =================
         $reportList = $reports->map(fn($r) => [
             'id'             => $r->id,
             'file_name'      => $r->file_name,
@@ -286,8 +267,8 @@ class BrilinkController extends Controller
             'stores'             => $stores,
             'store'              => $store,
             'storeId'            => $storeId,
-            'from'               => $fromInput ?? now()->format('Y-m-d'), // Kirim input asli atau hari ini
-            'to'                 => $toInput, // Kirim input asli (bisa kosong)
+            'from'               => $fromInput ?? now()->format('Y-m-d'),
+            'to'                 => $toInput,
             'summary'            => $summary,
             'breakdownPendapatan'=> $breakdownPendapatan,
             'breakdownPengeluaran' => $breakdownPengeluaran,
@@ -301,9 +282,6 @@ class BrilinkController extends Controller
         ]);
     }
 
-    /**
-     * Detail 1 report.
-     */
     public function show(BrilinkReport $report)
     {
         $report->load([
@@ -318,9 +296,6 @@ class BrilinkController extends Controller
         return view('brilink.show', compact('report'));
     }
 
-    /**
-     * Hapus report (dan semua child via cascade).
-     */
     public function destroy(BrilinkReport $report)
     {
         $importId = $report->import_id;
@@ -331,9 +306,6 @@ class BrilinkController extends Controller
             ->with('success', 'Report BRILink berhasil dihapus.');
     }
 
-    /**
-     * Build trend bulanan dari report (group by Y-m).
-     */
     private function buildMonthlyTrend($reports): array
     {
         $grouped = $reports
@@ -370,7 +342,6 @@ class BrilinkController extends Controller
             ];
         }
 
-        // Urutkan desc untuk tampilan
         return array_reverse($result);
     }
 
@@ -380,15 +351,12 @@ class BrilinkController extends Controller
         $activeTab = $request->input('tab', 'semua');
         $search = trim($request->input('search', ''));
 
-        // Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database
         $from = $fromInput ?? now()->format('Y-m-d');
         $to   = $toInput;
 
-        // Logika 1 tanggal (untuk Query)
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
@@ -397,21 +365,17 @@ class BrilinkController extends Controller
 
         $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
         
-        // Default ke 'all' jika belum dipilih
         if (!$storeId) {
             $storeId = 'all';
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // Query dasar
         $query = BrilinkPengeluaran::whereHas('report', function($q) use ($storeId, $from, $to) {
-            // Filter store_id hanya jika bukan 'all'
             $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
               ->when($from, fn($sq) => $sq->whereDate('periode_start', '>=', $from))
               ->when($to, fn($sq) => $sq->whereDate('periode_start', '<=', $to));
         })->with('report.store');
 
-        // Filter Pencarian
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('keterangan', 'LIKE', "%{$search}%")
@@ -419,20 +383,16 @@ class BrilinkController extends Controller
             });
         }
 
-        // Ambil semua data (untuk mendapatkan daftar kategori/tab)
         $allData = $query->get();
-
-        // Dapatkan daftar kategori unik untuk Tab
+        
         $kategoriList = $allData->pluck('kategori')->filter()->unique()->sort()->values();
 
-        // Filter data sesuai Tab yang aktif
         if ($activeTab !== 'semua') {
             $allData = $allData->filter(function($item) use ($activeTab) {
                 return strtolower(trim($item->kategori)) === strtolower($activeTab);
             });
         }
 
-        // Grouping untuk tabel horizontal
         $groupedByReport = $allData->groupBy('brilink_report_id');
 
         return view('brilink.pengeluaran', [
@@ -466,15 +426,12 @@ class BrilinkController extends Controller
         $storeId = $request->input('store');
         $search = trim($request->input('search', ''));
 
-        // Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database
         $from = $fromInput ?? now()->format('Y-m-d');
         $to   = $toInput;
 
-        // Logika 1 tanggal (untuk Query)
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
@@ -488,17 +445,24 @@ class BrilinkController extends Controller
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // Ambil data PPOB
         $query = BrilinkPpobTransaction::whereHas('report', function($q) use ($storeId, $from, $to) {
             $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
               ->when($from, fn($sq) => $sq->whereDate('periode_start', '>=', $from))
               ->when($to, fn($sq) => $sq->whereDate('periode_start', '<=', $to));
-        })->with(['report']); // Cukup relasi report
+        })->with(['report']);
 
         if (!empty($search)) {
-            $query->where(function($q) use ($search) {
+            // Bersihkan format titik dari angka (jika user mengetik "10.000")
+            $searchAngka = preg_replace('/[^0-9]/', '', $search);
+
+            $query->where(function($q) use ($search, $searchAngka) {
                 $q->where('kategori', 'LIKE', "%{$search}%")
                   ->orWhere('keterangan', 'LIKE', "%{$search}%");
+                  
+                // Jika yang diketik adalah angka, cari juga di kolom nominal
+                if ($searchAngka !== '') {
+                    $q->orWhere('nominal', 'LIKE', "%{$searchAngka}%");
+                }
             });
         }
 
@@ -526,21 +490,19 @@ class BrilinkController extends Controller
             'tanggal'  => 'required|date'
         ]);
 
-        // Cari atau buat report untuk tanggal tersebut
         $report = BrilinkReport::firstOrCreate(
             [
                 'store_id' => $request->store_id,
                 'periode_start' => $request->tanggal,
             ],
             [
-                'import_id' => 1, // Atau sesuaikan dengan logic import Anda
+                'import_id' => 1,
                 'file_name' => 'Input Manual',
                 'file_hash' => uniqid(),
                 'status'    => 'imported',
             ]
         );
 
-        // Simpan transaksi
         BrilinkPpobTransaction::create([
             'brilink_report_id' => $report->id,
             'kategori'          => $request->kategori,
@@ -576,22 +538,20 @@ class BrilinkController extends Controller
                 ]
             );
 
+            // 🔥 Ambil keterangan dari request (jika ada)
+            $keterangan = $request->keterangan ?: 'Input Manual';
+
             BrilinkPpobTransaction::create([
                 'brilink_report_id' => $report->id,
                 'kategori'          => $request->kategori,
                 'nominal'           => $request->nominal,
-                'keterangan'        => 'Input Manual'
+                'keterangan'        => $keterangan
             ]);
 
-            // 🔥 Recalculate total_omset_ppob di report
             $this->recalculateReportPpobTotal($report);
-
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transaksi PPOB berhasil ditambahkan.'
-            ]);
+            return response()->json(['success' => true, 'message' => 'Transaksi PPOB berhasil ditambahkan.']);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
@@ -607,7 +567,6 @@ class BrilinkController extends Controller
             'tanggal'    => 'required|date'
         ]);
 
-        // Bersihkan nominal dari karakter non-angka
         $nominalBersih = (int) preg_replace('/[^0-9]/', '', (string) $request->nominal);
 
         if ($nominalBersih <= 0) {
@@ -616,7 +575,6 @@ class BrilinkController extends Controller
 
         DB::beginTransaction();
         try {
-            // Cari atau buat report untuk tanggal tersebut
             $report = BrilinkReport::firstOrCreate(
                 [
                     'store_id'      => $request->store_id,
@@ -631,7 +589,6 @@ class BrilinkController extends Controller
                 ]
             );
 
-            // Simpan pengeluaran
             BrilinkPengeluaran::create([
                 'brilink_report_id' => $report->id,
                 'kategori'          => $request->kategori,
@@ -639,7 +596,6 @@ class BrilinkController extends Controller
                 'nominal_kas'       => $nominalBersih,
             ]);
 
-            // 🔥 PENTING: Recalculate total di report
             $this->recalculateReportTotals($report);
 
             DB::commit();
@@ -653,12 +609,7 @@ class BrilinkController extends Controller
             return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
         }
     }
-    /**
-     * Helper: Recalculate total_pengeluaran_riil & total_pindah_saldo
-     * di tabel brilink_reports berdasarkan child items.
-     * 
-     * WAJIB dipanggil setiap kali ada CRUD pada BrilinkPengeluaran.
-     */
+
     private function recalculateReportTotals(BrilinkReport $report): void
     {
         $riil = $report->pengeluaranItems()
@@ -678,10 +629,6 @@ class BrilinkController extends Controller
         ]);
     }
 
-    /**
-     * AJAX: Update 1 pengeluaran.
-     * Tanggal (periode) TIDAK diubah — hanya keterangan, kategori, nominal.
-     */
     public function updatePengeluaranAjax(Request $request, BrilinkPengeluaran $pengeluaran)
     {
         $request->validate([
@@ -690,7 +637,6 @@ class BrilinkController extends Controller
             'nominal'    => 'required',
         ]);
 
-        // Bersihkan nominal dari karakter non-angka
         $nominalBersih = (int) preg_replace('/[^0-9]/', '', (string) $request->nominal);
 
         if ($nominalBersih <= 0) {
@@ -705,7 +651,6 @@ class BrilinkController extends Controller
                 'nominal_kas' => $nominalBersih,
             ]);
 
-            // Recalculate report totals
             $this->recalculateReportTotals($pengeluaran->report);
 
             DB::commit();
@@ -720,9 +665,6 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * AJAX: Hapus 1 pengeluaran.
-     */
     public function destroyPengeluaranAjax(BrilinkPengeluaran $pengeluaran)
     {
         DB::beginTransaction();
@@ -732,7 +674,6 @@ class BrilinkController extends Controller
 
             $pengeluaran->delete();
 
-            // Recalculate report totals
             if ($report) {
                 $this->recalculateReportTotals($report);
             }
@@ -749,23 +690,12 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * Helper: Recalculate total_omset_ppob di report
-     * berdasarkan child ppobItems.
-     */
     private function recalculateReportPpobTotal(BrilinkReport $report): void
     {
         $total = $report->ppobItems()->sum('nominal');
-
-        $report->update([
-            'total_omset_ppob' => (int) $total,
-        ]);
+        $report->update(['total_omset_ppob' => (int) $total]);
     }
 
-    /**
-     * AJAX: Update 1 transaksi PPOB (kategori & nominal).
-     * Keterangan otomatis di-set "Input Manual".
-     */
     public function updateLogPpobAjax(Request $request, BrilinkPpobTransaction $ppob)
     {
         $request->validate([
@@ -777,16 +707,19 @@ class BrilinkController extends Controller
 
         if ($nominalBersih <= 0) {
             return response()->json([
-                'message' => 'Nominal harus lebih dari 0. Untuk menghapus, gunakan tombol Hapus.'
+                'message' => 'Nominal harus lebih dari 0.'
             ], 422);
         }
 
         DB::beginTransaction();
         try {
+            // 🔥 Ambil keterangan, jika kosong gunakan default
+            $keterangan = $request->keterangan ?: 'Input Manual';
+
             $ppob->update([
                 'kategori'   => $request->kategori,
                 'nominal'    => $nominalBersih,
-                'keterangan' => 'Input Manual',
+                'keterangan' => $keterangan,
             ]);
 
             if ($ppob->report) {
@@ -795,19 +728,13 @@ class BrilinkController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Transaksi PPOB berhasil diperbarui.',
-            ]);
+            return response()->json(['success' => true, 'message' => 'Transaksi PPOB berhasil diperbarui.']);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'Gagal update: ' . $e->getMessage()], 500);
         }
     }
 
-    /**
-     * AJAX: Hapus (hard delete) 1 transaksi PPOB.
-     */
     public function destroyLogPpobAjax(BrilinkPpobTransaction $ppob)
     {
         DB::beginTransaction();
@@ -838,15 +765,12 @@ class BrilinkController extends Controller
         $storeId = $request->input('store');
         $search = trim($request->input('search', ''));
 
-        // Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database
         $from = $fromInput ?? now()->format('Y-m-d');
         $to   = $toInput;
 
-        // Logika 1 tanggal (untuk Query)
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
@@ -855,28 +779,54 @@ class BrilinkController extends Controller
 
         $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
         
-        // Default ke 'all'
         if (!$storeId) {
             $storeId = 'all';
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // Query Report beserta item setorannya
-        $query = BrilinkReport::with(['setoranItems'])
-            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
-            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
-            ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
-            ->orderByDesc('periode_start')
-            ->orderByDesc('id');
+        // Siapkan wadah pencarian
+        $searchAngka = preg_replace('/[^0-9]/', '', $search);
+        
+        // Jika hasil pembersihan ada isinya, DAN input aslinya tidak mengandung huruf 
+        // (kecuali huruf 'R' dan 'p' dari kata Rp), maka anggap pencarian angka.
+        // Lebih aman: Jika $searchAngka ada isinya, kita coba cari di keduanya (angka & teks).
+        $isNumericSearch = ($searchAngka !== '');
 
+        // Eager load relasi dengan constraint (filter)
+        $query = BrilinkReport::with(['setoranItems' => function($q) use ($searchAngka, $isNumericSearch) {
+            if ($isNumericSearch) {
+                // Filter relasi setoranItems
+                $q->whereRaw('CAST(nominal_edc AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                  ->orWhereRaw('CAST(jumlah_setoran_riil AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                  ->orWhereRaw('CAST(administrasi_toko AS CHAR) LIKE ?', ["%{$searchAngka}%"]);
+            }
+        }])
+        ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+        ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+        ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to));
+
+        // Filter utama
         if (!empty($search)) {
-            $query->where(function($q) use ($search) {
-                $q->where('file_name', 'LIKE', "%{$search}%")
-                ->orWhere('periode_label', 'LIKE', "%{$search}%");
+            $query->where(function($q) use ($search, $searchAngka, $isNumericSearch) {
+                // 1. Cari berdasarkan file_name (teks asli)
+                $q->where('file_name', 'LIKE', "%{$search}%");
+                
+                // 2. Jika ada angkanya, cari juga berdasarkan nominal
+                if ($isNumericSearch) {
+                    $q->orWhereHas('setoranItems', function($sq) use ($searchAngka) {
+                        $sq->whereRaw('CAST(nominal_edc AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                           ->orWhereRaw('CAST(jumlah_setoran_riil AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                           ->orWhereRaw('CAST(administrasi_toko AS CHAR) LIKE ?', ["%{$searchAngka}%"]);
+                    });
+                }
             });
         }
 
-        $reports = $query->get();
+        $reports = $query->orderByDesc('periode_start')->orderByDesc('id')->get();
+
+        // Jika pencarian teks (file_name), relasi setoranItems akan memuat semua datanya.
+        // Tapi jika pencarian angka, relasi setoranItems sudah terfilter di atas, jadi aman.
+        
         $totalSetoranKeseluruhan = $reports->flatMap->setoranItems->sum('jumlah_setoran_riil');
 
         return view('brilink.log-setoran', [
@@ -897,7 +847,6 @@ class BrilinkController extends Controller
             'manual_validasi_mutasi_rek' => 'required|string'
         ]);
 
-        // Bersihkan format Rupiah (titik) menjadi integer murni
         $nominalBersih = (int) preg_replace('/[^0-9]/', '', $request->input('manual_validasi_mutasi_rek'));
 
         $report->update([
@@ -919,7 +868,6 @@ class BrilinkController extends Controller
             'admin_toko'    => 'required',
         ]);
 
-        // Bersihkan format Rupiah (titik) menjadi integer murni
         $nominalEdc = (int) preg_replace('/[^0-9]/', '', (string) $request->nominal_edc);
         $adminToko  = (int) preg_replace('/[^0-9]/', '', (string) $request->admin_toko);
 
@@ -929,7 +877,6 @@ class BrilinkController extends Controller
 
         DB::beginTransaction();
         try {
-            // Cari atau buat report untuk tanggal tersebut
             $report = BrilinkReport::firstOrCreate(
                 [
                     'store_id'      => $request->store_id,
@@ -944,15 +891,14 @@ class BrilinkController extends Controller
                 ]
             );
 
-            // Simpan ke tabel brilink_setoran
             BrilinkSetoran::create([
                 'brilink_report_id'   => $report->id,
                 'nominal_edc'         => $nominalEdc,
                 'administrasi_toko'   => $adminToko,
-                'jumlah_setoran_riil'=> $nominalEdc, // Asumsi setoran riil = nominal EDC
+                'jumlah_setoran_riil'=> $nominalEdc,
+                'keterangan'          => $request->keterangan,
             ]);
 
-            // 🔥 PENTING: Update total_setoran_brilink di report agar Ringkasan & Saldo akurat
             $totalSetoranBaru = $report->setoranItems()->sum('jumlah_setoran_riil');
             $report->update([
                 'total_setoran_brilink' => $totalSetoranBaru
@@ -970,9 +916,6 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * AJAX: Update 1 setoran manual.
-     */
     public function updateLogSetoranAjax(Request $request, BrilinkSetoran $setoran)
     {
         $request->validate([
@@ -993,9 +936,9 @@ class BrilinkController extends Controller
                 'nominal_edc'          => $nominalEdc,
                 'administrasi_toko'    => $adminToko,
                 'jumlah_setoran_riil'  => $nominalEdc,
+                'keterangan'           => $request->keterangan,
             ]);
 
-            // Recalculate total_setoran_brilink di report
             if ($setoran->report) {
                 $totalSetoranBaru = $setoran->report->setoranItems()->sum('jumlah_setoran_riil');
                 $setoran->report->update(['total_setoran_brilink' => $totalSetoranBaru]);
@@ -1013,9 +956,6 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * AJAX: Hapus 1 setoran manual.
-     */
     public function destroyLogSetoranAjax(BrilinkSetoran $setoran)
     {
         DB::beginTransaction();
@@ -1024,7 +964,6 @@ class BrilinkController extends Controller
             
             $setoran->delete();
 
-            // Recalculate total_setoran_brilink di report
             if ($report) {
                 $totalSetoranBaru = $report->setoranItems()->sum('jumlah_setoran_riil');
                 $report->update(['total_setoran_brilink' => $totalSetoranBaru]);
@@ -1047,41 +986,59 @@ class BrilinkController extends Controller
         $storeId = $request->input('store');
         $search = trim($request->input('search', ''));
 
-        // Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database
         $from = $fromInput ?? now()->format('Y-m-d');
         $to   = $toInput;
 
-        // Logika 1 tanggal (untuk Query)
         if ($from && !$to) $to = $from;
         elseif ($to && !$from) $from = $to;
 
         $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
         
-        // Default ke 'all'
         if (!$storeId) {
             $storeId = 'all';
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        $query = BrilinkReport::with(['tarikTunaiItems'])
-            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
-            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
-            ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
-            ->orderByDesc('periode_start')
-            ->orderByDesc('id');
+        // Ambil murni angka dari input (membuang "Rp", titik, spasi, dll)
+        $searchAngka = preg_replace('/[^0-9]/', '', $search);
+        $isNumericSearch = ($searchAngka !== '');
 
+        // Eager load relasi dengan constraint (filter)
+        $query = BrilinkReport::with(['tarikTunaiItems' => function($q) use ($searchAngka, $isNumericSearch) {
+            if ($isNumericSearch) {
+                // Filter relasi tarikTunaiItems
+                $q->whereRaw('CAST(nominal AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                  ->orWhereRaw('CAST(admin_toko AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                  ->orWhereRaw('CAST(kmc AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                  ->orWhereRaw('CAST(saldo_masuk AS CHAR) LIKE ?', ["%{$searchAngka}%"]);
+            }
+        }])
+        ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+        ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+        ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to));
+
+        // Filter utama
         if (!empty($search)) {
-            $query->where(function($q) use ($search) {
-                $q->where('file_name', 'LIKE', "%{$search}%")
-                ->orWhere('periode_label', 'LIKE', "%{$search}%");
+            $query->where(function($q) use ($search, $searchAngka, $isNumericSearch) {
+                // 1. Cari berdasarkan file_name (teks)
+                $q->where('file_name', 'LIKE', "%{$search}%");
+                
+                // 2. Jika ada angkanya, cari juga berdasarkan nominal di relasi
+                if ($isNumericSearch) {
+                    $q->orWhereHas('tarikTunaiItems', function($sq) use ($searchAngka) {
+                        $sq->whereRaw('CAST(nominal AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                           ->orWhereRaw('CAST(admin_toko AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                           ->orWhereRaw('CAST(kmc AS CHAR) LIKE ?', ["%{$searchAngka}%"])
+                           ->orWhereRaw('CAST(saldo_masuk AS CHAR) LIKE ?', ["%{$searchAngka}%"]);
+                    });
+                }
             });
         }
 
-        $reports = $query->get();
+        $reports = $query->orderByDesc('periode_start')->orderByDesc('id')->get();
 
         return view('brilink.log-tarik-tunai', [
             'stores' => $stores,
@@ -1119,7 +1076,6 @@ class BrilinkController extends Controller
             'tanggal'  => 'required|date',
         ]);
 
-        // Bersihkan format Rupiah menjadi integer murni
         $edcNominal = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_nominal);
         $edcAdmin   = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_admin);
         $edcKmc     = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_kmc);
@@ -1137,7 +1093,6 @@ class BrilinkController extends Controller
 
         DB::beginTransaction();
         try {
-            // Cari atau buat report untuk tanggal tersebut
             $report = BrilinkReport::firstOrCreate(
                 [
                     'store_id'      => $request->store_id,
@@ -1152,36 +1107,36 @@ class BrilinkController extends Controller
                 ]
             );
 
-            // 1. Simpan EDC jika diisi
             if ($edcNominal > 0 || $edcAdmin > 0 || $edcKmc > 0) {
                 BrilinkTarikTunai::create([
                     'brilink_report_id' => $report->id,
                     'tipe'              => 'edc_bri',
                     'nominal'           => $edcNominal,
                     'admin_toko'        => $edcAdmin,
+                    'ket_mesin_edc'     => $request->ket_mesin_edc,
                     'kmc'               => $edcKmc,
-                    'saldo_masuk'       => $saldoPindah, // Simpan saldo pindah di sini
-                    'keterangan_rek'    => $keterangan,
+                    'saldo_masuk'       => $saldoPindah,
+                    'keterangan_rek'    => null,
+                    'keterangan'        => $request->keterangan,  
                 ]);
             }
 
-            // 2. Simpan MBanking jika diisi
             if ($mbNominal > 0 || $mbAdmin > 0) {
                 BrilinkTarikTunai::create([
                     'brilink_report_id' => $report->id,
                     'tipe'              => 'mbanking',
                     'nominal'           => $mbNominal,
                     'admin_toko'        => $mbAdmin,
+                    'ket_mesin_edc'     => null,
                     'kmc'               => 0,
                     'saldo_masuk'       => $mbSaldo,
-                    'keterangan_rek'    => $keterangan,
+                    'keterangan_rek'    => $request->keterangan_rek,
+                    'keterangan'        => $request->keterangan, 
                 ]);
             }
 
-            // 3. Recalculate Report Totals (Agar Ringkasan & Saldo akurat)
             $totalEdc = $report->tarikTunaiItems()->where('tipe', 'edc_bri')->sum('nominal');
             $totalMb  = $report->tarikTunaiItems()->where('tipe', 'mbanking')->sum('nominal');
-            
             $totalAdmin = $report->tarikTunaiItems()->sum('admin_toko') + $report->tarikTunaiItems()->sum('kmc');
 
             $report->update([
@@ -1202,9 +1157,6 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * AJAX: Update 1 baris Tarik Tunai (bisa update EDC dan MBanking sekaligus).
-     */
     public function updateLogTarikTunaiAjax(Request $request)
     {
         $request->validate([
@@ -1212,7 +1164,6 @@ class BrilinkController extends Controller
             'mb_id'  => 'nullable|exists:brilink_tarik_tunai,id',
         ]);
 
-        // Bersihkan format Rupiah
         $edcNominal = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_nominal);
         $edcAdmin   = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_admin);
         $edcKmc     = (int) preg_replace('/[^0-9]/', '', (string) $request->edc_kmc);
@@ -1228,7 +1179,6 @@ class BrilinkController extends Controller
         try {
             $reportId = null;
 
-            // 1. Update atau Create EDC
             if ($request->filled('edc_id')) {
                 $edc = BrilinkTarikTunai::find($request->edc_id);
                 $edc->update([
@@ -1251,11 +1201,9 @@ class BrilinkController extends Controller
                 ]);
                 $reportId = $newEdc->brilink_report_id;
             } elseif ($request->filled('edc_id')) {
-                // Jika diinput kosong (0) tapi sebelumnya ada ID, hapus datanya
                 BrilinkTarikTunai::find($request->edc_id)->delete();
             }
 
-            // 2. Update atau Create MBanking
             if ($request->filled('mb_id')) {
                 $mb = BrilinkTarikTunai::find($request->mb_id);
                 $mb->update([
@@ -1277,17 +1225,14 @@ class BrilinkController extends Controller
                 ]);
                 $reportId = $reportId ?: $newMb->brilink_report_id;
             } elseif ($request->filled('mb_id')) {
-                // Jika diinput kosong (0) tapi sebelumnya ada ID, hapus datanya
                 BrilinkTarikTunai::find($request->mb_id)->delete();
             }
 
-            // 3. Recalculate Report Totals
             if ($reportId) {
                 $report = BrilinkReport::find($reportId);
                 if ($report) {
                     $totalEdc = $report->tarikTunaiItems()->where('tipe', 'edc_bri')->sum('nominal');
                     $totalMb  = $report->tarikTunaiItems()->where('tipe', 'mbanking')->sum('nominal');
-                    
                     $totalAdmin = $report->tarikTunaiItems()->sum('admin_toko') + $report->tarikTunaiItems()->sum('kmc');
 
                     $report->update([
@@ -1307,9 +1252,6 @@ class BrilinkController extends Controller
         }
     }
 
-    /**
-     * AJAX: Hapus sepasang Tarik Tunai (EDC & MBanking).
-     */
     public function destroyLogTarikTunaiAjax(Request $request)
     {
         $edcId = $request->input('edc_id');
@@ -1335,13 +1277,11 @@ class BrilinkController extends Controller
                 }
             }
 
-            // Recalculate Report Totals
             if ($reportId) {
                 $report = BrilinkReport::find($reportId);
                 if ($report) {
                     $totalEdc = $report->tarikTunaiItems()->where('tipe', 'edc_bri')->sum('nominal');
                     $totalMb  = $report->tarikTunaiItems()->where('tipe', 'mbanking')->sum('nominal');
-                    
                     $totalAdmin = $report->tarikTunaiItems()->sum('admin_toko') + $report->tarikTunaiItems()->sum('kmc');
 
                     $report->update([
@@ -1365,15 +1305,12 @@ class BrilinkController extends Controller
     {
         $storeId = $request->input('store');
 
-        // 1. Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from', now()->format('Y-m-d'));
         $toInput   = $request->input('to');
 
-        // 2. Nilai untuk Query Database
         $from = $fromInput;
         $to   = $toInput;
 
-        // Logika 1 tanggal (Jika hanya isi 1 tanggal, jadikan filter 1 hari)
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
@@ -1382,15 +1319,11 @@ class BrilinkController extends Controller
 
         $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
         
-        // Default ke 'all'
         if (!$storeId) {
             $storeId = 'all';
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // =====================================================================
-        // SISA KODE DI BAWAH INI TETAP SAMA, TAPI TAMBAHKAN KONDISI storeId
-        // =====================================================================
         $latestReportQuery = BrilinkReport::when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
             ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
@@ -1403,7 +1336,6 @@ class BrilinkController extends Controller
             ->orderBy('periode_start')->orderBy('id');
         $oldestReport = $oldestReportQuery->first();
 
-        // 2. Helper untuk Saldo
         $getSaldoAkhir = function($report, $keyword) {
             if (!$report) return 0;
             return $report->accounts()
@@ -1422,24 +1354,20 @@ class BrilinkController extends Controller
                 })->sum('saldo_awal');
         };
 
-        // 3. Ambil semua report dalam rentang filter untuk menghitung Total Penjualan (Omset)
         $reportsInPeriod = BrilinkReport::with(['ppobItems', 'setoranItems', 'tarikTunaiItems', 'pengeluaranItems'])
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
             ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
             ->get();
 
-        // Kalkulasi Omset dari transaksi PPOB
         $allPpob = $reportsInPeriod->flatMap->ppobItems;
     
-        // A. Pulsa
         $penjualanPulsa = $allPpob->filter(fn($i) => stripos($i->kategori, 'Pulsa') !== false)->sum('nominal');
+        $penjualanKasirPintar = $allPpob->filter(fn($i) => 
+            stripos($i->kategori, 'Kasir Pintar') !== false || 
+            stripos($i->kategori, 'Titip Jual') !== false
+        )->sum('nominal');
         
-        // B. Kasir Pintar
-        $penjualanKasirPintar = $allPpob->filter(fn($i) => stripos($i->kategori, 'Kasir Pintar') !== false)->sum('nominal');
-        
-        // C. PPOB Murni (Fastpay, Payfazz, Buku Warung, dll). 
-        // Abaikan kategori yang mengandung 'Pulsa', 'Kasir Pintar', 'Lain', dan 'Penambahan Kas'
         $penjualanPpob = $allPpob->filter(function($i) {
             $kat = strtolower($i->kategori);
             return strpos($kat, 'pulsa') === false 
@@ -1448,7 +1376,6 @@ class BrilinkController extends Controller
                 && strpos($kat, 'penambahan kas') === false;
         })->sum('nominal');
 
-        // Kalkulasi Omset dari transaksi Lainnya
         $penjualanBrilink = $reportsInPeriod->sum('total_setoran_brilink') 
                             + $reportsInPeriod->sum('total_tarik_tunai_edc'); 
                             
@@ -1468,26 +1395,27 @@ class BrilinkController extends Controller
 
         $penambahanBrangkas = $reportsInPeriod->sum('penambahan_brangkas');
         
-        // Pemakaian Brangkas diambil dari total kategori "Penambahan Kas" di PPOB
         $pemakaianBrangkas = $allPpob->filter(fn($i) => stripos($i->kategori, 'Penambahan Kas') !== false)->sum('nominal');
 
-        $totalPrive = $allPengeluaran->filter(fn($i) => stripos($i->kategori, 'Prive') !== false)->sum('nominal_kas');
+        $topupPpob = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up ppob') || str_contains(strtolower($i->keterangan ?? ''), 'top up ppob'))->sum('nominal_kas');
+        $topupPulsa = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up pulsa') || str_contains(strtolower($i->keterangan ?? ''), 'top up pulsa'))->sum('nominal_kas');
+        $totalPrive = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'prive'))->sum('nominal_kas');
         
-        // Ambil Saldo Awal & Saldo Akhir Brangkas
         $brangkasAwal = $getSaldoAwal($oldestReport, 'Brangkas');
         $brangkasAkhir = $getSaldoAkhir($latestReport, 'Brangkas');
 
-        // 4. Susun Data Profit
         $dataProfit = [
             'pulsa' => [
                 'saldo_awal' => $getSaldoAwal($oldestReport, 'Pulsa'),
                 'saldo_akhir' => $getSaldoAkhir($latestReport, 'Pulsa'),
                 'penjualan' => $penjualanPulsa,
+                'topup' => $topupPulsa,
             ],
             'ppob' => [
                 'saldo_awal' => $getSaldoAwal($oldestReport, 'PPOB'),
                 'saldo_akhir' => $getSaldoAkhir($latestReport, 'PPOB'),
                 'penjualan' => $penjualanPpob,
+                'topup' => $topupPpob,
             ],
             'brilink' => [
                 'saldo_awal' => $getSaldoAwal($oldestReport, 'BRILink'),
@@ -1514,21 +1442,19 @@ class BrilinkController extends Controller
             ],
         ];
 
-        // 5. Hitung Saldo Terpakai dan Profit (Hanya untuk Pulsa, PPOB, BRILink, MBanking)
-        foreach (['pulsa', 'ppob'] as $key) {
-            $dataProfit[$key]['saldo_terpakai'] = $dataProfit[$key]['saldo_awal'] - $dataProfit[$key]['saldo_akhir'];
-            $dataProfit[$key]['profit'] = $dataProfit[$key]['penjualan'] - $dataProfit[$key]['saldo_terpakai'];
-        }
+        $dataProfit['pulsa']['saldo_terpakai'] = $dataProfit['pulsa']['saldo_awal'] + $dataProfit['pulsa']['topup'] - $dataProfit['pulsa']['saldo_akhir'];
+        $dataProfit['pulsa']['profit'] = $dataProfit['pulsa']['penjualan'] - $dataProfit['pulsa']['saldo_terpakai'];
+
+        $dataProfit['ppob']['saldo_terpakai'] = $dataProfit['ppob']['saldo_awal'] + $dataProfit['ppob']['topup'] - $dataProfit['ppob']['saldo_akhir'];
+        $dataProfit['ppob']['profit'] = $dataProfit['ppob']['penjualan'] - $dataProfit['ppob']['saldo_terpakai'];
 
         foreach (['brilink', 'mbanking'] as $key) {
             $dataProfit[$key]['saldo_terpakai'] = $dataProfit[$key]['saldo_awal'] - $dataProfit[$key]['saldo_akhir'];
         }
 
-        // 6. Rekapitulasi Saldo Keseluruhan
         $totalSaldoAwal = array_sum(array_column($dataProfit, 'saldo_awal'));
         $totalSaldoAkhir = array_sum(array_column($dataProfit, 'saldo_akhir'));
 
-        // 7. Hitung Rangkuman Profit & Pengeluaran
         $profitPulsa = $dataProfit['pulsa']['profit'];
         $profitPpob = $dataProfit['ppob']['profit'];
         $adminBrilink = $dataProfit['brilink']['pendapatan_admin'];
@@ -1550,8 +1476,6 @@ class BrilinkController extends Controller
             'dataProfit' => $dataProfit,
             'totalSaldoAwal' => $totalSaldoAwal,
             'totalSaldoAkhir' => $totalSaldoAkhir,
-            
-            // 🔥 Variabel untuk Card Rangkuman Bawah
             'profitPulsa' => $profitPulsa,
             'profitPpob' => $profitPpob,
             'adminBrilink' => $adminBrilink,
@@ -1570,15 +1494,12 @@ class BrilinkController extends Controller
         $storeId = $request->input('store');
         $search = trim($request->input('search', ''));
         
-        // Simpan input asli untuk View (HTML)
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Nilai untuk Query Database
         $from = $fromInput;
         $to   = $toInput;
 
-        // Logika 1 tanggal (untuk Query)
         if ($from && !$to) {
             $to = $from;
         } elseif ($to && !$from) {
@@ -1592,7 +1513,6 @@ class BrilinkController extends Controller
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // 1. Ambil semua data akun yang report-nya masuk filter tanggal
         $query = BrilinkAccount::with('report')
             ->whereHas('report', function($q) use ($storeId, $from, $to) {
                 $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
@@ -1600,7 +1520,6 @@ class BrilinkController extends Controller
                   ->when($to, fn($sq) => $sq->whereDate('periode_start', '<=', $to));
             });
 
-        // 2. Filter Search
         if (!empty($search)) {
             $query->where(function($q) use ($search) {
                 $q->where('nama_rekening', 'LIKE', "%{$search}%")
@@ -1608,23 +1527,18 @@ class BrilinkController extends Controller
             });
         }
 
-        // 3. Ambil data
         $allAccounts = $query->get();
 
-        // 4. Kelompokkan per TANGGAL IMPORT (Bukan ID Report)
         $groupedByDate = $allAccounts->groupBy(function($item) {
             return $item->report->periode_start->format('Y-m-d');
         });
 
-        // 5. Urutkan grup tanggal berdasarkan tanggal terbaru
         $groupedByDate = $groupedByDate->sortKeysDesc();
 
-        // 6. Format data untuk View (Agregasi / Penjumlahan)
         $dataPerReport = [];
         foreach ($groupedByDate as $date => $accounts) {
             $firstReport = $accounts->first()->report;
 
-            // 🔥 Gabungkan data rekening yang namanya sama di tanggal tersebut
             $aggregatedAccounts = $accounts->groupBy('nama_rekening')->map(function ($items) {
                 return [
                     'nama_rekening' => $items->first()->nama_rekening,
@@ -1651,5 +1565,114 @@ class BrilinkController extends Controller
             'from' => $fromInput,
             'to' => $toInput,
         ]);
+    }
+
+    public function printInvoicePiutang(BrilinkPengeluaran $pengeluaran)
+    {
+        $kategori = strtolower($pengeluaran->kategori ?? '');
+        if (!str_contains($kategori, 'piutang')) {
+            abort(404, 'Transaksi ini bukan kategori Piutang.');
+        }
+
+        $pengeluaran->load('report.store');
+
+        $items = collect([[
+            'no_invoice' => $this->generateNoInvoicePiutang($pengeluaran),
+            'tanggal'    => $pengeluaran->report->periode_start
+                                ? $pengeluaran->report->periode_start->format('d/m/Y')
+                                : '-',
+            'keterangan' => $pengeluaran->keterangan ?? '-',
+            'kategori'   => $pengeluaran->kategori ?? '-',
+            'nominal'    => (int) $pengeluaran->nominal_kas,
+        ]]);
+
+        return $this->renderInvoicePdf($items, $pengeluaran->report->store, 'single');
+    }
+
+    public function printInvoicePiutangBulk(Request $request)
+    {
+        $storeId  = $request->input('store', 'all');
+        $fromInput = $request->input('from');
+        $toInput   = $request->input('to');
+        $search    = trim($request->input('search', ''));
+
+        $kategoriFilter = trim((string) $request->input('kategori', ''));
+
+        $from = $fromInput ?? now()->format('Y-m-d');
+        $to   = $toInput;
+        if ($from && !$to)     $to = $from;
+        elseif ($to && !$from) $from = $to;
+
+        $query = BrilinkPengeluaran::with('report.store')
+            ->whereHas('report', function ($q) use ($storeId, $from, $to) {
+                $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
+                ->when($from, fn($sq) => $sq->whereDate('periode_start', '>=', $from))
+                ->when($to,   fn($sq) => $sq->whereDate('periode_start', '<=', $to));
+            });
+
+        if ($kategoriFilter !== '') {
+            $query->whereRaw('LOWER(TRIM(kategori)) = ?', [strtolower($kategoriFilter)]);
+        } else {
+            $query->whereRaw('LOWER(kategori) LIKE ?', ['%piutang%']);
+        }
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('keterangan', 'LIKE', "%{$search}%")
+                ->orWhere('kategori', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $data = $query->orderBy('brilink_report_id')->orderBy('id')->get();
+
+        if ($data->isEmpty()) {
+            abort(404, 'Tidak ada transaksi ' . ($kategoriFilter ?: 'piutang') . ' pada filter ini.');
+        }
+
+        $items = $data->map(function ($row) {
+            return [
+                'no_invoice' => $this->generateNoInvoicePiutang($row),
+                'tanggal'    => $row->report->periode_start
+                                    ? $row->report->periode_start->format('d/m/Y')
+                                    : '-',
+                'keterangan' => $row->keterangan ?? '-',
+                'kategori'   => $row->kategori ?? '-',
+                'nominal'    => (int) $row->nominal_kas,
+            ];
+        });
+
+        $store = $storeId === 'all' ? null : ($data->first()->report->store ?? null);
+
+        return $this->renderInvoicePdf($items, $store, 'bulk');
+    }
+
+    private function renderInvoicePdf($items, $store, string $mode)
+    {
+        $total = collect($items)->sum('nominal');
+
+        $pdf = Pdf::loadView('brilink.invoice-piutang-pdf', [
+            'items'        => $items,
+            'store'        => $store,
+            'total'        => $total,
+            'mode'         => $mode,
+            'tanggalCetak' => now()->format('d/m/Y H:i'),
+        ])->setPaper('A4', 'portrait');
+
+        $fileName = 'Invoice-Piutang-'
+            . ($mode === 'single'
+                ? (collect($items)->first()['no_invoice'] ?? 'x')
+                : now()->format('Ymd-His'))
+            . '.pdf';
+
+        return $pdf->stream($fileName);
+    }
+
+    private function generateNoInvoicePiutang(BrilinkPengeluaran $pengeluaran): string
+    {
+        $tgl = $pengeluaran->report?->periode_start
+            ? $pengeluaran->report->periode_start->format('Ymd')
+            : ($pengeluaran->created_at?->format('Ymd') ?? now()->format('Ymd'));
+
+        return 'INV-PTG-' . $tgl . '-' . str_pad((string) $pengeluaran->id, 4, '0', STR_PAD_LEFT);
     }
 }

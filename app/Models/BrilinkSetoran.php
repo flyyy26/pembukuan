@@ -14,6 +14,7 @@ class BrilinkSetoran extends Model
         'nominal_edc',
         'administrasi_toko',
         'jumlah_setoran_riil',
+        'keterangan',
     ];
 
     protected $casts = [

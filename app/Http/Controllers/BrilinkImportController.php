@@ -81,9 +81,6 @@ class BrilinkImportController extends Controller
                     'file_name'     => $uploaded->getClientOriginalName(),
                     'file_hash'     => $fileHash,
                     'status'        => 'imported',
-                    
-                    // TAMBAHKAN BARIS INI:
-                    // Jika file Excel tidak punya tanggal, gunakan tanggal hari ini
                     'periode_start' => $parsed['periode_start'] ?? now()->format('Y-m-d'),
                     'periode_end'   => $parsed['periode_end']   ?? now()->format('Y-m-d'),
                 ]
@@ -115,15 +112,14 @@ class BrilinkImportController extends Controller
     {
         $spreadsheet = IOFactory::load($fullPath);
 
-        $sheetDashboard = $this->findSheet($spreadsheet, 'DASHBOARD UTAMA');
-        $sheetPpob      = $this->findSheet($spreadsheet, 'TRANSAKSI KASIR PPOB');
-        $sheetSetoran   = $this->findSheet($spreadsheet, 'TRANSAKSI SETORAN BRILINK');
-        $sheetTarik     = $this->findSheet($spreadsheet, 'TRANSAKSI TARIK TUNAI');
+        $sheetDashboard   = $this->findSheet($spreadsheet, 'DASHBOARD UTAMA');
+        $sheetPpob        = $this->findSheet($spreadsheet, 'TRANSAKSI KASIR PPOB');
+        $sheetSetoran     = $this->findSheet($spreadsheet, 'TRANSAKSI SETORAN BRILINK');
+        $sheetTarik       = $this->findSheet($spreadsheet, 'TRANSAKSI TARIK TUNAI');
         $sheetPengeluaran = $this->findSheet($spreadsheet, 'REKAP PENGELUARAN');
 
         if (!$sheetDashboard) throw new \Exception("Sheet 'DASHBOARD UTAMA' tidak ditemukan");
 
-        // Nilai formula bisa cached — gunakan calculated value
         $calc = new \PhpOffice\PhpSpreadsheet\Calculation\Calculation($spreadsheet);
 
         $report      = $this->parseDashboard($sheetDashboard, $spreadsheet, $calc);
@@ -131,11 +127,12 @@ class BrilinkImportController extends Controller
         $ppob        = $sheetPpob      ? $this->parsePpob($sheetPpob)            : [];
         $setoran     = $sheetSetoran   ? $this->parseSetoran($sheetSetoran)      : [];
         $tarikTunai  = $sheetTarik     ? $this->parseTarikTunai($sheetTarik)     : [];
+        
+        // 🔥 Baca data riil dari Sheet REKAP PENGELUARAN
         $pengeluaran = $sheetPengeluaran ? $this->parsePengeluaran($sheetPengeluaran) : [];
 
         $totalRows = count($accounts) + count($ppob) + count($setoran) + count($tarikTunai) + count($pengeluaran);
 
-        // Deteksi periode: kalau ada tanggal di log, pakai; kalau tidak, null
         $periodeStart = $report['periode_start'] ?? null;
         $periodeEnd   = $report['periode_end']   ?? null;
 
@@ -160,60 +157,59 @@ class BrilinkImportController extends Controller
         return null;
     }
 
-    /**
-     * Ambil nilai cached (formula hasil hitung) supaya tidak perlu re-calc.
-     */
     private function cellValue($sheet, string $coord)
     {
         $cell = $sheet->getCell($coord);
-        $val  = $cell->getCalculatedValue(); // gunakan cached if ada
+        $val  = $cell->getCalculatedValue();
         return is_numeric($val) ? (int) round((float) $val) : $val;
     }
 
     private function parseDashboard($sheet, $spreadsheet, $calc): array
     {
-        // Helper untuk memastikan hasilnya selalu integer, tidak pernah null
         $safeInt = function($coord) use ($sheet) {
             $val = $this->cellValue($sheet, $coord);
             return (int) round((float) ($val ?: 0));
         };
 
-        // Jika posisi sel bergeser, coba fallback mencari string "Total Omset Kasir PPOB" secara manual
-        // (Opsional, tapi sangat membantu jika template Excel berubah)
-        
         return [
             'total_omset_ppob'           => $safeInt('B5'),
             'total_tarik_tunai_edc'      => $safeInt('B6'),
             'total_tarik_tunai_mbanking' => $safeInt('B7'),
             'total_setoran_brilink'      => $safeInt('B8'),
             'total_pendapatan_admin'     => $safeInt('B9'),
-            'total_pengeluaran_riil'     => $safeInt('B10'),
-            'total_pindah_saldo'         => $safeInt('B11'),
-            'volume_transaksi_agen'      => (int) $this->cellValue($sheet, 'B12'),
+            
+            // Nilai-nilai ini akan dihitung ulang otomatis oleh Controller setelah import
+            'total_pengeluaran_riil'     => 0, 
+            'total_pindah_saldo'         => 0,
+            'volume_transaksi_agen'      => $safeInt('B18'),
             'saldo_awal_total'           => $safeInt('B44'),
             'saldo_akhir_total'          => $safeInt('B68'),
-            'validasi_kas_uang'          => $safeInt('D18'), 
-            'laba_kasir_pintar' => $safeInt('B72'),
-            'penambahan_brangkas' => $safeInt('B73'),
+            'manual_validasi_kas_uang'   => $safeInt('B24'), 
+            
+            // 🔥 PERBAIKAN: Ambil dari baris 72 dan 73 sesuai Excel
+            'laba_kasir_pintar'          => $safeInt('B72'),
+            'penambahan_brangkas'        => $safeInt('B73'),
         ];
     }
 
-    /**
-     * Saldo awal & saldo akhir ada di blok 24-43 dan 48-67.
-     */
         private function parseAccounts($sheet): array
     {
         $accounts = [];
         $awalMap = [];
 
-        // Saldo AWAL: baris 24–44
-        for ($r = 24; $r <= 44; $r++) {
+        for ($r = 27; $r <= 47; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
             
-            // Abaikan baris header atau total
             $namaStr = strtoupper(trim((string)$nama));
-            if (str_contains($namaStr, 'TOTAL') || str_contains($namaStr, 'NAMA REKENING')) continue;
+            // 🔥 TAMBAHKAN 'LABA RUGI' DAN 'PENAMBAHAN BRANGKAS' DI SINI
+            if (
+                str_contains($namaStr, 'TOTAL') || 
+                str_contains($namaStr, 'NAMA REKENING') || 
+                str_contains($namaStr, 'REKAPITULASI') ||
+                str_contains($namaStr, 'LABA RUGI') ||
+                str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
+            ) continue;
 
             $awalMap[(string) $nama] = [
                 'nama_rekening' => (string) $nama,
@@ -222,14 +218,19 @@ class BrilinkImportController extends Controller
             ];
         }
 
-        // Saldo AKHIR: baris 48–69
-        for ($r = 48; $r <= 69; $r++) {
+        for ($r = 51; $r <= 72; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
             
-            // Abaikan baris header atau total
             $namaStr = strtoupper(trim((string)$nama));
-            if (str_contains($namaStr, 'TOTAL') || str_contains($namaStr, 'NAMA REKENING')) continue;
+            // 🔥 TERAPKAN FILTER YANG SAMA UNTUK SALDO AKHIR
+            if (
+                str_contains($namaStr, 'TOTAL') || 
+                str_contains($namaStr, 'NAMA REKENING') || 
+                str_contains($namaStr, 'REKAPITULASI') ||
+                str_contains($namaStr, 'LABA RUGI') ||
+                str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
+            ) continue;
 
             $key = (string) $nama;
             $akhir = (int) round((float) ($this->cellValue($sheet, "B{$r}") ?: 0));
@@ -261,38 +262,48 @@ class BrilinkImportController extends Controller
         return $accounts;
     }
 
-    /**
-     * Sheet "TRANSAKSI KASIR PPOB" — baris 4-9 = rekap per kategori, bukan log harian.
-     * Kolom A=E pulsa, B=KP, C=Fastpay, D=BukuWarung, E=Payfazz, F=Penambahan Kas, G=Lain-lain
-     */
     private function parsePpob($sheet): array
     {
         $rows = [];
         
-        // Mapping Kolom ke Kategori
-        $kolomMap = [
-            'A' => 'Pulsa & Deposit',
-            'B' => 'Barang Kasir Pintar',
-            'C' => 'Fastpay',
-            'D' => 'Payfazz',
-            'E' => 'Buku Warung',
-            'F' => 'Penambahan Kas',
-            'G' => 'Lain-lain'
-        ];
-
-        // Looping baris dari baris ke-4 sampai batas maksimal data di Excel
+        // Ambil baris tertinggi
         $maxRow = $sheet->getHighestRow();
         
+        // Looping mulai baris 4 (sesuai Excel)
         for ($r = 4; $r <= $maxRow; $r++) {
-            foreach ($kolomMap as $kolom => $kategoriName) {
+            // 🔥 BACA KETERANGAN DI KOLOM D (Paksa baca sebagai string)
+            $keteranganTitipJual = trim((string) $sheet->getCell("D{$r}")->getValue());
+
+            // Mapping Manual Kolom -> Kategori
+            $mapping = [
+                'A' => 'Pulsa & Deposit',
+                'B' => 'Barang Kasir Pintar',
+                'C' => 'Barang Titip Jual',
+                'E' => 'Fastpay',
+                'F' => 'Payfazz',
+                'G' => 'Buku Warung',
+                'H' => 'Penambahan Kas',
+                'I' => 'Lain-lain'
+            ];
+
+            foreach ($mapping as $kolom => $kategoriName) {
+                // Ambil nilai nominal
                 $nominal = $this->cellValue($sheet, "{$kolom}{$r}");
                 
-                // Jika ada nominal lebih dari 0, simpan ke database per baris
+                // Jika nominal lebih dari 0, simpan
                 if ($nominal > 0) {
+                    // Default keterangan
+                    $keterangan = "Transaksi baris {$r}";
+                    
+                    // 🔥 JIKA INI BARANG TITIP JUAL, PAKSA GUNAKAN KETERANGAN DARI KOLOM D
+                    if ($kategoriName === 'Barang Titip Jual' && $keteranganTitipJual !== '') {
+                        $keterangan = $keteranganTitipJual;
+                    }
+
                     $rows[] = [
                         'kategori'   => $kategoriName,
                         'nominal'    => $nominal,
-                        'keterangan' => "Transaksi baris {$r}"
+                        'keterangan' => $keterangan
                     ];
                 }
             }
@@ -301,30 +312,31 @@ class BrilinkImportController extends Controller
         return $rows;
     }
 
-    /**
-     * Sheet "TRANSAKSI SETORAN BRILINK" — baris 4+ log, kolom A & B.
-     * Nilai agregat: E3=jumlah setoran riil (SUM A:A), E4=validasi, E5=selisih, E12=jumlah nota, E13=total admin
-     */
     private function parseSetoran($sheet): array
     {
         $rows = [];
         $maxRow = $sheet->getHighestRow();
         for ($r = 4; $r <= $maxRow; $r++) {
-            $nominal = $this->cellValue($sheet, "A{$r}");
-            $admin   = $this->cellValue($sheet, "B{$r}");
+            $nominal  = $this->cellValue($sheet, "A{$r}");
+            $admin    = $this->cellValue($sheet, "B{$r}");
+            $ket      = $sheet->getCell("C{$r}")->getValue(); // Kolom Keterangan
+
             if (!$nominal && !$admin) continue;
+            
+            // Abaikan baris rekap/total
+            if (stripos((string)$ket, 'VALIDASI') !== false || stripos((string)$ket, 'SELISIH') !== false) continue;
+            if (stripos((string)$nominal, 'TOTAL') !== false) continue;
+
             $rows[] = [
                 'nominal_edc'          => (int)($nominal ?: 0),
                 'administrasi_toko'    => (int)($admin ?: 0),
                 'jumlah_setoran_riil'  => (int)($nominal ?: 0),
+                'keterangan'           => $ket ? (string)$ket : null,
             ];
         }
         return $rows;
     }
 
-    /**
-     * Sheet "TRANSAKSI TARIK TUNAI" — kolom A=EDC BRI, B=Admin, C=KMC, D=Saldo masuk, E=MBanking, F=Admin MB, G=Ket
-     */
     private function parseTarikTunai($sheet): array
     {
         $rows = [];
@@ -332,55 +344,64 @@ class BrilinkImportController extends Controller
         for ($r = 4; $r <= $maxRow; $r++) {
             $edcNominal = $this->cellValue($sheet, "A{$r}");
             $edcAdmin   = $this->cellValue($sheet, "B{$r}");
-            $edcKmc     = $this->cellValue($sheet, "C{$r}");
-            $mbNominal  = $this->cellValue($sheet, "E{$r}");
-            $mbAdmin    = $this->cellValue($sheet, "F{$r}");
-            $mbKet      = $sheet->getCell("G{$r}")->getValue();
+            $edcKetMesin= $sheet->getCell("C{$r}")->getValue(); // 🔥 KET. MESIN EDC
+            $edcKmc     = $this->cellValue($sheet, "D{$r}");    // 🔥 KMC pindah ke D
+            $saldoMasuk = $this->cellValue($sheet, "E{$r}");    // 🔥 Saldo Masuk pindah ke E
+            $mbNominal  = $this->cellValue($sheet, "F{$r}");    // 🔥 MBanking pindah ke F
+            $mbAdmin    = $this->cellValue($sheet, "G{$r}");    // 🔥 Admin MB pindah ke G
+            $mbBank     = $sheet->getCell("H{$r}")->getValue(); // 🔥 Rekening Bank
+            $keterangan = $sheet->getCell("I{$r}")->getValue(); // 🔥 Keterangan Umum
 
-            if ($edcNominal || $edcAdmin || $edcKmc) {
+            // Simpan EDC jika ada nominal atau admin
+            if ($edcNominal || $edcAdmin) {
                 $rows[] = [
-                    'tipe'        => 'edc_bri',
-                    'nominal'     => (int)($edcNominal ?: 0),
-                    'admin_toko'  => (int)($edcAdmin   ?: 0),
-                    'kmc'         => (int)($edcKmc     ?: 0),
-                    'saldo_masuk' => 0,
+                    'tipe'           => 'edc_bri',
+                    'nominal'        => (int)($edcNominal ?: 0),
+                    'admin_toko'     => (int)($edcAdmin ?: 0),
+                    'ket_mesin_edc'  => $edcKetMesin ? (string)$edcKetMesin : null,
+                    'kmc'            => (int)($edcKmc ?: 0),
+                    'saldo_masuk'    => (int)($saldoMasuk ?: 0),
                     'keterangan_rek' => null,
+                    'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
             }
+            
+            // Simpan MBanking jika ada nominal atau admin
             if ($mbNominal || $mbAdmin) {
                 $rows[] = [
-                    'tipe'        => 'mbanking',
-                    'nominal'     => (int)($mbNominal ?: 0),
-                    'admin_toko'  => (int)($mbAdmin   ?: 0),
-                    'kmc'         => 0,
-                    'saldo_masuk' => (int)($this->cellValue($sheet, "D{$r}") ?: 0),
-                    'keterangan_rek' => $mbKet ? (string)$mbKet : null,
+                    'tipe'           => 'mbanking',
+                    'nominal'        => (int)($mbNominal ?: 0),
+                    'admin_toko'     => (int)($mbAdmin ?: 0),
+                    'ket_mesin_edc'  => null,
+                    'kmc'            => 0,
+                    'saldo_masuk'    => (int)($saldoMasuk ?: 0), // Asumsi saldo masuk hanya 1x per baris, bisa dipindah ke EDC
+                    'keterangan_rek' => $mbBank ? (string)$mbBank : null,
+                    'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
             }
         }
         return $rows;
     }
 
-    /**
-     * Sheet "REKAP PENGELUARAN" — kolom A=no, B=keterangan, C=nominal, D=kategori
-     * Baris 4+ = data
-     */
     private function parsePengeluaran($sheet): array
     {
         $rows = [];
         $maxRow = $sheet->getHighestRow();
+        
+        // Data dimulai dari baris 4 sesuai Excel
         for ($r = 4; $r <= $maxRow; $r++) {
-            $ket     = $sheet->getCell("B{$r}")->getValue();
-            $nominal = $this->cellValue($sheet, "C{$r}");
-            $kategori= $sheet->getCell("D{$r}")->getValue();
+            $ket     = $sheet->getCell("A{$r}")->getValue(); // Keterangan ada di Kolom A
+            $nominal = $this->cellValue($sheet, "B{$r}");    // Nominal ada di Kolom B
+            $kategori= $sheet->getCell("C{$r}")->getValue(); // Kategori ada di Kolom C
 
+            // Abaikan baris kosong atau baris total
             if (!$ket && !$nominal) continue;
             if (stripos((string)$ket, 'TOTAL') !== false) continue;
 
             $rows[] = [
                 'keterangan'  => (string) $ket,
                 'nominal_kas' => (int)($nominal ?: 0),
-                'kategori'    => $kategori ? (string)$kategori : null,
+                'kategori'    => $kategori ? (string)$kategori : 'TANPA KATEGORI',
             ];
         }
         return $rows;

@@ -23,7 +23,8 @@
         <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
-                <select name="store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
+                {{-- TAMBAHKAN onchange="this.form.submit()" --}}
+                <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-600 focus:outline-none">
                     <option value="all" {{ $storeId === 'all' ? 'selected' : '' }}>Semua Toko</option>
                     @foreach($stores as $s)
                         <option value="{{ $s->id }}" {{ $storeId == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
@@ -42,8 +43,8 @@
                 <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
-                @if($from || $to)
-                    <a href="{{ route('brilink.profit', ['store' => $storeId]) }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition">Reset</a>
+                @if($from || $to || $storeId !== 'all')
+                    <a href="{{ route('brilink.profit') }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition">Reset</a>
                 @endif
             </div>
         </form>
@@ -62,6 +63,13 @@
                     <span class="text-gray-500">Saldo Awal</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['pulsa']['saldo_awal'], 0, ',', '.') }}</span>
                 </div>
+
+                {{-- Topup Saldo --}}
+                <div class="flex justify-between border-b border-gray-100 pb-2">
+                    <span class="text-gray-500">Topup Saldo</span>
+                    <span class="font-semibold text-blue-600">+ Rp {{ number_format($dataProfit['pulsa']['topup'], 0, ',', '.') }}</span>
+                </div>
+
                 <div class="flex justify-between border-b border-gray-100 pb-2">
                     <span class="text-gray-500">Saldo Akhir</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['pulsa']['saldo_akhir'], 0, ',', '.') }}</span>
@@ -78,6 +86,7 @@
                     <span class="text-gray-500">Penjualan</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['pulsa']['penjualan'], 0, ',', '.') }}</span>
                 </div>
+
                 <div class="flex justify-between pt-1">
                     <span class="font-bold text-gray-800">PROFIT</span>
                     <span class="font-bold text-lg {{ $dataProfit['pulsa']['profit'] >= 0 ? 'text-blue-600' : 'text-red-600' }}">Rp {{ number_format($dataProfit['pulsa']['profit'], 0, ',', '.') }}</span>
@@ -96,6 +105,13 @@
                     <span class="text-gray-500">Saldo Awal</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['ppob']['saldo_awal'], 0, ',', '.') }}</span>
                 </div>
+
+                {{-- 🔥 TOPUP SALDO DIPINDAHKAN KE SINI --}}
+                <div class="flex justify-between border-b border-gray-100 pb-2">
+                    <span class="text-gray-500">Topup Saldo</span>
+                    <span class="font-semibold text-blue-600">+ Rp {{ number_format($dataProfit['ppob']['topup'], 0, ',', '.') }}</span>
+                </div>
+
                 <div class="flex justify-between border-b border-gray-100 pb-2">
                     <span class="text-gray-500">Saldo Akhir</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['ppob']['saldo_akhir'], 0, ',', '.') }}</span>
@@ -112,6 +128,7 @@
                     <span class="text-gray-500">Penjualan</span>
                     <span class="font-semibold text-gray-800">Rp {{ number_format($dataProfit['ppob']['penjualan'], 0, ',', '.') }}</span>
                 </div>
+
                 <div class="flex justify-between pt-1">
                     <span class="font-bold text-gray-800">PROFIT</span>
                     <span class="font-bold text-lg {{ $dataProfit['ppob']['profit'] >= 0 ? 'text-blue-600' : 'text-red-600' }}">Rp {{ number_format($dataProfit['ppob']['profit'], 0, ',', '.') }}</span>
@@ -343,7 +360,7 @@
         <div class="hidden md:block w-px h-12 bg-white/30"></div>
         <div class="flex items-center gap-3">
             <div class="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <iconify-icon icon="mdi:wallet-check" class="text-2xl text-white"></iconify-icon>
+                <iconify-icon icon="mdi:wallet" class="text-2xl text-white"></iconify-icon>
             </div>
             <div>
                 <div class="text-blue-100 text-sm font-medium">Total Saldo Akhir Keseluruhan</div>

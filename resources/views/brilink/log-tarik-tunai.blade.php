@@ -13,10 +13,11 @@
             </div>
             <div>
                 <h2 class="text-xl font-bold text-gray-800">Log Tarik Tunai</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
+                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
             </div>
         </div>
         
+        {{-- 🔥 TOMBOL SELALU MUNCUL --}}
         <button type="button" onclick="openTarikTunaiModal()" class="inline-flex items-center gap-2 bg-teal-600 text-white px-4 py-2 rounded-lg hover:bg-teal-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
             Tambah Tarik Tunai
@@ -28,7 +29,7 @@
         <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
-                <select name="store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none">
+                <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none">
                     <option value="all" {{ $storeId === 'all' ? 'selected' : '' }}>Semua Toko</option>
                     @foreach($stores as $s)
                         <option value="{{ $s->id }}" {{ $storeId == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
@@ -36,9 +37,14 @@
                 </select>
             </div>
             <div class="w-full md:flex-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Cari File / Periode</label>
-                <input type="text" name="search" value="{{ $search }}" placeholder="Cari data..." 
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Cari Nominal</label>
+                <div class="relative">
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <iconify-icon icon="mdi:magnify" class="text-gray-400 text-lg"></iconify-icon>
+                    </div>
+                    <input type="text" name="search" value="{{ $search }}" placeholder="Cari file atau nominal (cth: 500.000)..." 
+                        class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:ring-2 focus:ring-teal-600 focus:outline-none">
+                </div>
             </div>
             <div>
                 <label class="block text-xs font-medium text-gray-600 mb-1">Dari</label>
@@ -52,8 +58,8 @@
                 <button type="submit" class="bg-teal-600 text-white px-5 py-2 rounded-lg hover:bg-teal-700 transition text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
-                @if($search || $from || $to)
-                    <a href="{{ route('brilink.log-tarik-tunai', ['store' => $storeId]) }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition">Reset</a>
+                @if($search || $from || $to || $storeId !== 'all')
+                    <a href="{{ route('brilink.log-tarik-tunai') }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition">Reset</a>
                 @endif
             </div>
         </form>
@@ -76,13 +82,14 @@
                         {{-- Header Tingkat 1 --}}
                         <tr class="bg-gray-100 border-b border-gray-200 text-center">
                             <th class="p-2 border-r border-gray-200 bg-gray-100" rowspan="2">Tanggal</th>
-                            <th class="p-2 border-r border-gray-200 bg-teal-50 text-teal-800" colspan="3">Tunai EDC BRI</th>
+                            <th class="p-2 border-r border-gray-200 bg-teal-50 text-teal-800" colspan="4">Tunai EDC BRI</th>
                             
                             {{-- Kolom Saldo Masuk Berdiri Sendiri --}}
                             <th class="p-2 border-r border-gray-200 bg-purple-50 text-purple-800 align-middle w-32" rowspan="2">Saldo Masuk & Pindah</th>
                             
                             <th class="p-2 border-r border-gray-200 bg-yellow-50 text-yellow-800" colspan="2">Tarik Tunai MBanking</th>
-                            <th class="p-2 bg-gray-100" rowspan="2">Keterangan Rek/Bank</th>
+                            <th class="p-2 bg-gray-100" rowspan="2">Rek/Bank</th>
+                            <th class="p-2 bg-gray-100" rowspan="2">Keterangan</th>
                             @if($storeId !== 'all')
                                 <th class="p-2 border-r border-gray-200 bg-gray-100" rowspan="2">Aksi</th>
                             @endif
@@ -93,6 +100,7 @@
                             {{-- Sub-kolom EDC --}}
                             <th class="p-2 border-r border-gray-200 bg-gray-50">Nominal</th>
                             <th class="p-2 border-r border-gray-200 bg-gray-50">Admin</th>
+                            <th class="p-2 border-r border-gray-200 bg-gray-50">KET. MESIN EDC</th>
                             <th class="p-2 border-r border-gray-200 bg-gray-50">KMC</th>
                             
                             {{-- Sub-kolom MBanking --}}
@@ -127,6 +135,9 @@
                                         <td class="p-2 border-r border-gray-200 text-right text-teal-600 font-semibold">
                                             {{ $edc ? number_format($edc->admin_toko, 0, ',', '.') : '-' }}
                                         </td>
+                                        <td class="p-2 border-r border-gray-200 text-left text-gray-700 text-xs">
+                                            {{ $edc ? $edc->ket_mesin_edc : '-' }}
+                                        </td>
                                         <td class="p-2 border-r border-gray-200 text-right text-blue-600 font-semibold">
                                             {{ $edc ? number_format($edc->kmc, 0, ',', '.') : '-' }}
                                         </td>
@@ -147,16 +158,22 @@
                                             {{ $mb ? number_format($mb->admin_toko, 0, ',', '.') : '-' }}
                                         </td>
 
-                                        {{-- Keterangan --}}
-                                        <td class="p-2 text-gray-600">
-                                            {{ $mb ? $mb->keterangan_rek : ($edc ? $edc->keterangan_rek : '-') }}
+                                        {{-- Rekening Bank --}}
+                                        <td class="p-2 border-r border-gray-200 text-left text-gray-600">
+                                            {{ $mb ? $mb->keterangan_rek : '-' }}
                                         </td>
+
+                                        {{-- Keterangan Umum --}}
+                                        <td class="p-2 border-r border-gray-200 text-left text-gray-600 text-xs">
+                                            {{ $mb ? $mb->keterangan : ($edc ? $edc->keterangan : '-') }}
+                                        </td>
+
                                         {{-- Kolom Aksi --}}
                                         @if($storeId !== 'all')
                                             <td class="p-2 text-center border-l border-gray-200">
                                                 <div class="inline-flex items-center gap-1">
                                                     <button type="button"
-                                                            onclick="openEditTarikModal(event, {{ $edc?->id ?? 'null' }}, {{ $mb?->id ?? 'null' }}, {{ $edc?->nominal ?? 0 }}, {{ $edc?->admin_toko ?? 0 }}, {{ $edc?->kmc ?? 0 }}, {{ $mb?->nominal ?? 0 }}, {{ $mb?->admin_toko ?? 0 }}, {{ $mb?->saldo_masuk ?? 0 }}, {{ $edc?->saldo_masuk ?? 0 }}, '{{ addslashes($mb?->keterangan_rek ?? ($edc?->keterangan_rek ?? '')) }}', {{ $report->id }})"
+                                                            onclick="openEditTarikModal(event, {{ $edc?->id ?? 'null' }}, {{ $mb?->id ?? 'null' }}, {{ $edc?->nominal ?? 0 }}, {{ $edc?->admin_toko ?? 0 }}, '{{ addslashes($edc?->ket_mesin_edc ?? '') }}', {{ $edc?->kmc ?? 0 }}, {{ $mb?->nominal ?? 0 }}, {{ $mb?->admin_toko ?? 0 }}, {{ $mb?->saldo_masuk ?? 0 }}, {{ $edc?->saldo_masuk ?? 0 }}, '{{ addslashes($mb?->keterangan_rek ?? '') }}', '{{ addslashes($mb?->keterangan ?? ($edc?->keterangan ?? '')) }}', {{ $report->id }})"
                                                             class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition"
                                                             title="Edit">
                                                         <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
@@ -169,11 +186,11 @@
                             @else
                                 <tr>
                                     <td class="p-2 border-r border-gray-200">{{ $report->periode_label }}</td>
-                                    <td colspan="{{ $storeId === 'all' ? '7' : '8' }}" class="p-2 text-center text-gray-400 italic">Tidak ada transaksi</td>
+                                    <td colspan="{{ $storeId === 'all' ? '9' : '10' }}" class="p-2 text-center text-gray-400 italic">Tidak ada transaksi</td>
                                 </tr>
                             @endif
                         @empty
-                            <tr><td colspan="{{ $storeId === 'all' ? '7' : '8' }}" class="p-8 text-center text-gray-500">Belum ada data.</td></tr>
+                            <tr><td colspan="{{ $storeId === 'all' ? '9' : '10' }}" class="p-8 text-center text-gray-500">Belum ada data.</td></tr>
                         @endforelse
                     </tbody>
                 </table>
@@ -378,7 +395,8 @@
 
         <form id="tarikTunaiForm" onsubmit="submitTarikTunaiForm(event)">
             @csrf
-            <input type="hidden" name="store_id" value="{{ $storeId }}">
+            {{-- Value store_id diupdate via JS --}}
+            <input type="hidden" name="store_id" id="tarikStoreId" value="{{ $storeId }}">
             <input type="hidden" name="report_id" id="editReportId" value="">
             <input type="hidden" name="edc_id" id="editEdcId" value="">
             <input type="hidden" name="mb_id" id="editMbId" value="">
@@ -386,6 +404,18 @@
 
             <div class="p-5 space-y-4">
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorTarik"></div>
+
+                {{-- 🔥 DROPDOWN TOKO (Hanya tampil jika Semua Toko) --}}
+                <div id="tokoFieldWrapper" class="hidden">
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko <span class="text-red-500">*</span></label>
+                    <select id="tarikStoreSelect" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none bg-white">
+                        <option value="">-- Pilih Toko --</option>
+                        @foreach($stores as $s)
+                            <option value="{{ $s->id }}">{{ $s->nama_toko }}</option>
+                        @endforeach
+                    </select>
+                </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
@@ -395,7 +425,7 @@
                     </div>
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Keterangan Rek/Bank</label>
-                        <input type="text" name="keterangan" id="tarikKeterangan" placeholder="cth: kmrn / bca HM"
+                        <input type="text" name="keterangan_rek" id="tarikKeteranganRek" placeholder="cth: kmrn / bca HM"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
                     </div>
                 </div>
@@ -412,6 +442,11 @@
                             <label class="block text-xs font-medium text-gray-600 mb-1">Admin</label>
                             <input type="text" name="edc_admin" id="inputEdcAdmin" placeholder="0"
                                 class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">KET. MESIN EDC</label>
+                            <input type="text" name="ket_mesin_edc" id="inputKetMesinEdc" placeholder="cth: EDC AA"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         </div>
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">KMC</label>
@@ -440,11 +475,17 @@
                                 class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-yellow-500 focus:outline-none">
                         </div>
                     </div>
+
+                    <h4 class="text-sm font-bold text-gray-800 mb-2 mt-4">Keterangan</h4>
+                    <div>
+                        <input type="text" name="keterangan" id="inputKeteranganUmum" placeholder="cth: KIRANG INDOMARCO"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:outline-none">
+                    </div>
                 </div>
                 
                 <div class="border-t border-gray-100 pt-3">
                     <h4 class="text-sm font-bold text-purple-800 mb-2">Saldo Masuk & Pindah</h4>
-                    <div>
+                    <div class="mb-3">
                         <input type="text" name="saldo_pindah" id="inputSaldoPindah" placeholder="0"
                             class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-purple-500 focus:outline-none">
                     </div>
@@ -469,6 +510,9 @@
         });
     });
 
+    // Cek status filter saat ini dari PHP
+    const CURRENT_STORE_ID = "{{ $storeId }}";
+
     // --- Modal Open/Create ---
     function openTarikTunaiModal() {
         document.getElementById('tarikTunaiForm').reset();
@@ -482,12 +526,27 @@
         document.getElementById('tarikTanggal').value = new Date().toISOString().slice(0, 10);
         document.getElementById('tarikTanggal').disabled = false; // Tanggal bisa diisi saat create
 
+        // 🔥 LOGIKA TAMPILKAN/SEMBUNYIKAN DROPDOWN TOKO
+        const tokoWrapper = document.getElementById('tokoFieldWrapper');
+        const tokoSelect = document.getElementById('tarikStoreSelect');
+        const storeIdHidden = document.getElementById('tarikStoreId');
+
+        if (CURRENT_STORE_ID === 'all') {
+            tokoWrapper.classList.remove('hidden');
+            tokoSelect.required = true;
+            storeIdHidden.value = '';
+        } else {
+            tokoWrapper.classList.add('hidden');
+            tokoSelect.required = false;
+            storeIdHidden.value = CURRENT_STORE_ID;
+        }
+
         document.getElementById('tarikTunaiModal').classList.remove('hidden');
         document.getElementById('tarikTunaiModal').classList.add('flex');
     }
 
     // --- Modal Open/Edit ---
-    function openEditTarikModal(event, edcId, mbId, edcNom, edcAdm, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, ket, reportId) {
+    function openEditTarikModal(event, edcId, mbId, edcNom, edcAdm, edcKetMesin, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, bank, ket, reportId) {
         document.getElementById('tarikTunaiForm').reset();
         document.getElementById('modalErrorTarik').classList.add('hidden');
         
@@ -499,9 +558,14 @@
         // Kunci tanggal saat edit (hanya ubah nominal)
         document.getElementById('tarikTanggal').disabled = true;
 
+        // Sembunyikan dropdown toko saat edit
+        document.getElementById('tokoFieldWrapper').classList.add('hidden');
+        document.getElementById('tarikStoreSelect').required = false;
+
         // Isi data EDC
         if (edcNom > 0) document.getElementById('inputEdcNominal').value = new Intl.NumberFormat('id-ID').format(edcNom);
         if (edcAdm > 0) document.getElementById('inputEdcAdmin').value = new Intl.NumberFormat('id-ID').format(edcAdm);
+        document.getElementById('inputKetMesinEdc').value = edcKetMesin || '';
         if (edcKmc > 0) document.getElementById('inputEdcKmc').value = new Intl.NumberFormat('id-ID').format(edcKmc);
 
         // Isi data MBanking
@@ -511,7 +575,8 @@
 
         // Isi data tambahan
         if (saldoPindah > 0) document.getElementById('inputSaldoPindah').value = new Intl.NumberFormat('id-ID').format(saldoPindah);
-        document.getElementById('tarikKeterangan').value = ket || '';
+        document.getElementById('tarikKeteranganRek').value = bank || '';
+        document.getElementById('inputKeteranganUmum').value = ket || '';
 
         document.getElementById('tarikTunaiModal').classList.remove('hidden');
         document.getElementById('tarikTunaiModal').classList.add('flex');
@@ -535,6 +600,19 @@
         errorDiv.classList.add('hidden');
 
         const formData = new FormData(form);
+
+        // Jika create & mode 'all', pastikan store_id terambil dari dropdown
+        if (mode === 'create' && CURRENT_STORE_ID === 'all') {
+            const selectedStore = document.getElementById('tarikStoreSelect').value;
+            if (!selectedStore) {
+                errorDiv.textContent = 'Silakan pilih toko terlebih dahulu.';
+                errorDiv.classList.remove('hidden');
+                btn.disabled = false;
+                btn.innerHTML = '<iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> Simpan';
+                return;
+            }
+            formData.set('store_id', selectedStore);
+        }
         
         let url = "{{ route('brilink.log-tarik-tunai.store-ajax') }}";
         let method = 'POST';

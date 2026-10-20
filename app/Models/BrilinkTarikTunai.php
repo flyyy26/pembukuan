@@ -13,9 +13,11 @@ class BrilinkTarikTunai extends Model
         'tipe',
         'nominal',
         'admin_toko',
+        'ket_mesin_edc',
         'kmc',
         'saldo_masuk',
         'keterangan_rek',
+        'keterangan',   
     ];
 
     protected $casts = [

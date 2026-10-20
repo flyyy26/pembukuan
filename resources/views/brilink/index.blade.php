@@ -52,10 +52,10 @@
 
         {{-- ============ FILTER ============ --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-            <form method="GET" class="flex gap-3 items-end flex-wrap">
+            <form method="GET" class="flex gap-3 items-end flex-wrap" id="filterForm">
                 <div class="flex-1 min-w-[200px]">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
-                    <select name="store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent">
+                    <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-600 focus:border-transparent">
                         <option value="all" {{ $storeId === 'all' ? 'selected' : '' }}>Semua Toko</option>
                         @foreach($stores as $s)
                             <option value="{{ $s->id }}" {{ $storeId == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
@@ -77,8 +77,8 @@
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon>
                     Filter
                 </button>
-                @if($from || $to)
-                    <a href="{{ route('brilink.index', ['store' => $storeId]) }}"
+                @if($from || $to || $storeId !== 'all')
+                    <a href="{{ route('brilink.index') }}"
                     class="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 px-3 py-2 text-sm">
                         <iconify-icon icon="mdi:close" class="text-lg"></iconify-icon>
                         Reset
@@ -88,6 +88,7 @@
         </div>
 
         {{-- ============ SUMMARY CARDS ============ --}}
+                {{-- ============ SUMMARY CARDS ============ --}}
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             
             {{-- 1. Total Omset Kasir PPOB --}}
@@ -160,35 +161,121 @@
                 </div>
             </div>
 
-            {{-- 6. Total Pengeluaran Operasional Riil --}}
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-                <div class="flex items-center justify-between mb-2">
-                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
-                        <iconify-icon icon="mdi:cash-minus" class="text-red-600 text-lg"></iconify-icon>
-                    </div>
-                </div>
-                <div class="text-xs text-gray-500 mb-1">Pengeluaran Operasional Riil</div>
-                <div class="text-xl font-bold text-red-600">
-                    <span class="text-xs text-gray-400 font-normal">Rp</span>
-                    {{ number_format($summary['total_pengeluaran_riil'], 0, ',', '.') }}
-                </div>
-            </div>
+            {{-- 🔥 8 CARD PENGELUARAN BARU MULAI DARI SINI 🔥 --}}
 
-            {{-- 7. Total Dana Pindah Saldo Internal --}}
+            {{-- 6. Pindah Saldo Internal --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <div class="flex items-center justify-between mb-2">
                     <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
                         <iconify-icon icon="mdi:swap-horizontal" class="text-orange-600 text-lg"></iconify-icon>
                     </div>
                 </div>
-                <div class="text-xs text-gray-500 mb-1">Pindah Saldo Internal</div>
+                <div class="text-xs text-gray-500 mb-1">Pindah Saldo Kas Internal</div>
                 <div class="text-xl font-bold text-orange-600">
                     <span class="text-xs text-gray-400 font-normal">Rp</span>
                     {{ number_format($summary['total_pindah_saldo'], 0, ',', '.') }}
                 </div>
             </div>
 
-            {{-- 8. Volume Transaksi Agen --}}
+            {{-- 7. Top Up PPOB --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-cyan-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:wallet-plus" class="text-cyan-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Pengeluaran Top Up PPOB</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['topup_ppob'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 8. Top Up Pulsa --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-sky-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:cellphone-arrow-down" class="text-sky-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Pengeluaran Top Up Pulsa</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['topup_pulsa'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 9. Piutang Bu Haji --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:account-cash" class="text-amber-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Piutang Bu Haji</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['piutang_haji'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 10. Piutang Iyus --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:account-cash" class="text-amber-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Piutang Iyus</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['piutang_iyus'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 11. Piutang Lain-lain --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:account-cash" class="text-amber-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Piutang Lain-lain</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['piutang_lain'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 12. Prive --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-red-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:cash-minus" class="text-red-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Pengeluaran Prive</div>
+                <div class="text-xl font-bold text-red-600">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['prive'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 13. Operasional Konveksi --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="mdi:store" class="text-gray-600 text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-xs text-gray-500 mb-1">Operasional Konveksi</div>
+                <div class="text-xl font-bold text-gray-800">
+                    <span class="text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['operasional'], 0, ',', '.') }}
+                </div>
+            </div>
+
+            {{-- 14. Volume Transaksi Agen --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
                 <div class="flex items-center justify-between mb-2">
                     <div class="w-8 h-8 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -365,6 +452,7 @@
         @endif
 
         {{-- ============ BAGIAN BREAKDOWN PENDAPATAN & PENGELUARAN ============ --}}
+                {{-- ============ BAGIAN BREAKDOWN PENDAPATAN & PENGELUARAN ============ --}}
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-6">
             {{-- Breakdown Pendapatan Admin --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -402,54 +490,40 @@
                 </div>
             </div>
 
-            {{-- Breakdown Pengeluaran --}}
+            {{-- Breakdown Pengeluaran (Desain Baru: Dipisah Per Kategori) --}}
+                        {{-- Breakdown Pengeluaran (Tampil 8 Kategori Excel) --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                 <div class="flex items-center gap-2 mb-4">
                     <iconify-icon icon="mdi:cash-minus" class="text-red-600 text-lg"></iconify-icon>
-                    <h3 class="font-semibold text-gray-800">Pengeluaran</h3>
+                    <h3 class="font-semibold text-gray-800">Rincian Pengeluaran</h3>
                 </div>
-                @if(empty($breakdownPengeluaran['riil']))
-                    <div class="text-center py-6 text-gray-400 text-sm">Belum ada pengeluaran riil.</div>
-                @else
-                    <div class="space-y-4">
-                        @foreach($breakdownPengeluaran['riil'] as $p)
-                        <div class="pb-3 border-b border-gray-100 last:border-0">
-                            {{-- Header Kategori --}}
-                            <div class="flex items-center gap-2 mb-2">
-                                <iconify-icon icon="mdi:receipt" class="text-gray-400 text-sm flex-shrink-0"></iconify-icon>
-                                <div class="min-w-0">
-                                    <div class="text-sm font-semibold text-gray-800 truncate">{{ $p['kategori'] }}</div>
-                                    <div class="text-[10px] text-gray-500">{{ $p['jumlah'] }} transaksi</div>
-                                </div>
-                            </div>
+                
+                <div class="space-y-3">
+                    @php
+                        $pengeluaranItems = [
+                            ['label' => 'Pindah Saldo Kas Internal', 'value' => $breakdownPengeluaran['pindah_saldo'], 'icon' => 'mdi:swap-horizontal', 'color' => 'text-orange-600'],
+                            ['label' => 'Top Up PPOB',               'value' => $breakdownPengeluaran['topup_ppob'],   'icon' => 'mdi:wallet-plus',     'color' => 'text-cyan-600'],
+                            ['label' => 'Top Up Pulsa',              'value' => $breakdownPengeluaran['topup_pulsa'],  'icon' => 'mdi:cellphone-arrow-down', 'color' => 'text-sky-600'],
+                            ['label' => 'Piutang Bu Haji',           'value' => $breakdownPengeluaran['piutang_haji'], 'icon' => 'mdi:account-cash',    'color' => 'text-amber-600'],
+                            ['label' => 'Piutang Iyus',              'value' => $breakdownPengeluaran['piutang_iyus'], 'icon' => 'mdi:account-cash',    'color' => 'text-amber-600'],
+                            ['label' => 'Piutang Lain-lain',         'value' => $breakdownPengeluaran['piutang_lain'], 'icon' => 'mdi:account-cash',    'color' => 'text-amber-600'],
+                            ['label' => 'Prive',                     'value' => $breakdownPengeluaran['prive'],        'icon' => 'mdi:cash-minus',      'color' => 'text-red-600'],
+                            ['label' => 'Operasional Konveksi',      'value' => $breakdownPengeluaran['operasional'],  'icon' => 'mdi:store',           'color' => 'text-gray-700'],
+                        ];
+                    @endphp
 
-                            {{-- Daftar Catatan Pengeluaran --}}
-                            @if(!empty($p['items']))
-                            <div class="ml-6 mt-2 space-y-1.5">
-                                @foreach($p['items'] as $item)
-                                    <div class="flex items-start justify-between text-xs">
-                                        <span class="text-gray-600 flex-1 pr-2 truncate" title="{{ $item['keterangan'] }}">
-                                            - {{ $item['keterangan'] ?? 'Tanpa catatan' }}
-                                        </span>
-                                        <span class="text-red-600 font-medium whitespace-nowrap">
-                                            Rp {{ number_format($item['nominal'], 0, ',', '.') }}
-                                        </span>
-                                    </div>
-                                @endforeach
+                    @foreach($pengeluaranItems as $p)
+                        <div class="flex items-center justify-between py-2 border-b border-gray-100 last:border-0">
+                            <div class="flex items-center gap-2">
+                                <iconify-icon icon="{{ $p['icon'] }}" class="text-gray-400 text-sm"></iconify-icon>
+                                <span class="text-sm text-gray-700">{{ $p['label'] }}</span>
                             </div>
-                            @endif
+                            <div class="text-sm font-semibold {{ $p['color'] }}">
+                                Rp {{ number_format($p['value'], 0, ',', '.') }}
+                            </div>
                         </div>
-                        @endforeach
-                        
-                        {{-- Total Riil --}}
-                        <div class="flex items-center justify-between pt-3 border-t-2 border-gray-200 mt-2">
-                            <span class="text-sm font-bold text-gray-800">Total Riil</span>
-                            <span class="text-base font-bold text-red-600">
-                                Rp {{ number_format($summary['total_pengeluaran_riil'], 0, ',', '.') }}
-                            </span>
-                        </div>
-                    </div>
-                @endif
+                    @endforeach
+                </div>
             </div>
         </div>
 
@@ -461,13 +535,11 @@
         const inputValidasi = document.getElementById('inputValidasiKas');
         
         if (inputValidasi) {
-            // 1. Format nilai awal (saat halaman dimuat) menjadi format Rupiah
             let initialValue = inputValidasi.value.replace(/[^0-9]/g, '');
             if (initialValue) {
                 inputValidasi.value = new Intl.NumberFormat('id-ID').format(initialValue);
             }
 
-            // 2. Format saat pengguna mengetik
             inputValidasi.addEventListener('input', function(e) {
                 let value = this.value.replace(/[^0-9]/g, '');
                 if (value) {
@@ -477,7 +549,6 @@
                 }
             });
 
-            // 3. Sebelum form di-submit, bersihkan titik
             const form = inputValidasi.closest('form');
             if (form) {
                 form.addEventListener('submit', function() {
