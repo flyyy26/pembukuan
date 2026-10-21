@@ -271,10 +271,14 @@ class BrilinkImportController extends Controller
         
         // Looping mulai baris 4 (sesuai Excel)
         for ($r = 4; $r <= $maxRow; $r++) {
-            // 🔥 BACA KETERANGAN DI KOLOM D (Paksa baca sebagai string)
+            // Baca keterangan umum di kolom D (untuk Barang Titip Jual)
             $keteranganTitipJual = trim((string) $sheet->getCell("D{$r}")->getValue());
+            
+            // Baca keterangan khusus untuk Penambahan Kas di kolom I
+            $keteranganPenambahanKas = trim((string) $sheet->getCell("I{$r}")->getValue());
 
             // Mapping Manual Kolom -> Kategori
+            // PERBAIKAN: Kolom I adalah Keterangan, Lain-lain dipindah ke Kolom J
             $mapping = [
                 'A' => 'Pulsa & Deposit',
                 'B' => 'Barang Kasir Pintar',
@@ -283,7 +287,7 @@ class BrilinkImportController extends Controller
                 'F' => 'Payfazz',
                 'G' => 'Buku Warung',
                 'H' => 'Penambahan Kas',
-                'I' => 'Lain-lain'
+                'J' => 'Lain-lain' // 🔥 Pindah dari I ke J
             ];
 
             foreach ($mapping as $kolom => $kategoriName) {
@@ -295,9 +299,12 @@ class BrilinkImportController extends Controller
                     // Default keterangan
                     $keterangan = "Transaksi baris {$r}";
                     
-                    // 🔥 JIKA INI BARANG TITIP JUAL, PAKSA GUNAKAN KETERANGAN DARI KOLOM D
+                    // Logika Keterangan
                     if ($kategoriName === 'Barang Titip Jual' && $keteranganTitipJual !== '') {
                         $keterangan = $keteranganTitipJual;
+                    } elseif ($kategoriName === 'Penambahan Kas' && $keteranganPenambahanKas !== '') {
+                        // Simpan "BRANGKAS" atau "BRILINK ATUNG" ke kolom keterangan
+                        $keterangan = $keteranganPenambahanKas;
                     }
 
                     $rows[] = [

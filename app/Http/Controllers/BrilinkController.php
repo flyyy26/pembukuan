@@ -1395,7 +1395,13 @@ class BrilinkController extends Controller
 
         $penambahanBrangkas = $reportsInPeriod->sum('penambahan_brangkas');
         
-        $pemakaianBrangkas = $allPpob->filter(fn($i) => stripos($i->kategori, 'Penambahan Kas') !== false)->sum('nominal');
+        $pemakaianBrangkas = $allPpob
+            ->filter(function($i) {
+                $isPenambahanKas = stripos($i->kategori, 'Penambahan Kas') !== false;
+                $isBrangkas = stripos($i->keterangan, 'brangkas') !== false; // Cek kata "brangkas" di keterangan
+                return $isPenambahanKas && $isBrangkas;
+            })
+            ->sum('nominal');
 
         $topupPpob = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up ppob') || str_contains(strtolower($i->keterangan ?? ''), 'top up ppob'))->sum('nominal_kas');
         $topupPulsa = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up pulsa') || str_contains(strtolower($i->keterangan ?? ''), 'top up pulsa'))->sum('nominal_kas');
@@ -1463,8 +1469,12 @@ class BrilinkController extends Controller
 
         $totalProfitKotor = $profitPulsa + $profitPpob + $adminBrilink + $adminMbanking + $labaKasirPintar;
         
-        $pendapatanHarian = $totalProfitKotor - $totalPrive;
+        $pendapatanHarian = $totalProfitKotor;
+
+        // Pengeluaran harian murni dari prive
         $pengeluaranHarian = $totalPrive;
+
+        // Penambahan saldo = pendapatan - pengeluaran
         $penambahanSaldo = $pendapatanHarian - $pengeluaranHarian;
 
         return view('brilink.profit', [
@@ -1674,5 +1684,128 @@ class BrilinkController extends Controller
             : ($pengeluaran->created_at?->format('Ymd') ?? now()->format('Ymd'));
 
         return 'INV-PTG-' . $tgl . '-' . str_pad((string) $pengeluaran->id, 4, '0', STR_PAD_LEFT);
+    }
+
+    public function bayarPiutangSingle(BrilinkPengeluaran $pengeluaran)
+    {
+        $kategori = strtolower($pengeluaran->kategori ?? '');
+        if (!str_contains($kategori, 'piutang')) {
+            return response()->json(['message' => 'Transaksi ini bukan piutang.'], 422);
+        }
+
+        $pengeluaran->update([
+            'is_paid'     => true,
+            'paid_at'     => now()->format('Y-m-d'),
+            'paid_amount' => $pengeluaran->nominal_kas,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Piutang berhasil ditandai lunas.',
+        ]);
+    }
+
+    /**
+     * Bayar bulk piutang dengan FIFO (lunasi dari atas dulu, sisa dipotong ke bawah).
+     */
+    public function bayarPiutangBulk(Request $request)
+    {
+        $request->validate([
+            'store'    => 'required',
+            'kategori' => 'required|string',
+            'nominal'  => 'required', // nominal pembayaran (mungkin tidak pas)
+            'from'     => 'nullable|date',
+            'to'       => 'nullable|date',
+            'search'   => 'nullable|string',
+        ]);
+
+        $nominal = (int) preg_replace('/[^0-9]/', '', (string) $request->nominal);
+        if ($nominal <= 0) {
+            return response()->json(['message' => 'Nominal tidak valid.'], 422);
+        }
+
+        $storeId = $request->store;
+        $kategoriFilter = trim($request->kategori);
+        $from = $request->from;
+        $to = $request->to;
+        $search = trim((string) $request->search);
+
+        // Ambil semua piutang yang BELUM lunas dengan kategori sama, urut dari yang terlama
+        $query = BrilinkPengeluaran::with('report')
+            ->whereRaw('LOWER(TRIM(kategori)) = ?', [strtolower($kategoriFilter)])
+            ->where('is_paid', false)
+            ->whereHas('report', function ($q) use ($storeId, $from, $to) {
+                $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
+                ->when($from, fn($sq) => $sq->whereDate('periode_start', '>=', $from))
+                ->when($to, fn($sq) => $sq->whereDate('periode_start', '<=', $to));
+            });
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('keterangan', 'LIKE', "%{$search}%")
+                ->orWhere('kategori', 'LIKE', "%{$search}%");
+            });
+        }
+
+        // Urut berdasarkan tanggal report (paling awal dulu = FIFO)
+        $piutangs = $query->get()->sortBy(function ($p) {
+            return $p->report->periode_start?->format('Y-m-d') . '|' . $p->id;
+        })->values();
+
+        if ($piutangs->isEmpty()) {
+            return response()->json(['message' => 'Tidak ada piutang yang belum lunas.'], 422);
+        }
+
+        $remaining = $nominal;
+        $terbayar = 0;
+        $lunasCount = 0;
+        $partialCount = 0;
+
+        DB::beginTransaction();
+        try {
+            foreach ($piutangs as $p) {
+                if ($remaining <= 0) break;
+
+                $sisaUtang = $p->nominal_kas - $p->paid_amount;
+                if ($sisaUtang <= 0) continue;
+
+                $bayar = min($remaining, $sisaUtang);
+                $newPaid = $p->paid_amount + $bayar;
+
+                $p->update([
+                    'paid_amount' => $newPaid,
+                    'is_paid'     => $newPaid >= $p->nominal_kas,
+                    'paid_at'     => $newPaid >= $p->nominal_kas ? now()->format('Y-m-d') : $p->paid_at,
+                ]);
+
+                $remaining -= $bayar;
+                $terbayar += $bayar;
+
+                if ($newPaid >= $p->nominal_kas) {
+                    $lunasCount++;
+                } else {
+                    $partialCount++;
+                }
+            }
+
+            DB::commit();
+
+            $sisaKembali = $remaining; // kelebihan bayar (kalau ada)
+            $msg = "Pembayaran Rp " . number_format($terbayar, 0, ',', '.') .
+                " berhasil. {$lunasCount} piutang lunas";
+            if ($partialCount > 0) $msg .= ", {$partialCount} piutang dibayar sebagian";
+            if ($sisaKembali > 0) $msg .= ". Kelebihan bayar: Rp " . number_format($sisaKembali, 0, ',', '.');
+
+            return response()->json([
+                'success' => true,
+                'message' => $msg,
+                'lunas_count' => $lunasCount,
+                'partial_count' => $partialCount,
+                'sisa_kembali' => $sisaKembali,
+            ]);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal bayar: ' . $e->getMessage()], 500);
+        }
     }
 }

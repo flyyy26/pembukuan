@@ -7,6 +7,7 @@
     <title>@yield('title', 'Pembukuan')</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <link rel="shortcut icon" href="{{ asset('images/favicon.png') }}" type="image/x-icon">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Geist:ital,wght@0,100..900;1,100..900&display=swap');
         * {
@@ -60,6 +61,14 @@
                         ['route' => 'brilink.profit', 'label' => 'Laporan Profit'],
                     ]
                 ]
+            ],
+        ],
+        [
+            'section' => 'Gaji Karyawan',
+            'items' => [
+                ['route' => 'karyawan.index', 'label' => 'Data Karyawan',  'icon' => 'mdi:account-group'],
+                ['route' => 'gaji.index',     'label' => 'Transaksi Gaji', 'icon' => 'mdi:cash-multiple'],
+                ['route' => 'minus.index',    'label' => 'Laporan Minus',  'icon' => 'mdi:alert-circle-outline'],
             ],
         ],
         [
@@ -171,7 +180,7 @@
             </form>
 
             <div class="text-[10px] text-gray-400 text-center mt-3">
-                v1.0 · BukuProfit
+                v1.0 · BukuBarokah
             </div>
         </div>
     </aside>

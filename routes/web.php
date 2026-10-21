@@ -11,6 +11,7 @@ use App\Http\Controllers\TiktokImportController;
 use App\Http\Controllers\TiktokMappingController;
 use App\Http\Controllers\BrilinkImportController;
 use App\Http\Controllers\BrilinkController;
+use App\Http\Controllers\GajiKaryawanController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -119,6 +120,8 @@ Route::middleware('auth')->group(function () {
     // Print invoice 1 item piutang (per baris)
     Route::get('/brilink/pengeluaran/{pengeluaran}/invoice-pdf', [BrilinkController::class, 'printInvoicePiutang'])->name('brilink.pengeluaran.invoice-pdf');
 
+    Route::post('brilink/piutang/{pengeluaran}/bayar', [BrilinkController::class, 'bayarPiutangSingle'])->name('brilink.piutang.bayar-single');
+    Route::post('brilink/piutang/bayar-bulk', [BrilinkController::class, 'bayarPiutangBulk'])->name('brilink.piutang.bayar-bulk');
     // Print invoice SEMUA piutang pada filter aktif (dari tombol di header tab)
     Route::get('/brilink/pengeluaran/invoice-bulk-pdf', [BrilinkController::class, 'printInvoicePiutangBulk'])->name('brilink.pengeluaran.invoice-bulk-pdf');
 
@@ -134,4 +137,22 @@ Route::middleware('auth')->group(function () {
     Route::get('/brilink/{report}', [BrilinkController::class, 'show'])->name('brilink.show');
     Route::delete('/brilink/{report}', [BrilinkController::class, 'destroy'])->name('brilink.destroy');
 
+    // ===== KARYAWAN =====
+    Route::get('karyawan',                 [GajiKaryawanController::class, 'indexKaryawan'])->name('karyawan.index');
+    Route::post('karyawan/ajax',           [GajiKaryawanController::class, 'storeKaryawanAjax'])->name('karyawan.store-ajax');
+    Route::match(['post', 'put'], 'karyawan/{karyawan}/ajax', [GajiKaryawanController::class, 'updateKaryawanAjax'])->name('karyawan.update-ajax');
+    Route::delete('karyawan/{karyawan}/ajax',[GajiKaryawanController::class, 'destroyKaryawanAjax'])->name('karyawan.destroy-ajax');
+
+    // ===== GAJI =====
+    Route::get('gaji',                     [GajiKaryawanController::class, 'indexGaji'])->name('gaji.index');
+    Route::post('gaji/generate',           [GajiKaryawanController::class, 'generateGaji'])->name('gaji.generate');
+    Route::match(['post', 'put'], 'gaji/{gaji}/ajax', [GajiKaryawanController::class, 'updateGajiAjax'])->name('gaji.update-ajax');
+    Route::post('gaji/{gaji}/bayar',       [GajiKaryawanController::class, 'bayarGajiAjax'])->name('gaji.bayar-ajax');
+    Route::delete('gaji/{gaji}/ajax',      [GajiKaryawanController::class, 'destroyGajiAjax'])->name('gaji.destroy-ajax');
+
+    // ===== LAPORAN MINUS =====
+    Route::get('minus-karyawan',           [GajiKaryawanController::class, 'indexMinus'])->name('minus.index');
+    Route::post('minus-karyawan/ajax',     [GajiKaryawanController::class, 'storeMinusAjax'])->name('minus.store-ajax');
+    Route::match(['post', 'put'], 'minus-karyawan/{minus}/ajax', [GajiKaryawanController::class, 'updateMinusAjax'])->name('minus.update-ajax');
+    Route::delete('minus-karyawan/{minus}/ajax',[GajiKaryawanController::class, 'destroyMinusAjax'])->name('minus.destroy-ajax');
 });

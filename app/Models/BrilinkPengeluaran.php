@@ -13,11 +13,18 @@ class BrilinkPengeluaran extends Model
         'keterangan',
         'nominal_kas',
         'kategori',
+        'is_paid',
+        'paid_at',
+        'paid_amount',
     ];
 
     protected $casts = [
         'nominal_kas' => 'integer',
+        'is_paid'     => 'boolean',
+        'paid_at'     => 'date',
+        'paid_amount' => 'integer',
     ];
+
 
     public function report()
     {
@@ -41,5 +48,10 @@ class BrilinkPengeluaran extends Model
     public function scopePindahSaldo($q)
     {
         return $q->where('kategori', 'Pindah Saldo Internal');
+    }
+
+    public function getSisaAttribute(): int
+    {
+        return max(0, $this->nominal_kas - $this->paid_amount);
     }
 }

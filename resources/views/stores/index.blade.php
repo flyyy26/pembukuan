@@ -183,10 +183,14 @@ function openModal(mode, storeId = null) {
     const modal = document.getElementById('storeModal');
     const form = document.getElementById('storeForm');
     const errors = document.getElementById('formErrors');
+    const submitBtn = document.getElementById('submitBtn');
+    const submitText = document.getElementById('submitBtnText');
 
     form.reset();
     errors.classList.add('hidden');
 
+    submitBtn.disabled = false;
+    submitText.textContent = mode === 'create' ? 'Simpan Toko' : 'Simpan Perubahan';
     document.querySelectorAll('input[name="marketplace"]').forEach(r => r.checked = false);
 
     if (mode === 'create') {
@@ -291,10 +295,15 @@ async function submitStoreForm(event) {
                 ul.innerHTML = '<li>Terjadi kesalahan.</li>';
             }
 
+            // Jika gagal, hidupkan kembali tombol
             submitBtn.disabled = false;
             submitText.textContent = originalText;
             return;
         }
+
+        // 🔥 JIKA SUKSES: HIDUPKAN TOMBOL SEBELUM MENUTUP MODAL
+        submitBtn.disabled = false;
+        submitText.textContent = originalText;
 
         // Sukses
         closeModal();
@@ -306,6 +315,8 @@ async function submitStoreForm(event) {
     } catch (err) {
         errors.classList.remove('hidden');
         errors.querySelector('ul').innerHTML = `<li>Gagal menyimpan: ${err.message}</li>`;
+        
+        // Jika error koneksi, hidupkan kembali tombol
         submitBtn.disabled = false;
         submitText.textContent = originalText;
     }

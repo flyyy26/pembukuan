@@ -114,18 +114,26 @@
             </div>
 
             @if($isPiutangTab)
-                <a href="{{ route('brilink.pengeluaran.invoice-bulk-pdf', [
-                        'store'    => $storeId,
-                        'from'     => $from,
-                        'to'       => $to,
-                        'search'   => $search,
-                        'kategori' => $activeTab,
-                    ]) }}"
-                target="_blank"
-                class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
-                    <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon>
-                    Print Invoice {{ ucwords($activeTab) }}
-                </a>
+                <div class="flex items-center gap-2">
+                    <button type="button"
+                            onclick="openBulkBayarModal()"
+                            class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
+                        <iconify-icon icon="mdi:cash-multiple" class="text-lg"></iconify-icon>
+                        Bayar Bulk
+                    </button>
+                    <a href="{{ route('brilink.pengeluaran.invoice-bulk-pdf', [
+                            'store'    => $storeId,
+                            'from'     => $from,
+                            'to'       => $to,
+                            'search'   => $search,
+                            'kategori' => $activeTab,
+                        ]) }}"
+                    target="_blank"
+                    class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
+                        <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon>
+                        Print Invoice
+                    </a>
+                </div>
             @else
                 <div class="text-xs text-gray-500">{{ $groupedByReport->flatten()->count() }} Transaksi</div>
             @endif
@@ -250,7 +258,12 @@
                                 <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
                                 <th class="border border-gray-200 p-3 text-right text-xs font-semibold text-gray-600 uppercase">Nominal</th>
                                 <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase">Kategori Akuntansi</th>
-                                <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase w-32">Aksi</th>
+                                
+                                @if($isPiutangTab)
+                                    <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
+                                @endif
+                                
+                                <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase w-48">Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -281,14 +294,52 @@
                                                 {{ $item->kategori ?: 'Tanpa Kategori' }}
                                             </span>
                                         </td>
+
+                                        {{-- KOLOM STATUS (KHUSUS PIUTANG) --}}
+                                        @if($isPiutangTab)
+                                            <td class="border border-gray-200 p-3 text-center">
+                                                @if($item->is_paid)
+                                                    <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                                        <iconify-icon icon="mdi:check-circle" class="text-sm"></iconify-icon> Lunas
+                                                    </span>
+                                                @elseif($item->paid_amount > 0)
+                                                    <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium" 
+                                                        title="Terbayar: Rp {{ number_format($item->paid_amount, 0, ',', '.') }} dari Rp {{ number_format($item->nominal_kas, 0, ',', '.') }}">
+                                                        <iconify-icon icon="mdi:progress-clock" class="text-sm"></iconify-icon> 
+                                                        Terbayar (Rp {{ number_format($item->paid_amount, 0, ',', '.') }})
+                                                    </span>
+                                                @else
+                                                    <span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-medium">
+                                                        <iconify-icon icon="mdi:clock-alert" class="text-sm"></iconify-icon> Belum Bayar
+                                                    </span>
+                                                @endif
+                                            </td>
+                                        @endif
+
+                                        {{-- KOLOM AKSI --}}
                                         <td class="border border-gray-200 p-3 text-center">
-                                            <div class="inline-flex items-center gap-1">
+                                            <div class="inline-flex items-center gap-1 flex-wrap justify-center">
+                                                
+                                                {{-- TOMBOL BAYAR (KHUSUS PIUTANG & BELUM LUNAS) --}}
+                                                @if($isPiutangTab && !$item->is_paid)
+                                                    <button type="button"
+                                                            onclick="bayarPiutangSingle({{ $item->id }}, {{ $item->nominal_kas - $item->paid_amount }})"
+                                                            class="inline-flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-medium transition"
+                                                            title="Tandai Lunas">
+                                                        <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon>
+                                                        Bayar
+                                                    </button>
+                                                @endif
+
+                                                {{-- EDIT --}}
                                                 <button type="button"
                                                         onclick="openEditPengeluaranModal({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}', '{{ addslashes($item->kategori ?? '') }}', {{ $item->nominal_kas }})"
                                                         class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition">
                                                     <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
                                                     Edit
                                                 </button>
+
+                                                {{-- HAPUS --}}
                                                 <button type="button"
                                                         onclick="deletePengeluaran({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}')"
                                                         class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
@@ -301,14 +352,51 @@
                                 @endforeach
                             @endforeach
                             
+                            @php
+                                $totalNominal = $groupedByReport->flatten()->sum('nominal_kas');
+                                $totalTerbayar = $groupedByReport->flatten()->sum('paid_amount');
+                                $sisaPiutang = max(0, $totalNominal - $totalTerbayar);
+                            @endphp
+
                             <tr class="bg-red-50 border-t-2 border-red-300">
-                                <td colspan="{{ $storeId === 'all' ? '3' : '2' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-right">
-                                    TOTAL PENGELUARAN
+                                <td colspan="{{ $storeId === 'all' ? '3' : '2' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-right align-top">
+                                    <div>TOTAL PENGELUARAN</div>
+                                    @if($isPiutangTab)
+                                        <div class="text-xs font-normal text-gray-500 mt-1">
+                                            Total Terbayar: Rp {{ number_format($totalTerbayar, 0, ',', '.') }}
+                                        </div>
+                                    @endif
                                 </td>
-                                <td class="border border-gray-200 p-3 text-right text-red-800 font-bold">
-                                    Rp {{ number_format($groupedByReport->flatten()->sum('nominal_kas'), 0, ',', '.') }}
+
+                                <td class="border border-gray-200 p-3 text-right align-top">
+                                    <div class="font-bold text-red-800">
+                                        Rp {{ number_format($totalNominal, 0, ',', '.') }}
+                                    </div>
+                                    @if($isPiutangTab)
+                                        <div class="mt-1 text-xs font-bold {{ $sisaPiutang > 0 ? 'text-orange-600' : 'text-green-600' }}">
+                                            Sisa: Rp {{ number_format($sisaPiutang, 0, ',', '.') }}
+                                        </div>
+                                    @endif
                                 </td>
-                                <td colspan="2"></td>
+                                <td></td>
+
+                                {{-- Kolom STATUS (jika piutang) --}}
+                                @if($isPiutangTab)
+                                    <td class="border border-gray-200 p-3 text-center align-top">
+                                        @if($sisaPiutang == 0 && $totalNominal > 0)
+                                            <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                                <iconify-icon icon="mdi:check-all" class="text-sm"></iconify-icon> Semua Lunas
+                                            </span>
+                                        @elseif($sisaPiutang > 0)
+                                            <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
+                                                <iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon> Belum Lunas
+                                            </span>
+                                        @endif
+                                    </td>
+                                @endif
+
+                                {{-- Kolom Aksi (kosong, hanya untuk align) --}}
+                                <td class="border border-gray-200 p-3"></td>
                             </tr>
                         </tbody>
                     </table>
@@ -411,6 +499,61 @@
     </div>
 </div>
 
+{{-- MODAL BAYAR BULK PIUTANG --}}
+<div id="bulkBayarModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeBulkBayarModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-emerald-50">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:cash-multiple" class="text-emerald-600 text-lg"></iconify-icon>
+                <h3 class="font-bold text-gray-800">Bayar Bulk Piutang</h3>
+            </div>
+            <button type="button" onclick="closeBulkBayarModal()" class="text-gray-400 hover:text-gray-600 transition">
+                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+
+        <form id="bulkBayarForm" onsubmit="submitBulkBayar(event)">
+            @csrf
+            <input type="hidden" name="store" value="{{ $storeId }}">
+            <input type="hidden" name="kategori" value="{{ $activeTab }}">
+            <input type="hidden" name="from" value="{{ $from }}">
+            <input type="hidden" name="to" value="{{ $to }}">
+            <input type="hidden" name="search" value="{{ $search }}">
+
+            <div class="p-5 space-y-4">
+                <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="bulkBayarError"></div>
+
+                <div class="bg-emerald-50 rounded-lg p-3 text-xs text-emerald-800 flex items-start gap-2">
+                    <iconify-icon icon="mdi:information" class="text-base mt-0.5"></iconify-icon>
+                    <div>
+                        Piutang akan dilunasi otomatis <strong>dari yang paling lama</strong> (FIFO). 
+                        Jika nominal tidak pas, piutang terakhir akan dibayar sebagian.
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Total Nominal Pembayaran</label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <span class="text-gray-500 text-sm font-medium">Rp</span>
+                        </div>
+                        <input type="text" id="inputBulkBayar" name="nominal" required placeholder="0"
+                            class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+                <button type="button" onclick="closeBulkBayarModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition">Batal</button>
+                <button type="submit" id="btnSubmitBulkBayar" class="bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium flex items-center gap-2">
+                    <iconify-icon icon="mdi:cash-check" class="text-lg"></iconify-icon> Bayar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
     const CSRF_TOKEN_PENGELUARAN = document.querySelector('meta[name="csrf-token"]').content;
 
@@ -438,6 +581,13 @@
         const inputNominal = document.getElementById('inputNominalPengeluaran');
         if (inputNominal) {
             inputNominal.addEventListener('input', function () {
+                formatNominalInput(this);
+            });
+        }
+        
+        const inputBulk = document.getElementById('inputBulkBayar');
+        if (inputBulk) {
+            inputBulk.addEventListener('input', function () {
                 formatNominalInput(this);
             });
         }
@@ -641,8 +791,94 @@
         }
     }
 
+    // ===================================================
+    // BAYAR PIUTANG SINGLE
+    // ===================================================
+    async function bayarPiutangSingle(id, sisaNominal) {
+        const nominalFormatted = new Intl.NumberFormat('id-ID').format(sisaNominal);
+        if (!confirm(`Tandai piutang ini LUNAS?\nSisa tagihan: Rp ${nominalFormatted}`)) return;
+
+        try {
+            const response = await fetch(`/brilink/piutang/${id}/bayar`, {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN_PENGELUARAN,
+                    'Accept': 'application/json',
+                },
+            });
+
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal.');
+
+            window.location.reload();
+        } catch (err) {
+            alert('Gagal: ' + err.message);
+        }
+    }
+
+    // ===================================================
+    // BAYAR PIUTANG BULK (FIFO)
+    // ===================================================
+    function openBulkBayarModal() {
+        document.getElementById('bulkBayarForm').reset();
+        document.getElementById('bulkBayarError').classList.add('hidden');
+        document.getElementById('bulkBayarModal').classList.remove('hidden');
+        document.getElementById('bulkBayarModal').classList.add('flex');
+    }
+
+    function closeBulkBayarModal() {
+        document.getElementById('bulkBayarModal').classList.add('hidden');
+        document.getElementById('bulkBayarModal').classList.remove('flex');
+    }
+
+    async function submitBulkBayar(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnSubmitBulkBayar');
+        const errorDiv = document.getElementById('bulkBayarError');
+        const input = document.getElementById('inputBulkBayar');
+
+        const nominalRaw = input.value.replace(/[^0-9]/g, '');
+        if (!nominalRaw || parseInt(nominalRaw) <= 0) {
+            errorDiv.textContent = 'Nominal tidak valid.';
+            errorDiv.classList.remove('hidden');
+            return;
+        }
+
+        btn.disabled = true;
+        btn.innerHTML = 'Memproses...';
+        errorDiv.classList.add('hidden');
+
+        const formData = new FormData(form);
+        formData.set('nominal', nominalRaw);
+
+        try {
+            const response = await fetch("{{ route('brilink.piutang.bayar-bulk') }}", {
+                method: 'POST',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN_PENGELUARAN,
+                    'Accept': 'application/json',
+                },
+                body: formData,
+            });
+            const data = await response.json();
+            if (!response.ok) throw new Error(data.message || 'Gagal.');
+
+            alert(data.message);
+            window.location.reload();
+        } catch (err) {
+            errorDiv.textContent = err.message;
+            errorDiv.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = '<iconify-icon icon="mdi:cash-check" class="text-lg"></iconify-icon> Bayar';
+        }
+    }
+
     document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') closePengeluaranModal();
+        if (e.key === 'Escape') {
+            closePengeluaranModal();
+            closeBulkBayarModal();
+        }
     });
 </script>
 @endsection
