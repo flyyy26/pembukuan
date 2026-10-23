@@ -1406,6 +1406,23 @@ class BrilinkController extends Controller
         $topupPpob = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up ppob') || str_contains(strtolower($i->keterangan ?? ''), 'top up ppob'))->sum('nominal_kas');
         $topupPulsa = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up pulsa') || str_contains(strtolower($i->keterangan ?? ''), 'top up pulsa'))->sum('nominal_kas');
         $totalPrive = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'prive'))->sum('nominal_kas');
+
+        // ============================================
+        // BREAKDOWN PRIVE — group by keterangan
+        // ============================================
+        $breakdownPrive = $allPengeluaran
+            ->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'prive'))
+            ->groupBy(fn($i) => strtolower(trim($i->keterangan ?? 'Tanpa keterangan')))
+            ->map(function ($items) {
+                return [
+                    'keterangan' => $items->first()->keterangan ?? 'Tanpa keterangan',
+                    'total'      => (int) $items->sum('nominal_kas'),
+                    'jumlah'     => $items->count(),
+                ];
+            })
+            ->sortByDesc('total')
+            ->values()
+            ->toArray();
         
         $brangkasAwal = $getSaldoAwal($oldestReport, 'Brangkas');
         $brangkasAkhir = $getSaldoAkhir($latestReport, 'Brangkas');
@@ -1496,14 +1513,15 @@ class BrilinkController extends Controller
             'pendapatanHarian' => $pendapatanHarian,
             'pengeluaranHarian' => $pengeluaranHarian,
             'penambahanSaldo' => $penambahanSaldo,
+            'breakdownPrive' => $breakdownPrive, // ← BARU
         ]);
     }
 
     public function saldoKeseluruhan(Request $request)
     {
         $storeId = $request->input('store');
-        $search = trim($request->input('search', ''));
-        
+        $search  = trim($request->input('search', ''));
+
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
@@ -1517,63 +1535,111 @@ class BrilinkController extends Controller
         }
 
         $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
-        
+
         if (!$storeId) {
             $storeId = 'all';
         }
         $store = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        $query = BrilinkAccount::with('report')
-            ->whereHas('report', function($q) use ($storeId, $from, $to) {
-                $q->when($storeId !== 'all', fn($sq) => $sq->where('store_id', $storeId))
-                  ->when($from, fn($sq) => $sq->whereDate('periode_start', '>=', $from))
-                  ->when($to, fn($sq) => $sq->whereDate('periode_start', '<=', $to));
-            });
+        // ============================================================
+        // 1) Ambil REPORT TERAKHIR per toko (snapshot tanggal terakhir)
+        // ============================================================
+        $baseReports = BrilinkReport::query()
+            ->with('store')
+            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
+            ->orderByDesc('periode_start')
+            ->orderByDesc('id')
+            ->get();
+
+        // Group per store_id → ambil report teratas di tiap grup (tanggal terbaru)
+        $latestReports = $baseReports
+            ->groupBy('store_id')
+            ->map(fn($items) => $items->first())
+            ->values();
+
+        // ============================================================
+        // 2) Ambil ACCOUNT hanya dari report-report terpilih
+        // ============================================================
+        $reportIds = $latestReports->pluck('id')->all();
+
+        $accountsQuery = BrilinkAccount::with('report.store')
+            ->whereIn('brilink_report_id', $reportIds);
 
         if (!empty($search)) {
-            $query->where(function($q) use ($search) {
+            $accountsQuery->where(function ($q) use ($search) {
                 $q->where('nama_rekening', 'LIKE', "%{$search}%")
-                  ->orWhere('keterangan', 'LIKE', "%{$search}%");
+                ->orWhere('keterangan',    'LIKE', "%{$search}%");
             });
         }
 
-        $allAccounts = $query->get();
+        $allAccounts = $accountsQuery->get();
 
-        $groupedByDate = $allAccounts->groupBy(function($item) {
-            return $item->report->periode_start->format('Y-m-d');
-        });
+        // ============================================================
+        // 3) Agregasi rekening: group by nama_rekening
+        //    - nominal dijumlahkan (untuk filter 'all' lintas toko)
+        //    - nama toko dikumpulkan agar bisa ditampilkan
+        // ============================================================
+        $aggregated = $allAccounts
+            ->groupBy(fn($a) => mb_strtolower(trim($a->nama_rekening)))
+            ->map(function ($items) {
+                /** @var \Illuminate\Support\Collection $items */
+                $first = $items->first();
 
-        $groupedByDate = $groupedByDate->sortKeysDesc();
+                // kumpulkan nama toko unik
+                $storeNames = $items
+                    ->map(fn($a) => $a->report?->store?->nama_toko)
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->all();
 
-        $dataPerReport = [];
-        foreach ($groupedByDate as $date => $accounts) {
-            $firstReport = $accounts->first()->report;
-
-            $aggregatedAccounts = $accounts->groupBy('nama_rekening')->map(function ($items) {
                 return [
-                    'nama_rekening' => $items->first()->nama_rekening,
-                    'keterangan'    => $items->first()->keterangan,
-                    'saldo_awal'    => $items->sum('saldo_awal'),
-                    'saldo_akhir'   => $items->sum('saldo_akhir'),
-                    'selisih'       => $items->sum('selisih'),
+                    'nama_rekening' => $first->nama_rekening,
+                    'keterangan'    => $items->pluck('keterangan')->filter()->first() ?? '-',
+                    'saldo_awal'    => (int) $items->sum('saldo_awal'),
+                    'saldo_akhir'   => (int) $items->sum('saldo_akhir'),
+                    'selisih'       => (int) $items->sum('selisih'),
+                    'toko_list'     => $storeNames,
+                    'jumlah_toko'   => count($storeNames),
                 ];
-            })->values()->toArray();
+            })
+            ->values()
+            // urutkan: BRANGKAS/KAS di atas, lalu sisanya alfabetis (opsional)
+            ->sortBy(fn($r) => mb_strtolower($r['nama_rekening']))
+            ->values()
+            ->all();
 
-            $dataPerReport[] = [
-                'date' => $date,
-                'label' => $firstReport->periode_label ?? \Carbon\Carbon::parse($date)->format('d/m/Y'),
-                'accounts' => $aggregatedAccounts,
+        // ============================================================
+        // 4) Summary & snapshot info
+        // ============================================================
+        $summary = [
+            'total_saldo_awal'  => (int) collect($aggregated)->sum('saldo_awal'),
+            'total_saldo_akhir' => (int) collect($aggregated)->sum('saldo_akhir'),
+            'total_selisih'     => (int) collect($aggregated)->sum('selisih'),
+            'total_rekening'    => count($aggregated),
+        ];
+
+        // Snapshot: nama toko + tanggal report terakhirnya
+        $snapshots = $latestReports->map(function ($r) {
+            return [
+                'store_name'   => $r->store?->nama_toko ?? '-',
+                'periode'      => $r->periode_start?->format('d/m/Y') ?? '-',
+                'periode_raw'  => $r->periode_start?->format('Y-m-d'),
             ];
-        }
+        })->values()->all();
 
         return view('brilink.saldo-keseluruhan', [
-            'stores' => $stores,
-            'store' => $store,
-            'storeId' => $storeId,
-            'dataPerReport' => $dataPerReport,
-            'search' => $search,
-            'from' => $fromInput,
-            'to' => $toInput,
+            'stores'      => $stores,
+            'store'       => $store,
+            'storeId'     => $storeId,
+            'accounts'    => $aggregated,
+            'summary'     => $summary,
+            'snapshots'   => $snapshots,
+            'search'      => $search,
+            'from'        => $fromInput,
+            'to'          => $toInput,
         ]);
     }
 
@@ -1807,5 +1873,211 @@ class BrilinkController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Gagal bayar: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function laporanBrangkas(Request $request)
+    {
+        $storeId   = $request->input('store');
+        $fromInput = $request->input('from');
+        $toInput   = $request->input('to');
+        $isManual  = $request->boolean('manual'); // true jika user pilih sendiri
+
+        $from = $fromInput;
+        $to   = $toInput;
+
+        if ($from && !$to)     $to = $from;
+        elseif ($to && !$from) $from = $to;
+
+        // ============================================
+        // 1) Ambil ID toko yang punya rekening BRANGKAS
+        //    (langsung join — terbukti jalan, tidak pakai whereHas)
+        // ============================================
+        $storesWithBrangkasIds = \App\Models\BrilinkReport::query()
+            ->join('brilink_accounts', 'brilink_accounts.brilink_report_id', '=', 'brilink_reports.id')
+            ->where(function ($q) {
+                // punya baris BRANGKAS dengan saldo > 0
+                $q->where(function ($qq) {
+                    $qq->where(function ($q3) {
+                        $q3->where('brilink_accounts.nama_rekening', 'LIKE', '%BRANGKAS%')
+                        ->orWhere('brilink_accounts.nama_rekening', 'LIKE', '%BRANKAS%');
+                    })
+                    ->where(function ($q3) {
+                        $q3->where('brilink_accounts.saldo_awal', '>', 0)
+                        ->orWhere('brilink_accounts.saldo_akhir', '>', 0);
+                    });
+                })
+                // ATAU punya penambahan brangkas > 0 di report
+                ->orWhere('brilink_reports.penambahan_brangkas', '>', 0);
+            })
+            ->distinct()
+            ->pluck('brilink_reports.store_id')
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $stores = Store::where('marketplace', 'brilink')
+            ->whereIn('id', $storesWithBrangkasIds)
+            ->orderBy('nama_toko')
+            ->get();
+
+        $validStoreIds = $stores->pluck('id')->map(fn($id) => (string) $id)->values()->all();
+        $firstStoreId  = $stores->first()?->id;
+
+        // ============================================
+        // 2) Tentukan storeId final
+        //    ATURAN:
+        //    - Jika belum ada input ATAU input 'all' TANPA manual flag
+        //      → paksa ke outlet pertama yang punya brangkas
+        //    - Jika user pilih manual 'all' (manual=1) → hormati
+        //    - Jika input ID tapi tidak valid → fallback ke outlet pertama
+        // ============================================
+        $storeId = (string) ($storeId ?? '');
+
+        $shouldAutoSelect = false;
+
+        if ($storeId === '' || $storeId === '0') {
+            $shouldAutoSelect = true;
+        } elseif ($storeId === 'all' && !$isManual) {
+            // 'all' hanya dihormati jika user pilih manual
+            $shouldAutoSelect = true;
+        } elseif ($storeId !== 'all' && !in_array($storeId, $validStoreIds, true)) {
+            $shouldAutoSelect = true;
+        }
+
+        if ($shouldAutoSelect) {
+            $storeId = $firstStoreId ? (string) $firstStoreId : 'all';
+        }
+
+        $store = ($storeId !== 'all') ? Store::find($storeId) : null;
+
+        // ============================================
+        // 3) QUERY REPORTS
+        // ============================================
+        $reports = BrilinkReport::with(['accounts', 'ppobItems', 'store'])
+            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
+            ->orderByDesc('periode_start')
+            ->orderByDesc('id')
+            ->get();
+
+        // ============================================
+        // 4) HITUNG PER REPORT (harian)
+        // ============================================
+        $dailyData = $reports->map(function ($report) {
+            $brangkasAwal = (int) $report->accounts
+                ->filter(fn($a) => stripos($a->nama_rekening, 'BRANGKAS') !== false)
+                ->sum('saldo_awal');
+
+            $penambahan = (int) $report->penambahan_brangkas;
+
+            $pemakaian = (int) $report->ppobItems
+                ->filter(function ($item) {
+                    $isPenambahanKas = stripos($item->kategori ?? '', 'Penambahan Kas') !== false;
+                    $isBrangkas      = stripos($item->keterangan ?? '', 'brangkas') !== false;
+                    return $isPenambahanKas && $isBrangkas;
+                })
+                ->sum('nominal');
+
+            $sisa = $brangkasAwal + $penambahan - $pemakaian;
+
+            $brangkasAkhir = (int) $report->accounts
+                ->filter(fn($a) => stripos($a->nama_rekening, 'BRANGKAS') !== false)
+                ->sum('saldo_akhir');
+
+            return [
+                'id'             => $report->id,
+                'store_id'       => $report->store_id,
+                'store_name'     => $report->store?->nama_toko ?? '-',
+                'file_name'      => $report->file_name,
+                'tanggal'        => $report->periode_start,
+                'tanggal_label'  => $report->periode_start
+                    ? $report->periode_start->translatedFormat('d M Y')
+                    : '-',
+                'bulan'          => $report->periode_start
+                    ? $report->periode_start->format('Y-m')
+                    : 'unknown',
+                'brangkas_awal'  => $brangkasAwal,
+                'penambahan'     => $penambahan,
+                'pemakaian'      => $pemakaian,
+                'sisa'           => $sisa,
+                'brangkas_akhir' => $brangkasAkhir,
+                'selisih'        => $brangkasAkhir - $sisa,
+            ];
+        });
+
+        if ($storeId === 'all') {
+            $dailyData = $dailyData->filter(function ($row) {
+                return $row['brangkas_awal'] > 0
+                    || $row['penambahan'] > 0
+                    || $row['pemakaian'] > 0
+                    || $row['brangkas_akhir'] > 0;
+            })->values();
+        }
+
+        // ============================================
+        // 5) GROUP PER BULAN
+        // ============================================
+        $groupedByMonth = $dailyData->groupBy('bulan')->sortKeysDesc();
+
+        $monthlySummary = [];
+
+        foreach ($groupedByMonth as $bulan => $items) {
+            $carbon = $bulan !== 'unknown'
+                ? Carbon::createFromFormat('Y-m', $bulan)
+                : null;
+
+            $sortedAsc = $items->sortBy('tanggal')->values();
+            $firstDay  = $sortedAsc->first();
+            $lastDay   = $sortedAsc->last();
+
+            $monthlySummary[] = [
+                'bulan'             => $bulan,
+                'bulan_label'       => $carbon ? $carbon->translatedFormat('F Y') : 'Tanpa Tanggal',
+                'bulan_short'       => $carbon ? $carbon->translatedFormat('M Y') : '-',
+                'jumlah_hari'       => $items->count(),
+                'brangkas_awal'     => $firstDay['brangkas_awal'],
+                'total_penambahan'  => $items->sum('penambahan'),
+                'total_pemakaian'   => $items->sum('pemakaian'),
+                'brangkas_akhir'    => $lastDay['brangkas_akhir'],
+                'sisa'              => $lastDay['sisa'],
+                'rata_penambahan'   => $items->count() > 0 ? (int) round($items->sum('penambahan') / $items->count()) : 0,
+                'rata_pemakaian'    => $items->count() > 0 ? (int) round($items->sum('pemakaian') / $items->count()) : 0,
+            ];
+        }
+
+        // ============================================
+        // 6) SUMMARY
+        // ============================================
+        $summary = [
+            'total_awal'       => $dailyData->sum('brangkas_awal'),
+            'total_penambahan' => $dailyData->sum('penambahan'),
+            'total_pemakaian'  => $dailyData->sum('pemakaian'),
+            'total_sisa'       => $dailyData->sum('sisa'),
+            'total_akhir'      => $dailyData->sortBy('tanggal')->last()['brangkas_akhir'] ?? 0,
+            'total_hari'       => $dailyData->count(),
+            'total_bulan'      => count($monthlySummary),
+        ];
+
+        \Log::info('BRANGKAS FINAL', [
+            'storesWithBrangkasIds' => $storesWithBrangkasIds,
+            'stores_count'          => $stores->count(),
+            'storeId_final'         => $storeId,
+            'firstStoreId'          => $firstStoreId,
+            'reports_count'         => $reports->count(),
+        ]);
+
+        return view('brilink.laporan-brangkas', [
+            'stores'          => $stores,
+            'store'           => $store,
+            'storeId'         => (string) $storeId,
+            'from'            => $fromInput,
+            'to'              => $toInput,
+            'dailyData'       => $dailyData->sortBy('tanggal')->values(),
+            'groupedByMonth'  => $groupedByMonth,
+            'monthlySummary'  => $monthlySummary,
+            'summary'         => $summary,
+        ]);
     }
 }

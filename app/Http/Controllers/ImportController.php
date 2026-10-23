@@ -431,25 +431,49 @@ class ImportController extends Controller
             if (!in_array($tipe, ['order', 'sku'])) continue;
 
             $rows[] = [
-                'tipe_baris'                    => $tipe,
-                'no_pesanan'                    => $assoc['No. Pesanan'] ?? null,
-                'no_pengajuan'                  => $this->nullify($assoc['No. Pengajuan'] ?? null),
-                'id_produk'                     => $this->nullify($assoc['ID Produk'] ?? null),
-                'nama_produk'                   => $this->nullify($assoc['Nama Produk'] ?? null),
-                'waktu_pesanan_dibuat'          => $this->toDate($assoc['Waktu Pesanan Dibuat'] ?? null),
-                'tanggal_dana_dilepaskan'       => $this->toDate($assoc['Tanggal Dana Dilepaskan'] ?? null),
-                'tipe_pesanan'                  => $this->nullify($assoc['Tipe Pesanan'] ?? null),
-                'total_penghasilan'             => $this->toInt($assoc['Total Penghasilan'] ?? 0),
-                'harga_produk'                  => $this->toInt($assoc['Harga Produk'] ?? 0),
+                'tipe_baris'              => $tipe,
+                'no_pesanan'              => $assoc['No. Pesanan'] ?? null,
+                'no_pengajuan'            => $this->nullify($assoc['No. Pengajuan'] ?? null),
+                'id_produk'               => $this->nullify($assoc['ID Produk'] ?? null),
+                'nama_produk'             => $this->nullify($assoc['Nama Produk'] ?? null),
+                'waktu_pesanan_dibuat'    => $this->toDate($assoc['Waktu Pesanan Dibuat'] ?? null),
+                'tanggal_dana_dilepaskan' => $this->toDate($assoc['Tanggal Dana Dilepaskan'] ?? null),
+                'tipe_pesanan'            => $this->nullify($assoc['Tipe Pesanan'] ?? null),
+                'total_penghasilan'       => $this->toInt($assoc['Total Penghasilan'] ?? 0),
+                'harga_produk'            => $this->toInt($assoc['Harga Produk'] ?? 0),
+
+                // ===== BIAYA PLATFORM =====
                 'biaya_administrasi'            => $this->toInt($assoc['Biaya Administrasi'] ?? 0),
                 'biaya_proses_pesanan'          => $this->toInt($assoc['Biaya Proses Pesanan'] ?? 0),
                 'biaya_gratis_ongkir_xtra'      => $this->toInt($assoc['Biaya Gratis Ongkir XTRA - Ukuran Biasa (Kategori H)'] ?? 0),
                 'biaya_transaksi'               => $this->toInt($assoc['Biaya Transaksi'] ?? 0),
                 'biaya_komisi_ams'              => $this->toInt($assoc['Biaya Komisi AMS'] ?? 0),
                 'pph_22'                        => $this->toInt($assoc['PPh 22'] ?? 0),
-                'ongkos_kirim_dibayarkan'       => $this->toInt($assoc['Ongkos Kirim yang Dibayarkan ke Jasa Kirim'] ?? 0),
-                'gratis_ongkir_dari_shopee'     => $this->toInt($assoc['Gratis Ongkir dari Shopee'] ?? 0),
+
+                // ===== BIAYA PROMOSI (sebelumnya tidak dipetakan) =====
+                'biaya_kampanye'                => $this->toInt($assoc['Biaya Kampanye'] ?? 0),
+                'biaya_isi_saldo_otomatis'      => $this->toInt($assoc['Biaya Isi Saldo Otomatis (dari Penghasilan)'] ?? 0),
+                'premi'                         => $this->toInt($assoc['Premi'] ?? 0),
+                'fbs_fee'                       => $this->toInt($assoc['FBS Fee'] ?? 0),
+
+                // ===== VOUCHER & CASHBACK PENJUAL =====
+                'voucher_disponsor_penjual'                => $this->toInt($assoc['Voucher disponsor oleh Penjual'] ?? 0),
+                'cashback_koin_disponsori_penjual'         => $this->toInt($assoc['Cashback Koin disponsori Penjual'] ?? 0),
+                'diskon_produk_dari_shopee'                => $this->toInt($assoc['Diskon Produk dari Shopee'] ?? 0),
+                'voucher_cofund_disponsor_penjual'         => $this->toInt($assoc['Voucher co-fund disponsor oleh Penjual'] ?? 0),
+                'cashback_koin_cofund_disponsori_penjual'  => $this->toInt($assoc['Cashback Koin Co-fund disponsori Penjual'] ?? 0),
+
+                // ===== ONGKIR =====
+                'ongkos_kirim_dibayarkan'                  => $this->toInt($assoc['Ongkos Kirim yang Dibayarkan ke Jasa Kirim'] ?? 0),
+                'gratis_ongkir_dari_shopee'                => $this->toInt($assoc['Gratis Ongkir dari Shopee'] ?? 0),
+                'ongkos_kirim_pengembalian_barang'         => $this->toInt($assoc['Ongkos Kirim Pengembalian Barang'] ?? 0),
+                'return_to_seller_fee'                     => $this->toInt($assoc['Return to Seller Fee'] ?? 0),
+                'pengembalian_biaya_kirim'                 => $this->toInt($assoc['Pengembalian Biaya Kirim'] ?? 0),
+                'potongan_ongkos_kirim_dari_jasa_kirim'    => $this->toInt($assoc['Potongan Ongkos Kirim dari Jasa Kirim'] ?? 0),
+
+                // ===== REFUND =====
                 'jumlah_pengembalian_dana'      => $this->toInt($assoc['Jumlah Pengembalian Dana ke Pembeli'] ?? 0),
+
                 'raw_data'                      => $assoc,
             ];
         }

@@ -59,6 +59,8 @@
                         ['route' => 'brilink.log-setoran', 'label' => 'Log Setoran BRILink'],
                         ['route' => 'brilink.log-tarik-tunai', 'label' => 'Log Tarik Tunai'],
                         ['route' => 'brilink.profit', 'label' => 'Laporan Profit'],
+                        ['route' => 'brilink.laporan-brangkas', 'label' => 'Laporan Brangkas'],
+                        ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan'],
                     ]
                 ]
             ],

@@ -222,13 +222,14 @@
                     <h3 class="font-semibold text-gray-800">Breakdown Biaya Platform</h3>
                 </div>
 
-                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-3">
                     @php
                         $biaya = [
                             ['label' => 'Komisi',   'value' => $summary['biaya_komisi'],   'icon' => 'mdi:percent'],
                             ['label' => 'Layanan',  'value' => $summary['biaya_layanan'],  'icon' => 'mdi:cog'],
                             ['label' => 'Ongkir',   'value' => $summary['biaya_ongkir'],   'icon' => 'mdi:truck-delivery'],
                             ['label' => 'Afiliasi', 'value' => $summary['biaya_afiliasi'], 'icon' => 'mdi:account-group'],
+                            ['label' => 'Promosi',  'value' => $summary['biaya_promosi'],  'icon' => 'mdi:tag-multiple'],  // ← tambah
                             ['label' => 'Pajak',    'value' => $summary['biaya_pajak'],    'icon' => 'mdi:file-document'],
                             ['label' => 'Lainnya',  'value' => $summary['biaya_lainnya'],  'icon' => 'mdi:dots-horizontal'],
                         ];

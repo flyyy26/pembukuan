@@ -119,7 +119,7 @@
                             onclick="openBulkBayarModal()"
                             class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
                         <iconify-icon icon="mdi:cash-multiple" class="text-lg"></iconify-icon>
-                        Bayar Bulk
+                        Bayar Piutang
                     </button>
                     <a href="{{ route('brilink.pengeluaran.invoice-bulk-pdf', [
                             'store'    => $storeId,

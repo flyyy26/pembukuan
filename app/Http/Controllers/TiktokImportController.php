@@ -14,19 +14,32 @@ use PhpOffice\PhpSpreadsheet\IOFactory;
 
 class TiktokImportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $fromInput = $request->input('from');
+        $toInput   = $request->input('to');
+
+        $from = $fromInput;
+        $to   = $toInput;
+
+        // Jika hanya salah satu diisi, samakan
+        if ($from && !$to)       $to = $from;
+        elseif ($to && !$from)   $from = $to;
+
         $imports = Import::with('store')
             ->whereIn('tipe', ['tiktok_order', 'tiktok_income'])
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
             ->orderByDesc('id')
-            ->paginate(15);
+            ->paginate(15)
+            ->appends($request->only(['from', 'to']));
 
         $stores = Store::where('marketplace', 'tiktok')
             ->where('is_active', true)
             ->orderBy('nama_toko')
             ->get();
 
-        return view('tiktok.import', compact('imports', 'stores'));
+        return view('tiktok.import', compact('imports', 'stores', 'fromInput', 'toInput'));
     }
 
     /**
@@ -36,8 +49,8 @@ class TiktokImportController extends Controller
     {
         $request->validate([
             'store_id'    => 'required|exists:stores,id',
-            'order_file'  => 'required|file|mimes:xlsx,xls|max:20480',
-            'income_file' => 'required|file|mimes:xlsx,xls|max:20480',
+            'order_file'  => 'required|file|mimetypes:application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,application/zip,text/csv|max:20480',
+            'income_file' => 'required|file|mimetypes:application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,application/zip,text/csv|max:20480',
         ]);
 
         $store = Store::findOrFail($request->store_id);

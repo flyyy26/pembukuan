@@ -251,8 +251,15 @@
         </div>
 
         @if($imports->hasPages())
-        <div class="px-5 py-4 border-t border-gray-100">
-            {{ $imports->links() }}
+        <div class="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-xs text-gray-500">
+                Menampilkan
+                <strong>{{ $imports->firstItem() ?? 0 }}</strong>–<strong>{{ $imports->lastItem() ?? 0 }}</strong>
+                dari <strong>{{ $imports->total() }}</strong> import
+            </div>
+            <div>
+                {{ $imports->links() }}
+            </div>
         </div>
         @endif
     </div>

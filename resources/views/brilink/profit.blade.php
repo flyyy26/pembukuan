@@ -315,10 +315,33 @@
                 {{-- KOLOM 2: PRIVE --}}
                 <div class="space-y-3">
                     <h4 class="text-xs font-bold text-gray-500 uppercase tracking-wider mb-3 border-b pb-1">Pengeluaran</h4>
+
+                    {{-- Baris Total Prive --}}
                     <div class="flex justify-between items-center text-sm pb-2">
                         <span class="text-gray-600">Prive</span>
                         <span class="font-semibold text-red-600">- Rp {{ number_format($totalPrive, 0, ',', '.') }}</span>
                     </div>
+
+                    {{-- Breakdown Prive (group by keterangan) --}}
+                    @if(!empty($breakdownPrive))
+                        <div class="pl-3 border-l-2 border-red-200 space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                            @foreach($breakdownPrive as $bp)
+                                <div class="flex justify-between items-start gap-2 text-xs">
+                                    <span class="text-gray-500 truncate" title="{{ $bp['keterangan'] }}">
+                                        • {{ $bp['keterangan'] }}
+                                        @if($bp['jumlah'] > 1)
+                                            <span class="text-gray-400">({{ $bp['jumlah'] }}x)</span>
+                                        @endif
+                                    </span>
+                                    <span class="font-medium text-gray-700 whitespace-nowrap">
+                                        Rp {{ number_format($bp['total'], 0, ',', '.') }}
+                                    </span>
+                                </div>
+                            @endforeach
+                        </div>
+                    @else
+                        <div class="text-xs text-gray-400 italic pl-3">Belum ada transaksi prive.</div>
+                    @endif
                 </div>
 
                 {{-- KOLOM 3: PENDAPATAN HARIAN --}}

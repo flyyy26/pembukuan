@@ -27,6 +27,14 @@ class Store extends Model
         return $this->hasMany(ProductMapping::class);
     }
 
+    /**
+     * Relasi ke report BRILink (dipakai untuk filter outlet brangkas).
+     */
+    public function brilinkReports()
+    {
+        return $this->hasMany(BrilinkReport::class);
+    }
+
     public function getMarketplaceLabelAttribute(): string
     {
         return match($this->marketplace) {

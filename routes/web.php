@@ -12,6 +12,7 @@ use App\Http\Controllers\TiktokMappingController;
 use App\Http\Controllers\BrilinkImportController;
 use App\Http\Controllers\BrilinkController;
 use App\Http\Controllers\GajiKaryawanController;
+use App\Http\Controllers\TabunganController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -124,6 +125,7 @@ Route::middleware('auth')->group(function () {
     Route::post('brilink/piutang/bayar-bulk', [BrilinkController::class, 'bayarPiutangBulk'])->name('brilink.piutang.bayar-bulk');
     // Print invoice SEMUA piutang pada filter aktif (dari tombol di header tab)
     Route::get('/brilink/pengeluaran/invoice-bulk-pdf', [BrilinkController::class, 'printInvoicePiutangBulk'])->name('brilink.pengeluaran.invoice-bulk-pdf');
+    Route::get('/brilink/laporan-brangkas', [BrilinkController::class, 'laporanBrangkas'])->name('brilink.laporan-brangkas');
 
     Route::get('/brilink/profit', [BrilinkController::class, 'profit'])->name('brilink.profit');
     Route::post('/brilink/log-ppob', [BrilinkController::class, 'storeLogPpob'])->name('brilink.log-ppob.store');
@@ -155,4 +157,14 @@ Route::middleware('auth')->group(function () {
     Route::post('minus-karyawan/ajax',     [GajiKaryawanController::class, 'storeMinusAjax'])->name('minus.store-ajax');
     Route::match(['post', 'put'], 'minus-karyawan/{minus}/ajax', [GajiKaryawanController::class, 'updateMinusAjax'])->name('minus.update-ajax');
     Route::delete('minus-karyawan/{minus}/ajax',[GajiKaryawanController::class, 'destroyMinusAjax'])->name('minus.destroy-ajax');
+
+    // ============ TABUNGAN ============
+    Route::get('/tabungan', [TabunganController::class, 'index'])->name('tabungan.index');
+    Route::post('/tabungan/account/ajax', [TabunganController::class, 'storeAccountAjax'])->name('tabungan.account.store-ajax');
+    Route::put('/tabungan/account/{account}/ajax', [TabunganController::class, 'updateAccountAjax'])->name('tabungan.account.update-ajax');
+    Route::delete('/tabungan/account/{account}/ajax', [TabunganController::class, 'destroyAccountAjax'])->name('tabungan.account.destroy-ajax');
+    Route::post('/tabungan/transaction/ajax', [TabunganController::class, 'storeTransactionAjax'])->name('tabungan.transaction.store-ajax');
+    Route::put('/tabungan/transaction/{transaction}/ajax', [TabunganController::class, 'updateTransactionAjax'])->name('tabungan.transaction.update-ajax');
+    Route::delete('/tabungan/transaction/{transaction}/ajax', [TabunganController::class, 'destroyTransactionAjax'])->name('tabungan.transaction.destroy-ajax');
+    Route::get('/tabungan/transaction/{transaction}/invoice-pdf', [TabunganController::class, 'printInvoice'])->name('tabungan.transaction.invoice-pdf');
 });

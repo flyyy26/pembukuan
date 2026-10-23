@@ -10,140 +10,264 @@ use App\Models\TiktokIncome;
 use App\Models\TiktokOrderItem;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
+use App\Models\Import;
 
 class TiktokReconcile extends Command
 {
     protected $signature = 'tiktok:reconcile {store_id}';
-    protected $description = 'Rekonsiliasi TikTok: gabungkan order + income jadi sales';
+    protected $description = 'Rekonsiliasi TikTok: order + income menjadi sales';
+
+    /**
+     * Alokasikan biaya bulat berdasarkan proporsi subtotal.
+     * Sisa pembulatan dibagikan ke SKU dengan pecahan terbesar,
+     * sehingga total alokasi selalu sama dengan total biaya.
+     */
+    private function allocateAmount(
+        int $amount,
+        array $weights,
+        int $totalWeight
+    ): array {
+        $amount = max(0, $amount);
+        $result = array_fill(0, count($weights), 0);
+
+        if ($amount === 0 || $totalWeight <= 0 || count($weights) === 0) {
+            return $result;
+        }
+
+        $remainders = [];
+        $allocated = 0;
+
+        foreach ($weights as $index => $weight) {
+            $exact = $amount * max(0, (int) $weight) / $totalWeight;
+            $base = (int) floor($exact);
+
+            $result[$index] = $base;
+            $allocated += $base;
+
+            $remainders[$index] = $exact - $base;
+        }
+
+        $remaining = $amount - $allocated;
+
+        // Bagikan sisa rupiah berdasarkan pecahan terbesar.
+        arsort($remainders, SORT_NUMERIC);
+
+        foreach (array_keys($remainders) as $index) {
+            if ($remaining <= 0) {
+                break;
+            }
+
+            if ((int) ($weights[$index] ?? 0) > 0) {
+                $result[$index]++;
+                $remaining--;
+            }
+        }
+
+        return $result;
+    }
 
     public function handle()
     {
         $storeId = (int) $this->argument('store_id');
         $store = Store::find($storeId);
+
         if (!$store) {
-            $this->error("Store tidak ditemukan");
+            $this->error('Store tidak ditemukan.');
             return 1;
         }
 
         $this->info("Rekonsiliasi TikTok untuk: {$store->nama_toko}");
 
-        // Hapus sales TikTok lama untuk store ini
-        Sale::where('store_id', $storeId)->where('marketplace', 'tiktok')->delete();
+        $income = TiktokIncome::whereHas('import', function ($query) use ($storeId) {
+            $query->where('store_id', $storeId)
+                ->where('tipe', 'tiktok_income')
+                ->where('status', 'imported');
+        })->get()->groupBy('order_id');
 
-        // Mapping produk
+        $orderItems = TiktokOrderItem::whereHas('import', function ($query) use ($storeId) {
+            $query->where('store_id', $storeId)
+                ->where('tipe', 'tiktok_order')
+                ->where('status', 'imported');
+        })->whereIn('order_status', [
+            'Selesai',
+            'Delivered',
+            'Completed',
+        ])->get()->groupBy('order_id');
+
         $mappings = ProductMapping::where('store_id', $storeId)
             ->pluck('product_id', 'marketplace_sku')
             ->toArray();
 
         $products = Product::pluck('hpp', 'id')->toArray();
 
-        // Ambil Income per order
-        $incomeByOrder = TiktokIncome::all()->keyBy('order_id');
-
-        // Ambil Order Items (status Selesai/Delivered)
-        $orderItems = TiktokOrderItem::whereIn('order_status', ['Selesai', 'Delivered', 'Completed'])
-            ->get()
-            ->groupBy('order_id');
-
-        $this->info("Income rows  : " . $incomeByOrder->count());
-        $this->info("Order items  : " . $orderItems->flatten()->count());
+        $this->info('Income orders : ' . $income->count());
+        $this->info('Order groups  : ' . $orderItems->count());
 
         $inserted = 0;
         $skipped = 0;
 
         DB::beginTransaction();
+
         try {
+            // Hapus hanya sales TikTok milik toko ini.
+            Sale::where('store_id', $storeId)
+                ->where('marketplace', 'tiktok')
+                ->delete();
+
             foreach ($orderItems as $orderId => $items) {
-                $income = $incomeByOrder->get($orderId);
-                if (!$income) {
+                $incomeRows = $income->get($orderId);
+
+                if (!$incomeRows || $incomeRows->isEmpty()) {
                     $skipped++;
                     continue;
                 }
 
-                // Hitung total subtotal setelah diskon dari Order Items
-                $totalSubtotal = $items->sum(fn($item) => $item->sku_subtotal_after_discount);
+                $items = $items->values();
+
+                // Dasar alokasi adalah subtotal SKU setelah diskon.
+                $weights = $items->map(
+                    fn ($item) => max(
+                        0,
+                        (int) $item->sku_subtotal_after_discount
+                    )
+                )->all();
+
+                $totalSubtotal = array_sum($weights);
 
                 if ($totalSubtotal <= 0) {
                     $skipped++;
                     continue;
                 }
 
-                $itemsArray = $items->values();
+                /*
+                 * Biaya tiap order:
+                 * jumlahkan nilai absolut setiap baris Income untuk
+                 * menghindari keyBy() yang membuang baris duplikat.
+                 *
+                 * Jika file Income Anda memiliki baris koreksi/refund,
+                 * aturan agregasinya perlu disesuaikan dengan makna
+                 * transaksi pada file tersebut.
+                 */
+                $feeFields = [
+                    'komisi' => 'biaya_komisi_platform',
+                    'layanan' => null,
+                    'ongkir' => 'ongkir',
+                    'afiliasi' => 'komisi_afiliasi',
+                    'pajak' => 'pph_22',
+                    'lainnya' => 'komisi_dinamis',
+                ];
 
-                foreach ($itemsArray as $index => $item) {
-                    $nilaiItem = $item->sku_subtotal_after_discount;
-                    $proporsi = $nilaiItem / $totalSubtotal;
+                $orderFees = [];
 
-                    // 1. HITUNG BIAYA-BIAYA PLATFORM (Proporsional)
-                    $biayaKomisi    = (int) round(abs($income->biaya_komisi_platform ?? 0) * $proporsi);
-                    $biayaLayanan   = (int) round((abs($income->biaya_pemrosesan_pesanan ?? 0) + abs($income->biaya_growth_xtra ?? 0)) * $proporsi);
-                    $biayaOngkir    = (int) round(abs($income->ongkir ?? 0) * $proporsi);
-                    $biayaAfiliasi  = (int) round(abs($income->komisi_afiliasi ?? 0) * $proporsi);
-                    $biayaPajak     = (int) round(abs($income->pph_22 ?? 0) * $proporsi);
-                    $biayaLainnya   = (int) round(abs($income->komisi_dinamis ?? 0) * $proporsi);
-                    
-                    $totalBiaya = $biayaKomisi + $biayaLayanan + $biayaOngkir + $biayaAfiliasi + $biayaPajak + $biayaLainnya;
+                foreach ($feeFields as $key => $field) {
+                    if ($key === 'layanan') {
+                        $orderFees[$key] = $incomeRows->sum(
+                            fn ($row) =>
+                                abs((int) ($row->biaya_pemrosesan_pesanan ?? 0))
+                                + abs((int) ($row->biaya_growth_xtra ?? 0))
+                        );
+                    } else {
+                        $orderFees[$key] = $incomeRows->sum(
+                            fn ($row) => abs((int) ($row->{$field} ?? 0))
+                        );
+                    }
+                }
 
-                    // 2. NET REVENUE (Uang Bersih) = Subtotal Barang - Total Biaya Platform
+                // Alokasikan setiap kelompok biaya dengan aturan sama.
+                $allocatedFees = [];
+
+                foreach ($orderFees as $key => $amount) {
+                    $allocatedFees[$key] = $this->allocateAmount(
+                        (int) $amount,
+                        $weights,
+                        $totalSubtotal
+                    );
+                }
+
+                foreach ($items as $index => $item) {
+                    $nilaiItem = $weights[$index];
+
+                    $biayaKomisi = $allocatedFees['komisi'][$index];
+                    $biayaLayanan = $allocatedFees['layanan'][$index];
+                    $biayaOngkir = $allocatedFees['ongkir'][$index];
+                    $biayaAfiliasi = $allocatedFees['afiliasi'][$index];
+                    $biayaPajak = $allocatedFees['pajak'][$index];
+                    $biayaLainnya = $allocatedFees['lainnya'][$index];
+
+                    $totalBiaya = $biayaKomisi
+                        + $biayaLayanan
+                        + $biayaOngkir
+                        + $biayaAfiliasi
+                        + $biayaPajak
+                        + $biayaLainnya;
+
+                    // Net Revenue = subtotal setelah diskon - biaya.
                     $netRevenue = $nilaiItem - $totalBiaya;
 
-                    // Mapping SKU
                     $sku = trim($item->seller_sku ?? '');
                     $productId = $mappings[$sku] ?? null;
 
                     $hppTotal = null;
                     $profit = null;
-                    
+
                     if ($productId && isset($products[$productId])) {
-                        $hppTotal = $products[$productId] * $item->quantity; // HPP per unit x Qty
-                        
-                        // 3. PROFIT = Net Revenue (Uang Bersih) - HPP
-                        $profit = $netRevenue - $hppTotal; 
+                        $hppTotal = (int) $products[$productId]
+                            * (int) $item->quantity;
+
+                        $profit = $netRevenue - $hppTotal;
                     }
 
                     Sale::create([
-                        'store_id'        => $storeId,
-                        'marketplace'     => 'tiktok',
-                        'order_id'        => $orderId,
-                        'tanggal'         => $item->delivered_time?->format('Y-m-d')
-                                             ?? $item->paid_time?->format('Y-m-d')
-                                             ?? $item->created_time?->format('Y-m-d'),
-                        'product_id'      => $productId,
+                        'store_id' => $storeId,
+                        'marketplace' => 'tiktok',
+                        'order_id' => $orderId,
+                        'tanggal' => $item->delivered_time?->format('Y-m-d')
+                            ?? $item->paid_time?->format('Y-m-d')
+                            ?? $item->created_time?->format('Y-m-d'),
+
+                        'product_id' => $productId,
                         'marketplace_sku' => $sku,
-                        'qty'             => $item->quantity,
-                        'harga_jual'      => $item->sku_unit_original_price * $item->quantity,
+                        'qty' => $item->quantity,
+
+                        'harga_jual' =>
+                            $item->sku_unit_original_price * $item->quantity,
+
                         'diskon_platform' => $item->sku_platform_discount,
-                        'diskon_seller'   => $item->sku_seller_discount,
-                        'subtotal'        => $item->sku_subtotal_after_discount,
-                        
-                        // Net Revenue sekarang sudah bersih (dipotong biaya)
-                        'net_revenue'     => $netRevenue, 
-                        
-                        // Tetap simpan rincian biaya untuk arsip/laporan
-                        'biaya_komisi'    => $biayaKomisi,
-                        'biaya_layanan'   => $biayaLayanan,
-                        'biaya_ongkir'    => $biayaOngkir,
-                        'biaya_afiliasi'  => $biayaAfiliasi,
-                        'biaya_promosi'   => 0,
-                        'biaya_pajak'     => $biayaPajak,
-                        'biaya_lainnya'   => $biayaLainnya,
-                        
-                        'hpp_total'       => $hppTotal,
-                        'profit'          => $profit, // Profit = Net Revenue - HPP
-                        'status'          => $productId ? 'matched' : 'orphan',
+                        'diskon_seller' => $item->sku_seller_discount,
+                        'subtotal' => $nilaiItem,
+
+                        'net_revenue' => $netRevenue,
+
+                        'biaya_komisi' => $biayaKomisi,
+                        'biaya_layanan' => $biayaLayanan,
+                        'biaya_ongkir' => $biayaOngkir,
+                        'biaya_afiliasi' => $biayaAfiliasi,
+                        'biaya_promosi' => 0,
+                        'biaya_pajak' => $biayaPajak,
+                        'biaya_lainnya' => $biayaLainnya,
+
+                        'hpp_total' => $hppTotal,
+                        'profit' => $profit,
+                        'status' => $productId ? 'matched' : 'orphan',
                     ]);
+
                     $inserted++;
                 }
             }
+
             DB::commit();
-        } catch (\Exception $e) {
+        } catch (\Throwable $e) {
             DB::rollBack();
-            $this->error("Gagal: " . $e->getMessage());
+
+            $this->error('Gagal rekonsiliasi: ' . $e->getMessage());
+
+            report($e);
+
             return 1;
         }
 
         $this->newLine();
-        $this->info("=== Hasil ===");
+        $this->info('=== Hasil Rekonsiliasi ===');
         $this->line("Inserted : {$inserted}");
         $this->line("Skipped  : {$skipped}");
 

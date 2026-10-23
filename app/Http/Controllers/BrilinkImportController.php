@@ -11,64 +11,198 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use PhpOffice\PhpSpreadsheet\IOFactory;
 use PhpOffice\PhpSpreadsheet\Cell\Coordinate;
+use App\Exceptions\BrilinkImportException;
+use App\Services\BrilinkFileValidator;
+use App\Services\BrilinkRowValidator;
 
 class BrilinkImportController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
+        $request->validate([
+            'from' => ['nullable', 'date_format:Y-m-d'],
+            'to'   => ['nullable', 'date_format:Y-m-d'],
+        ]);
+
+        $fromInput = $request->input('from');
+        $toInput   = $request->input('to');
+
+        // Default: hari ini (jika user belum mengisi apa pun)
+        $from = $fromInput ?? now()->format('Y-m-d');
+        $to   = $toInput ?? now()->format('Y-m-d');
+
+        if ($from && !$to) {
+            $to = $from;
+        } elseif ($to && !$from) {
+            $from = $to;
+        }
+
         $imports = Import::with('store')
             ->where('tipe', 'brilink')
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
             ->orderByDesc('id')
-            ->paginate(15);
+            ->paginate(15)
+            ->appends($request->only(['from', 'to'])); // agar paginasi bawa filter
 
         $stores = Store::where('marketplace', 'brilink')
             ->where('is_active', true)
             ->orderBy('nama_toko')
             ->get();
 
-        return view('brilink.import', compact('imports', 'stores'));
+        return view('brilink.import', compact('imports', 'stores', 'fromInput', 'toInput'));
     }
 
     public function import(Request $request)
     {
+        // ============================================
+        // 1. VALIDASI INPUT
+        // ============================================
         $request->validate([
             'store_id' => 'required|exists:stores,id',
             'file'     => 'required|file|mimes:xlsx,xls|max:20480',
+            'tanggal'  => 'required|date_format:Y-m-d',
+        ], [
+            'store_id.required' => 'Silakan pilih toko terlebih dahulu.',
+            'store_id.exists'   => 'Toko yang dipilih tidak ditemukan.',
+            'file.required'     => 'Silakan pilih file Excel Buku BRILink.',
+            'file.mimes'        => 'File harus berformat Excel (.xlsx atau .xls).',
+            'file.max'          => 'Ukuran file maksimal 20 MB.',
+            'tanggal.required'  => 'Silakan isi tanggal laporan.',
+            'tanggal.date_format' => 'Format tanggal tidak valid (harus YYYY-MM-DD).',
         ]);
 
         $store = Store::findOrFail($request->store_id);
 
+        // ============================================
+        // 2. SIMPAN FILE
+        // ============================================
         $uploaded = $request->file('file');
         $storedPath = $uploaded->store('imports/brilink', 'local');
         $fullPath = Storage::disk('local')->path($storedPath);
         $fileHash = hash_file('sha256', $fullPath);
 
-        // Cek duplikat
+        // ============================================
+        // 3. CEK DUPLIKAT
+        // ============================================
         $existing = Import::where('file_hash', $fileHash)
             ->where('tipe', 'brilink')
             ->first();
 
         if ($existing) {
             Storage::disk('local')->delete($storedPath);
-            return back()->with('warning', "File ini sudah pernah diimport (import #{$existing->id}). Skip.");
+
+            return back()->with('warning',
+                "File ini sudah pernah diimport sebelumnya (Import #{$existing->id}).\n" .
+                "Jika ingin import ulang, hapus dulu data import lama di menu Riwayat."
+            );
         }
 
+        // ============================================
+        // 4. LOAD SPREADSHEET
+        // ============================================
         try {
-            $parsed = $this->parseBrilinkFile($fullPath);
+            $spreadsheet = IOFactory::load($fullPath);
         } catch (\Throwable $e) {
             Storage::disk('local')->delete($storedPath);
-            return back()->with('error', 'Gagal parse file BRILink: ' . $e->getMessage());
+
+            return back()->with('error',
+                "File tidak bisa dibaca sebagai Excel.\n\n" .
+                "Kemungkinan penyebab:\n" .
+                "• File corrupt atau rusak\n" .
+                "• File bukan format Excel asli (mis. CSV yang di-rename jadi .xlsx)\n" .
+                "• File sedang dibuka di aplikasi lain\n\n" .
+                "Solusi: coba buka file di Excel, lalu save ulang sebagai .xlsx, kemudian upload lagi."
+            );
         }
 
+        // ============================================
+        // 5. VALIDASI STRUKTUR FILE
+        // ============================================
+        try {
+            $validator = new BrilinkFileValidator();
+            $validator->validate($spreadsheet);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+
+            return back()->with('error', $e->toDisplayMessage());
+        }
+
+        // ============================================
+        // 6. PARSE DATA
+        // ============================================
+        try {
+            $parsed = $this->parseBrilinkFile($spreadsheet);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+
+            return back()->with('error', $e->toDisplayMessage());
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($storedPath);
+
+            report($e);
+
+            return back()->with('error',
+                "Gagal membaca data dari file Excel.\n\n" .
+                "Kemungkinan penyebab:\n" .
+                "• Ada kolom yang berisi teks padahal seharusnya angka\n" .
+                "• Struktur kolom diubah dari format asli BRILink\n" .
+                "• Ada rumus Excel yang error (#REF!, #VALUE!, dll)\n\n" .
+                "Solusi:\n" .
+                "1. Buka file di Excel, periksa sel yang error\n" .
+                "2. Pastikan kolom nominal hanya berisi angka\n" .
+                "3. Save ulang sebagai .xlsx lalu upload kembali"
+            );
+        }
+
+        // ============================================
+        // 7. VALIDASI BARIS DATA (sebelum simpan DB)
+        // ============================================
+        try {
+            $rowValidator = new BrilinkRowValidator();
+            $rowValidator->validateAll($parsed);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+
+            return back()->with('error', $e->toDisplayMessage());
+        }
+
+        // ============================================
+        // 8. CEK ADA DATA?
+        // ============================================
+        $totalData = count($parsed['accounts'])
+            + count($parsed['ppob'])
+            + count($parsed['setoran'])
+            + count($parsed['tarik_tunai'])
+            + count($parsed['pengeluaran']);
+
+        if ($totalData === 0) {
+            Storage::disk('local')->delete($storedPath);
+
+            return back()->with('error',
+                "File BRILink berhasil dibaca, tetapi tidak ada data transaksi yang ditemukan.\n\n" .
+                "Kemungkinan penyebab:\n" .
+                "• File Excel hanya berisi template kosong\n" .
+                "• Semua sheet transaksi (PPOB, Setoran, Tarik Tunai, Pengeluaran) kosong\n" .
+                "• Rentang tanggal tidak memiliki transaksi\n\n" .
+                "Pastikan file yang diupload berisi data transaksi BRILink yang valid."
+            );
+        }
+
+        // ============================================
+        // 9. SIMPAN KE DATABASE
+        // ============================================
         DB::beginTransaction();
         try {
+            $tanggalLaporan = $request->input('tanggal');
+
             $import = Import::create([
                 'store_id'      => $store->id,
                 'tipe'          => 'brilink',
                 'file_name'     => $uploaded->getClientOriginalName(),
                 'file_hash'     => $fileHash,
-                'periode_start' => $parsed['periode_start'],
-                'periode_end'   => $parsed['periode_end'],
+                'periode_start' => $tanggalLaporan,
+                'periode_end'   => $tanggalLaporan,
                 'total_rows'    => $parsed['total_rows'],
                 'status'        => 'pending',
             ]);
@@ -81,8 +215,8 @@ class BrilinkImportController extends Controller
                     'file_name'     => $uploaded->getClientOriginalName(),
                     'file_hash'     => $fileHash,
                     'status'        => 'imported',
-                    'periode_start' => $parsed['periode_start'] ?? now()->format('Y-m-d'),
-                    'periode_end'   => $parsed['periode_end']   ?? now()->format('Y-m-d'),
+                    'periode_start' => $tanggalLaporan,
+                    'periode_end'   => $tanggalLaporan,
                 ]
             ));
 
@@ -95,57 +229,120 @@ class BrilinkImportController extends Controller
             $import->update(['status' => 'imported']);
 
             DB::commit();
+        } catch (\Illuminate\Database\QueryException $e) {
+            DB::rollBack();
+            Storage::disk('local')->delete($storedPath);
+
+            report($e);
+
+            $sqlState  = $e->errorInfo[0] ?? '';
+            $driverMsg = $e->errorInfo[2] ?? $e->getMessage();
+
+            // 22001 = string data too long
+            if ($sqlState === '22001') {
+                $kolom = 'tidak diketahui';
+                $sheet = 'tidak diketahui';
+
+                if (preg_match("/Data too long for column '([^']+)'/", $driverMsg, $m)) {
+                    $kolom = $m[1];
+                    $sheet = $this->guessSheetFromColumn($kolom);
+                }
+
+                return back()->with('error',
+                    "Ada data yang terlalu panjang di kolom **{$kolom}** pada sheet **{$sheet}**.\n\n" .
+                    "Solusi: perpendek teks di kolom tersebut (maksimal 255 karakter), lalu upload ulang."
+                );
+            }
+
+            // 22003 = numeric value out of range
+            if ($sqlState === '22003') {
+                return back()->with('error',
+                    "Ada angka yang terlalu besar atau tidak valid di file Excel.\n\n" .
+                    "Solusi: periksa kembali semua kolom nominal, pastikan tidak ada angka melebihi batas wajar."
+                );
+            }
+
+            // 23000 = integrity constraint violation (NOT NULL, FK, etc)
+            if ($sqlState === '23000') {
+                return back()->with('error',
+                    "Ada data yang wajib diisi tetapi kosong.\n\n" .
+                    "Kemungkinan penyebab:\n" .
+                    "• Ada kolom yang seharusnya berisi angka tapi kosong\n" .
+                    "• Ada baris transaksi tanpa kategori atau keterangan\n\n" .
+                    "Solusi: periksa file Excel, pastikan semua baris transaksi punya data lengkap."
+                );
+            }
+
+            return back()->with('error',
+                "Data berhasil dibaca, tetapi gagal disimpan ke database.\n\n" .
+                "Silakan coba lagi. Jika error berlanjut, hubungi admin.\n" .
+                "Kode error: " . ($sqlState ?: 'unknown')
+            );
         } catch (\Throwable $e) {
             DB::rollBack();
             Storage::disk('local')->delete($storedPath);
-            return back()->with('error', 'Gagal simpan BRILink ke DB: ' . $e->getMessage());
+
+            report($e);
+
+            return back()->with('error',
+                "Terjadi kesalahan tak terduga saat menyimpan data.\n\n" .
+                "Silakan coba lagi. Jika error berlanjut, hubungi admin."
+            );
         }
 
+        // ============================================
+        // 10. SUKSES
+        // ============================================
         return redirect()->route('brilink.import')
-            ->with('success', "Import BRILink berhasil. Report #{$report->id}, total {$parsed['total_rows']} baris log.");
+            ->with('success',
+                "Import BRILink berhasil!\n" .
+                "• Total baris: {$parsed['total_rows']}\n" .
+                "• Rekening: " . count($parsed['accounts']) . "\n" .
+                "• PPOB: " . count($parsed['ppob']) . "\n" .
+                "• Setoran: " . count($parsed['setoran']) . "\n" .
+                "• Tarik Tunai: " . count($parsed['tarik_tunai']) . "\n" .
+                "• Pengeluaran: " . count($parsed['pengeluaran'])
+            );
     }
 
     /**
      * Parse 6 sheet dari file BRILink.
      */
-    private function parseBrilinkFile(string $fullPath): array
+    private function parseBrilinkFile($spreadsheet): array
     {
-        $spreadsheet = IOFactory::load($fullPath);
-
         $sheetDashboard   = $this->findSheet($spreadsheet, 'DASHBOARD UTAMA');
         $sheetPpob        = $this->findSheet($spreadsheet, 'TRANSAKSI KASIR PPOB');
         $sheetSetoran     = $this->findSheet($spreadsheet, 'TRANSAKSI SETORAN BRILINK');
         $sheetTarik       = $this->findSheet($spreadsheet, 'TRANSAKSI TARIK TUNAI');
         $sheetPengeluaran = $this->findSheet($spreadsheet, 'REKAP PENGELUARAN');
 
-        if (!$sheetDashboard) throw new \Exception("Sheet 'DASHBOARD UTAMA' tidak ditemukan");
+        if (!$sheetDashboard) {
+            throw new BrilinkImportException(
+                'Sheet "DASHBOARD UTAMA" tidak ditemukan.',
+                ['Pastikan file adalah Buku BRILink asli dari BRI.']
+            );
+        }
 
-        $calc = new \PhpOffice\PhpSpreadsheet\Calculation\Calculation($spreadsheet);
-
-        $report      = $this->parseDashboard($sheetDashboard, $spreadsheet, $calc);
+        $report      = $this->parseDashboard($sheetDashboard);
         $accounts    = $this->parseAccounts($sheetDashboard);
-        $ppob        = $sheetPpob      ? $this->parsePpob($sheetPpob)            : [];
-        $setoran     = $sheetSetoran   ? $this->parseSetoran($sheetSetoran)      : [];
-        $tarikTunai  = $sheetTarik     ? $this->parseTarikTunai($sheetTarik)     : [];
-        
-        // 🔥 Baca data riil dari Sheet REKAP PENGELUARAN
+        $ppob        = $sheetPpob        ? $this->parsePpob($sheetPpob)              : [];
+        $setoran     = $sheetSetoran     ? $this->parseSetoran($sheetSetoran)        : [];
+        $tarikTunai  = $sheetTarik       ? $this->parseTarikTunai($sheetTarik)       : [];
         $pengeluaran = $sheetPengeluaran ? $this->parsePengeluaran($sheetPengeluaran) : [];
 
-        $totalRows = count($accounts) + count($ppob) + count($setoran) + count($tarikTunai) + count($pengeluaran);
-
-        $periodeStart = $report['periode_start'] ?? null;
-        $periodeEnd   = $report['periode_end']   ?? null;
+        $totalRows = count($accounts) + count($ppob) + count($setoran)
+                + count($tarikTunai) + count($pengeluaran);
 
         return [
-            'report'      => $report,
-            'accounts'    => $accounts,
-            'ppob'        => $ppob,
-            'setoran'     => $setoran,
-            'tarik_tunai' => $tarikTunai,
-            'pengeluaran' => $pengeluaran,
-            'total_rows'  => $totalRows,
-            'periode_start' => $periodeStart,
-            'periode_end'   => $periodeEnd,
+            'report'        => $report,
+            'accounts'      => $accounts,
+            'ppob'          => $ppob,
+            'setoran'       => $setoran,
+            'tarik_tunai'   => $tarikTunai,
+            'pengeluaran'   => $pengeluaran,
+            'total_rows'    => $totalRows,
+            'periode_start' => $report['periode_start'] ?? null,
+            'periode_end'   => $report['periode_end']   ?? null,
         ];
     }
 
@@ -164,7 +361,7 @@ class BrilinkImportController extends Controller
         return is_numeric($val) ? (int) round((float) $val) : $val;
     }
 
-    private function parseDashboard($sheet, $spreadsheet, $calc): array
+    private function parseDashboard($sheet): array
     {
         $safeInt = function($coord) use ($sheet) {
             $val = $this->cellValue($sheet, $coord);
@@ -177,22 +374,19 @@ class BrilinkImportController extends Controller
             'total_tarik_tunai_mbanking' => $safeInt('B7'),
             'total_setoran_brilink'      => $safeInt('B8'),
             'total_pendapatan_admin'     => $safeInt('B9'),
-            
-            // Nilai-nilai ini akan dihitung ulang otomatis oleh Controller setelah import
-            'total_pengeluaran_riil'     => 0, 
+
+            'total_pengeluaran_riil'     => 0,
             'total_pindah_saldo'         => 0,
             'volume_transaksi_agen'      => $safeInt('B18'),
             'saldo_awal_total'           => $safeInt('B44'),
             'saldo_akhir_total'          => $safeInt('B68'),
-            'manual_validasi_kas_uang'   => $safeInt('B24'), 
-            
-            // 🔥 PERBAIKAN: Ambil dari baris 72 dan 73 sesuai Excel
+            'manual_validasi_kas_uang'   => $safeInt('B24'),
             'laba_kasir_pintar'          => $safeInt('B72'),
             'penambahan_brangkas'        => $safeInt('B73'),
         ];
     }
 
-        private function parseAccounts($sheet): array
+    private function parseAccounts($sheet): array
     {
         $accounts = [];
         $awalMap = [];
@@ -200,12 +394,11 @@ class BrilinkImportController extends Controller
         for ($r = 27; $r <= 47; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
-            
+
             $namaStr = strtoupper(trim((string)$nama));
-            // 🔥 TAMBAHKAN 'LABA RUGI' DAN 'PENAMBAHAN BRANGKAS' DI SINI
             if (
-                str_contains($namaStr, 'TOTAL') || 
-                str_contains($namaStr, 'NAMA REKENING') || 
+                str_contains($namaStr, 'TOTAL') ||
+                str_contains($namaStr, 'NAMA REKENING') ||
                 str_contains($namaStr, 'REKAPITULASI') ||
                 str_contains($namaStr, 'LABA RUGI') ||
                 str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
@@ -221,12 +414,11 @@ class BrilinkImportController extends Controller
         for ($r = 51; $r <= 72; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
-            
+
             $namaStr = strtoupper(trim((string)$nama));
-            // 🔥 TERAPKAN FILTER YANG SAMA UNTUK SALDO AKHIR
             if (
-                str_contains($namaStr, 'TOTAL') || 
-                str_contains($namaStr, 'NAMA REKENING') || 
+                str_contains($namaStr, 'TOTAL') ||
+                str_contains($namaStr, 'NAMA REKENING') ||
                 str_contains($namaStr, 'REKAPITULASI') ||
                 str_contains($namaStr, 'LABA RUGI') ||
                 str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
@@ -265,20 +457,12 @@ class BrilinkImportController extends Controller
     private function parsePpob($sheet): array
     {
         $rows = [];
-        
-        // Ambil baris tertinggi
         $maxRow = $sheet->getHighestRow();
-        
-        // Looping mulai baris 4 (sesuai Excel)
+
         for ($r = 4; $r <= $maxRow; $r++) {
-            // Baca keterangan umum di kolom D (untuk Barang Titip Jual)
             $keteranganTitipJual = trim((string) $sheet->getCell("D{$r}")->getValue());
-            
-            // Baca keterangan khusus untuk Penambahan Kas di kolom I
             $keteranganPenambahanKas = trim((string) $sheet->getCell("I{$r}")->getValue());
 
-            // Mapping Manual Kolom -> Kategori
-            // PERBAIKAN: Kolom I adalah Keterangan, Lain-lain dipindah ke Kolom J
             $mapping = [
                 'A' => 'Pulsa & Deposit',
                 'B' => 'Barang Kasir Pintar',
@@ -287,23 +471,18 @@ class BrilinkImportController extends Controller
                 'F' => 'Payfazz',
                 'G' => 'Buku Warung',
                 'H' => 'Penambahan Kas',
-                'J' => 'Lain-lain' // 🔥 Pindah dari I ke J
+                'J' => 'Lain-lain'
             ];
 
             foreach ($mapping as $kolom => $kategoriName) {
-                // Ambil nilai nominal
                 $nominal = $this->cellValue($sheet, "{$kolom}{$r}");
-                
-                // Jika nominal lebih dari 0, simpan
+
                 if ($nominal > 0) {
-                    // Default keterangan
                     $keterangan = "Transaksi baris {$r}";
-                    
-                    // Logika Keterangan
+
                     if ($kategoriName === 'Barang Titip Jual' && $keteranganTitipJual !== '') {
                         $keterangan = $keteranganTitipJual;
                     } elseif ($kategoriName === 'Penambahan Kas' && $keteranganPenambahanKas !== '') {
-                        // Simpan "BRANGKAS" atau "BRILINK ATUNG" ke kolom keterangan
                         $keterangan = $keteranganPenambahanKas;
                     }
 
@@ -326,11 +505,10 @@ class BrilinkImportController extends Controller
         for ($r = 4; $r <= $maxRow; $r++) {
             $nominal  = $this->cellValue($sheet, "A{$r}");
             $admin    = $this->cellValue($sheet, "B{$r}");
-            $ket      = $sheet->getCell("C{$r}")->getValue(); // Kolom Keterangan
+            $ket      = $sheet->getCell("C{$r}")->getValue();
 
             if (!$nominal && !$admin) continue;
-            
-            // Abaikan baris rekap/total
+
             if (stripos((string)$ket, 'VALIDASI') !== false || stripos((string)$ket, 'SELISIH') !== false) continue;
             if (stripos((string)$nominal, 'TOTAL') !== false) continue;
 
@@ -351,15 +529,14 @@ class BrilinkImportController extends Controller
         for ($r = 4; $r <= $maxRow; $r++) {
             $edcNominal = $this->cellValue($sheet, "A{$r}");
             $edcAdmin   = $this->cellValue($sheet, "B{$r}");
-            $edcKetMesin= $sheet->getCell("C{$r}")->getValue(); // 🔥 KET. MESIN EDC
-            $edcKmc     = $this->cellValue($sheet, "D{$r}");    // 🔥 KMC pindah ke D
-            $saldoMasuk = $this->cellValue($sheet, "E{$r}");    // 🔥 Saldo Masuk pindah ke E
-            $mbNominal  = $this->cellValue($sheet, "F{$r}");    // 🔥 MBanking pindah ke F
-            $mbAdmin    = $this->cellValue($sheet, "G{$r}");    // 🔥 Admin MB pindah ke G
-            $mbBank     = $sheet->getCell("H{$r}")->getValue(); // 🔥 Rekening Bank
-            $keterangan = $sheet->getCell("I{$r}")->getValue(); // 🔥 Keterangan Umum
+            $edcKetMesin= $sheet->getCell("C{$r}")->getValue();
+            $edcKmc     = $this->cellValue($sheet, "D{$r}");
+            $saldoMasuk = $this->cellValue($sheet, "E{$r}");
+            $mbNominal  = $this->cellValue($sheet, "F{$r}");
+            $mbAdmin    = $this->cellValue($sheet, "G{$r}");
+            $mbBank     = $sheet->getCell("H{$r}")->getValue();
+            $keterangan = $sheet->getCell("I{$r}")->getValue();
 
-            // Simpan EDC jika ada nominal atau admin
             if ($edcNominal || $edcAdmin) {
                 $rows[] = [
                     'tipe'           => 'edc_bri',
@@ -372,8 +549,7 @@ class BrilinkImportController extends Controller
                     'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
             }
-            
-            // Simpan MBanking jika ada nominal atau admin
+
             if ($mbNominal || $mbAdmin) {
                 $rows[] = [
                     'tipe'           => 'mbanking',
@@ -381,7 +557,7 @@ class BrilinkImportController extends Controller
                     'admin_toko'     => (int)($mbAdmin ?: 0),
                     'ket_mesin_edc'  => null,
                     'kmc'            => 0,
-                    'saldo_masuk'    => (int)($saldoMasuk ?: 0), // Asumsi saldo masuk hanya 1x per baris, bisa dipindah ke EDC
+                    'saldo_masuk'    => (int)($saldoMasuk ?: 0),
                     'keterangan_rek' => $mbBank ? (string)$mbBank : null,
                     'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
@@ -394,14 +570,12 @@ class BrilinkImportController extends Controller
     {
         $rows = [];
         $maxRow = $sheet->getHighestRow();
-        
-        // Data dimulai dari baris 4 sesuai Excel
-        for ($r = 4; $r <= $maxRow; $r++) {
-            $ket     = $sheet->getCell("A{$r}")->getValue(); // Keterangan ada di Kolom A
-            $nominal = $this->cellValue($sheet, "B{$r}");    // Nominal ada di Kolom B
-            $kategori= $sheet->getCell("C{$r}")->getValue(); // Kategori ada di Kolom C
 
-            // Abaikan baris kosong atau baris total
+        for ($r = 4; $r <= $maxRow; $r++) {
+            $ket     = $sheet->getCell("A{$r}")->getValue();
+            $nominal = $this->cellValue($sheet, "B{$r}");
+            $kategori= $sheet->getCell("C{$r}")->getValue();
+
             if (!$ket && !$nominal) continue;
             if (stripos((string)$ket, 'TOTAL') !== false) continue;
 
@@ -412,5 +586,34 @@ class BrilinkImportController extends Controller
             ];
         }
         return $rows;
+    }
+
+    /**
+     * Tebak sheet dari nama kolom (untuk pesan error yang informatif).
+     */
+    private function guessSheetFromColumn(string $column): string
+    {
+        $map = [
+            'kategori'         => 'TRANSAKSI KASIR PPOB',
+            'nominal'          => 'TRANSAKSI KASIR PPOB / REKAP PENGELUARAN / TARIK TUNAI',
+            'keterangan'       => 'PPOB / SETORAN / TARIK TUNAI / PENGELUARAN',
+            'nama_rekening'    => 'DASHBOARD UTAMA (Rekapitulasi Saldo)',
+            'saldo_awal'       => 'DASHBOARD UTAMA (Rekapitulasi Saldo)',
+            'saldo_akhir'      => 'DASHBOARD UTAMA (Rekapitulasi Saldo)',
+            'nominal_edc'      => 'TRANSAKSI SETORAN BRILINK',
+            'administrasi_toko'=> 'TRANSAKSI SETORAN BRILINK / TARIK TUNAI',
+            'tipe'             => 'TRANSAKSI TARIK TUNAI',
+            'admin_toko'       => 'TRANSAKSI TARIK TUNAI / SETORAN',
+            'ket_mesin_edc'    => 'TRANSAKSI TARIK TUNAI / SETORAN',
+            'keterangan_rek'   => 'TRANSAKSI TARIK TUNAI',
+            'kmc'              => 'TRANSAKSI TARIK TUNAI',
+            'saldo_masuk'      => 'TRANSAKSI TARIK TUNAI',
+            'nominal_kas'      => 'REKAP PENGELUARAN',
+            'total_omset_ppob' => 'DASHBOARD UTAMA',
+            'periode_start'    => 'DASHBOARD UTAMA / Import',
+            'periode_end'      => 'DASHBOARD UTAMA / Import',
+        ];
+
+        return $map[$column] ?? 'tidak diketahui';
     }
 }

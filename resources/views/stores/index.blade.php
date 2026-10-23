@@ -176,10 +176,9 @@
 
 <script>
 const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
-const STORE_DATA = @json($stores->items());
 
 // ==================== OPEN MODAL ====================
-function openModal(mode, storeId = null) {
+function openModal(mode, storeId = null, btn = null) {
     const modal = document.getElementById('storeModal');
     const form = document.getElementById('storeForm');
     const errors = document.getElementById('formErrors');
@@ -202,22 +201,30 @@ function openModal(mode, storeId = null) {
         form.dataset.mode = 'create';
         form.dataset.storeId = '';
     } else {
-        const store = STORE_DATA.find(s => s.id === storeId);
-        if (!store) return;
+        if (!btn) return; // Pastikan tombol dikirim
+
+        // 🔥 AMBIL DATA LANGSUNG DARI BARIS TABEL (Solusi Anti-Gagal)
+        const row = btn.closest('tr');
+        const data = {
+            id: row.getAttribute('data-id'),
+            nama_toko: row.getAttribute('data-nama'),
+            marketplace: row.getAttribute('data-marketplace'),
+            seller_id: row.getAttribute('data-seller')
+        };
 
         document.getElementById('modalTitle').textContent = 'Edit Toko';
         document.getElementById('modalSubtitle').textContent = 'Ubah informasi toko';
         document.getElementById('modalIcon').setAttribute('icon', 'mdi:pencil');
-        document.getElementById('storeId').value = store.id;
-        document.getElementById('namaToko').value = store.nama_toko;
-        document.getElementById('sellerId').value = store.seller_id || '';
+        document.getElementById('storeId').value = data.id;
+        document.getElementById('namaToko').value = data.nama_toko;
+        document.getElementById('sellerId').value = data.seller_id || '';
         document.getElementById('submitBtnText').textContent = 'Simpan Perubahan';
 
-        const radio = document.querySelector(`input[name="marketplace"][value="${store.marketplace}"]`);
+        const radio = document.querySelector(`input[name="marketplace"][value="${data.marketplace}"]`);
         if (radio) radio.checked = true;
 
         form.dataset.mode = 'edit';
-        form.dataset.storeId = store.id;
+        form.dataset.storeId = data.id;
     }
 
     modal.classList.remove('hidden');

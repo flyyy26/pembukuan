@@ -18,22 +18,31 @@
 
     {{-- Flash --}}
     @if(session('success'))
-        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-2">
-            <iconify-icon icon="mdi:check-circle" class="text-green-600 text-lg mt-0.5"></iconify-icon>
-            <div>{{ session('success') }}</div>
+        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
+            <iconify-icon icon="mdi:check-circle" class="text-green-600 text-lg mt-0.5 flex-shrink-0"></iconify-icon>
+            <div class="whitespace-pre-line text-sm leading-relaxed">{{ session('success') }}</div>
         </div>
     @endif
+
+    @if(session('warning'))
+        <div class="bg-yellow-50 border border-yellow-200 text-yellow-800 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
+            <iconify-icon icon="mdi:alert" class="text-yellow-600 text-lg mt-0.5 flex-shrink-0"></iconify-icon>
+            <div class="whitespace-pre-line text-sm leading-relaxed">{{ session('warning') }}</div>
+        </div>
+    @endif
+
     @if(session('error'))
-        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-2">
-            <iconify-icon icon="mdi:alert-circle" class="text-red-600 text-lg mt-0.5"></iconify-icon>
-            <div>{{ session('error') }}</div>
+        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4 flex items-start gap-2">
+            <iconify-icon icon="mdi:alert-circle" class="text-red-600 text-lg mt-0.5 flex-shrink-0"></iconify-icon>
+            <div class="whitespace-pre-line text-sm leading-relaxed">{{ session('error') }}</div>
         </div>
     @endif
+
     @if($errors->any())
-        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-6">
+        <div class="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
             <div class="flex items-start gap-2">
-                <iconify-icon icon="mdi:alert-circle" class="text-red-600 text-lg mt-0.5"></iconify-icon>
-                <ul class="list-disc list-inside">
+                <iconify-icon icon="mdi:alert-circle" class="text-red-600 text-lg mt-0.5 flex-shrink-0"></iconify-icon>
+                <ul class="list-disc list-inside text-sm leading-relaxed">
                     @foreach($errors->all() as $error)
                         <li>{{ $error }}</li>
                     @endforeach
@@ -88,7 +97,7 @@
                             <div class="flex items-center gap-2 mb-3">
                                 <div class="w-8 h-8 bg-gray-800 text-white rounded-lg flex items-center justify-center text-sm font-bold">1</div>
                                 <div>
-                                    <div class="text-sm font-semibold text-gray-800">File Order TikTok</div>
+                                    <div class="text-sm font-semibold text-gray-800">File Semua Pesanan TikTok</div>
                                     <div class="text-xs text-gray-500">OrderSKUList · detail pesanan</div>
                                 </div>
                             </div>
@@ -158,12 +167,40 @@
 
     {{-- ============ RIWAYAT IMPORT ============ --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-5 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:history" class="text-gray-600 text-lg"></iconify-icon>
                 <h3 class="font-semibold text-gray-800">Riwayat Import TikTok</h3>
+                <span class="text-xs text-gray-500">({{ $imports->total() }} file)</span>
             </div>
-            <div class="text-xs text-gray-500">{{ $imports->total() }} file</div>
+
+            {{-- Filter Tanggal (opsional, tanpa default) --}}
+            <form method="GET" action="{{ route('tiktok.import') }}" class="flex flex-wrap items-center gap-2">
+                <div>
+                    <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Dari</label>
+                    <input type="date" name="from" value="{{ $fromInput }}"
+                        class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-gray-800 focus:outline-none">
+                </div>
+                <div>
+                    <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Sampai</label>
+                    <input type="date" name="to" value="{{ $toInput }}"
+                        class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-gray-800 focus:outline-none">
+                </div>
+                <div class="flex gap-1 pt-3.5">
+                    <button type="submit"
+                        class="inline-flex items-center gap-1 bg-gray-800 text-white px-3 py-1.5 rounded-lg hover:bg-gray-900 transition text-xs font-medium">
+                        <iconify-icon icon="mdi:filter" class="text-sm"></iconify-icon>
+                        Filter
+                    </button>
+                    @if($fromInput || $toInput)
+                        <a href="{{ route('tiktok.import') }}"
+                            class="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-white border border-gray-300 text-gray-500 hover:text-gray-700 rounded-lg transition">
+                            <iconify-icon icon="mdi:close" class="text-sm"></iconify-icon>
+                            Reset
+                        </a>
+                    @endif
+                </div>
+            </form>
         </div>
 
         <div class="overflow-x-auto">
@@ -235,8 +272,15 @@
         </div>
 
         @if($imports->hasPages())
-        <div class="px-5 py-4 border-t border-gray-100">
-            {{ $imports->links() }}
+        <div class="px-5 py-4 border-t border-gray-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+            <div class="text-xs text-gray-500">
+                Menampilkan
+                <strong>{{ $imports->firstItem() ?? 0 }}</strong>–<strong>{{ $imports->lastItem() ?? 0 }}</strong>
+                dari <strong>{{ $imports->total() }}</strong> import
+            </div>
+            <div>
+                {{ $imports->links() }}
+            </div>
         </div>
         @endif
     </div>

@@ -57,6 +57,7 @@ class ShopeeController extends Controller
             'biaya_layanan' => $rows->sum('biaya_layanan'),
             'biaya_ongkir'  => $rows->sum('biaya_ongkir'),
             'biaya_afiliasi'=> $rows->sum('biaya_afiliasi'),
+            'biaya_promosi'  => $rows->sum('biaya_promosi'),
             'biaya_pajak'   => $rows->sum('biaya_pajak'),
             'biaya_lainnya' => $rows->sum('biaya_lainnya'),
         ];
@@ -462,6 +463,7 @@ class ShopeeController extends Controller
             'biaya_layanan' => $rows->sum('biaya_layanan'),
             'biaya_ongkir'  => $rows->sum('biaya_ongkir'),
             'biaya_afiliasi'=> $rows->sum('biaya_afiliasi'),
+            'biaya_promosi'  => $rows->sum('biaya_promosi'),
             'biaya_pajak'   => $rows->sum('biaya_pajak'),
             'biaya_lainnya' => $rows->sum('biaya_lainnya'),
         ];

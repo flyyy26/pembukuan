@@ -49,6 +49,6 @@ class TiktokOrderItem extends Model
 
     public function import()
     {
-        return $this->belongsTo(Import::class);
+        return $this->belongsTo(Import::class, 'import_id');
     }
 }

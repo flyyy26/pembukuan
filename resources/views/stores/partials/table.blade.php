@@ -45,7 +45,12 @@
                         default     => ['icon' => 'mdi:store',            'bg' => 'bg-gray-100',   'text' => 'text-gray-700',    'badge' => 'bg-gray-100 text-gray-700'],
                     };
                 @endphp
-                <tr id="store-row-{{ $store->id }}" class="hover:bg-gray-50 transition">
+                <tr id="store-row-{{ $store->id }}" 
+                    class="hover:bg-gray-50 transition"
+                    data-id="{{ $store->id }}"
+                    data-nama="{{ $store->nama_toko }}"
+                    data-marketplace="{{ $store->marketplace }}"
+                    data-seller="{{ $store->seller_id ?? '' }}">
                     <td class="py-3 px-4">
                         <div class="flex items-center gap-3">
                             <div class="w-9 h-9 {{ $market['bg'] }} rounded-lg flex items-center justify-center">
@@ -69,7 +74,7 @@
                     <td class="py-3 px-4 text-center">
                         <div class="inline-flex items-center gap-1">
                             <button type="button"
-                                    onclick="openModal('edit', {{ $store->id }})"
+                                    onclick="openModal('edit', {{ $store->id }}, this)"
                                     class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded-lg text-xs font-medium transition">
                                 <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
                                 Edit
