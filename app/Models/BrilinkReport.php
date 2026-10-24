@@ -31,6 +31,9 @@ class BrilinkReport extends Model
         'manual_validasi_mutasi_fisik',
         'laba_kasir_pintar',
         'penambahan_brangkas',
+        'manual_validasi_kas_uang',
+        'manual_kas_akhir',
+        'manual_kas_awal', 
     ];
 
     protected $casts = [
@@ -52,6 +55,8 @@ class BrilinkReport extends Model
         'manual_validasi_mutasi_fisik' => 'integer',
         'laba_kasir_pintar' => 'integer',
         'penambahan_brangkas' => 'integer',
+        'manual_kas_akhir' => 'integer',
+        'manual_kas_awal' => 'integer',
     ];
 
     public function store()             { return $this->belongsTo(Store::class); }

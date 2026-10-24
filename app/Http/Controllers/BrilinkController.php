@@ -16,7 +16,7 @@ use Barryvdh\DomPDF\Facade\Pdf;
 
 class BrilinkController extends Controller
 {
-    public function index(Request $request)
+        public function index(Request $request)
     {
         $request->validate([
             'from' => ['nullable', 'date_format:Y-m-d'],
@@ -227,22 +227,25 @@ class BrilinkController extends Controller
             ->values()
             ->toArray();
 
-                // 🛠️ PERUBAHAN: Ambil Jumlah Kas Uang dari nilai input di Excel (B24)
-        // manual_validasi_kas_uang di sini menyimpan nilai "Jumlah Kas Uang" dari Excel
+        // ============================================
+        // KALKULASI SISTEM (BLOK 2 - TIDAK BERUBAH)
+        // ============================================
         $summary['jml_kas_uang'] = $latestReport ? (int) $latestReport->manual_validasi_kas_uang : 0;
-
-        // Selisih Kas Uang = Jumlah Kas Uang - Jumlah Penjualan Net
-        // (Ini sesuai dengan rumus Excel Anda: B24 - B23)
         $summary['selisih_kas_uang'] = $summary['jml_kas_uang'] - $summary['jml_penjualan'];
 
-        // Karena B24 sekarang adalah 'Jumlah Kas Uang', kolom validasi fisik bisa jadi kosong (0) 
-        // sampai user memasukkan angka validasi secara manual dari aplikasi.
-        // Tapi kita tetap butuh field ini untuk form input manual Anda di view.
-        // Untuk sementara kita set 0 atau sesuaikan dengan alur aplikasi Anda.
+        // ============================================
+        // VALIDASI UANG FISIK (REKONSILIASI KAS - BLOK 3)
+        // ============================================
+        $kasAkhir = $latestReport ? (int) $latestReport->manual_kas_akhir : 0;
+        $kasAwal  = $latestReport ? (int) $latestReport->manual_kas_awal : 0;
+        $jmlPenjualanNet = $summary['jml_penjualan'];
+
+        // Rumus: (Kas Akhir - Jumlah Penjualan) - Kas Awal
+        $summary['selisih_validasi'] = ($kasAkhir - $jmlPenjualanNet) - $kasAwal;
         
-        // *Catatan: Jika Anda tetap ingin menampilkan Selisih Validasi (B25), rumusnya B25 = B24 - D24*
-        $summary['validasi_kas_uang'] = 0; // Atur ke 0, karena B24 sudah jadi Jumlah Kas Uang
-        $summary['selisih_validasi'] = $summary['selisih_kas_uang'] - $summary['validasi_kas_uang'];
+        // Simpan nilai-nilai ini untuk ditampilkan di view
+        $summary['manual_kas_akhir'] = $kasAkhir;
+        $summary['manual_kas_awal'] = $kasAwal;
 
         $monthlyTrend = $this->buildMonthlyTrend($reports);
 
@@ -411,14 +414,19 @@ class BrilinkController extends Controller
     public function updateValidasi(Request $request, BrilinkReport $report)
     {
         $request->validate([
-            'manual_validasi_kas_uang' => 'required|integer|min:0'
+            'manual_kas_akhir' => 'required|string',
+            'manual_kas_awal'  => 'required|string',
         ]);
+
+        $kasAkhir = (int) preg_replace('/[^0-9]/', '', $request->input('manual_kas_akhir'));
+        $kasAwal  = (int) preg_replace('/[^0-9]/', '', $request->input('manual_kas_awal'));
 
         $report->update([
-            'manual_validasi_kas_uang' => $request->input('manual_validasi_kas_uang')
+            'manual_kas_akhir' => $kasAkhir,
+            'manual_kas_awal'  => $kasAwal,
         ]);
 
-        return back()->with('success', 'Validasi kas uang berhasil diperbarui.');
+        return back()->with('success', 'Validasi uang fisik berhasil diperbarui.');
     }
 
     public function logPpob(Request $request)

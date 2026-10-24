@@ -6,19 +6,19 @@
 <div class="w-full">
 
     {{-- HEADER --}}
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="mdi:bank-transfer-in" class="text-white text-xl"></iconify-icon>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Log Setoran BRILink</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">Log Setoran BRILink</h2>
+                <p class="text-xs sm:text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
             </div>
         </div>
         
         {{-- 🔥 TOMBOL SELALU MUNCUL --}}
-        <button type="button" onclick="openSetoranModal()" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm">
+        <button type="button" onclick="openSetoranModal()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
             Tambah Setoran Manual
         </button>
@@ -26,7 +26,7 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
             
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
@@ -38,7 +38,7 @@
                 </select>
             </div>
 
-            <div class="w-full md:flex-1">
+            <div class="w-full sm:col-span-2 md:col-span-1 md:flex-1">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Cari Nominal</label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -49,24 +49,24 @@
                 </div>
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
                 <input type="date" name="from" value="{{ $from }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
                 <input type="date" name="to" value="{{ $to }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-600 focus:border-transparent">
             </div>
 
-            <div class="flex gap-2 w-full md:w-auto">
-                <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium w-full md:w-auto flex items-center justify-center gap-2">
+            <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                <button type="submit" class="flex-1 md:flex-none bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
                 @if($search || $from || $to || $storeId !== 'all')
-                    <a href="{{ route('brilink.log-setoran') }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg w-full md:w-auto text-center transition">
+                    <a href="{{ route('brilink.log-setoran') }}" class="flex-1 md:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
                         Reset
                     </a>
                 @endif
@@ -76,42 +76,42 @@
 
     {{-- TABEL DATA HORIZONTAL --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:table" class="text-indigo-600 text-lg"></iconify-icon>
-                <h3 class="font-semibold text-gray-800">Rincian Setoran Tunai</h3>
+                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Setoran Tunai</h3>
             </div>
-            <div class="text-xs text-gray-500">{{ $reports->count() }} Report</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max">{{ $reports->count() }} Report</div>
         </div>
 
-        <div class="overflow-x-auto p-5">
+        <div class="overflow-x-auto p-0 sm:p-5">
             @if($reports->isEmpty())
                 <div class="py-12 text-center text-gray-500">
                     <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                     Belum ada data setoran untuk toko dan filter ini.
                 </div>
             @else
-                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start">
+                <div class="grid grid-cols-1 xl:grid-cols-3 gap-6 items-start p-4 sm:p-0">
     
                     {{-- ========================================== --}}
                     {{-- KIRI: TABEL LOG TRANSAKSI (2/3 layar) --}}
                     {{-- ========================================== --}}
                     <div class="xl:col-span-2 bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
                         <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between bg-gray-50">
-                            <h3 class="font-semibold text-gray-800">Rincian Transaksi Setoran</h3>
-                            <span class="text-xs text-gray-500">{{ $reports->flatMap->setoranItems->count() }} Baris</span>
+                            <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Transaksi</h3>
+                            <span class="text-[10px] sm:text-xs text-gray-500">{{ $reports->flatMap->setoranItems->count() }} Baris</span>
                         </div>
                         
                         <div class="overflow-x-auto">
-                            <table class="w-full text-sm border-collapse">
+                            <table class="w-full text-sm border-collapse min-w-max">
                                 <thead>
                                     <tr class="bg-gray-100 border-b border-gray-200">
-                                        <th class="p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Tanggal</th>
-                                        <th class="p-3 text-right text-xs font-semibold text-gray-600 uppercase">Nominal EDC BRI</th>
-                                        <th class="p-3 text-right text-xs font-semibold text-gray-600 uppercase">Administrasi Toko</th>
-                                        <th class="p-3 text-left text-xs font-semibold text-gray-600 uppercase">Ket. Mesin EDC</th>
+                                        <th class="p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-32 sm:w-40 whitespace-nowrap">Tanggal</th>
+                                        <th class="p-2 sm:p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Nominal EDC</th>
+                                        <th class="p-2 sm:p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Admin Toko</th>
+                                        <th class="p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Ket. Mesin</th>
                                         @if($storeId !== 'all')
-                                            <th class="p-3 text-center text-xs font-semibold text-gray-600 uppercase w-28">Aksi</th>
+                                            <th class="p-2 sm:p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-24 whitespace-nowrap">Aksi</th>
                                         @endif
                                     </tr>
                                 </thead>
@@ -119,34 +119,34 @@
                                     @forelse($reports as $report)
                                         @forelse($report->setoranItems as $item)
                                             <tr class="hover:bg-gray-50 transition border-b border-gray-200">
-                                                <td class="p-3 text-gray-700 font-medium whitespace-nowrap">
+                                                <td class="p-2 sm:p-3 text-gray-700 font-medium whitespace-nowrap text-xs sm:text-sm">
                                                     {{ $report->periode_label ?? '-' }}
                                                 </td>
-                                                <td class="p-3 text-right text-gray-800 font-semibold">
+                                                <td class="p-2 sm:p-3 text-right text-gray-800 font-semibold whitespace-nowrap text-xs sm:text-sm">
                                                     Rp {{ number_format($item->nominal_edc ?: $item->jumlah_setoran_riil, 0, ',', '.') }}
                                                 </td>
-                                                 <td class="p-3 text-right text-emerald-600 font-semibold">
+                                                 <td class="p-2 sm:p-3 text-right text-emerald-600 font-semibold whitespace-nowrap text-xs sm:text-sm">
                                                     Rp {{ number_format($item->administrasi_toko, 0, ',', '.') }}
                                                 </td>
-                                                <td class="p-3 text-left text-gray-600 text-xs">
+                                                <td class="p-2 sm:p-3 text-left text-gray-600 text-[10px] sm:text-xs">
                                                     {{ $item->keterangan ?: '-' }}
                                                 </td>
                                                 
-                                                {{-- Sembunyikan tombol jika Semua Toko --}}
+                                                {{-- TOMBOL AKSI --}}
                                                 @if($storeId !== 'all')
-                                                    <td class="p-3 text-center">
-                                                        <div class="inline-flex items-center gap-1">
+                                                    <td class="p-2 sm:p-3 text-center">
+                                                        <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
                                                             <button type="button"
                                                                     onclick="openEditSetoranModal(event, {{ $item->id }}, {{ $item->nominal_edc ?: $item->jumlah_setoran_riil }}, {{ $item->administrasi_toko }}, '{{ addslashes($item->keterangan ?? '') }}')"
-                                                                    class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition"
+                                                                    class="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-blue-200"
                                                                     title="Edit">
-                                                                <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
+                                                                <iconify-icon icon="mdi:pencil" class="text-xs sm:text-sm"></iconify-icon>
                                                             </button>
                                                             <button type="button"
                                                                     onclick="deleteSetoran({{ $item->id }}, {{ $item->nominal_edc ?: $item->jumlah_setoran_riil }})"
-                                                                    class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition"
+                                                                    class="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-red-200"
                                                                     title="Hapus">
-                                                                <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
+                                                                <iconify-icon icon="mdi:delete" class="text-xs sm:text-sm"></iconify-icon>
                                                             </button>
                                                         </div>
                                                     </td>
@@ -154,23 +154,23 @@
                                             </tr>
                                         @empty
                                             <tr>
-                                                <td class="p-3 text-gray-700 font-medium">{{ $report->periode_label ?? '-' }}</td>
-                                                <td colspan="{{ $storeId === 'all' ? '3' : '4' }}" class="p-3 text-center text-gray-400 italic">Tidak ada transaksi</td>
+                                                <td class="p-2 sm:p-3 text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">{{ $report->periode_label ?? '-' }}</td>
+                                                <td colspan="{{ $storeId === 'all' ? '3' : '4' }}" class="p-2 sm:p-3 text-center text-gray-400 italic text-xs sm:text-sm">Tidak ada transaksi</td>
                                             </tr>
                                         @endforelse
                                     @empty
                                         <tr>
-                                            <td colspan="{{ $storeId === 'all' ? '4' : '5' }}" class="p-8 text-center text-gray-500">Belum ada data transaksi.</td>
+                                            <td colspan="{{ $storeId === 'all' ? '4' : '5' }}" class="p-8 text-center text-gray-500 text-xs sm:text-sm">Belum ada data transaksi.</td>
                                         </tr>
                                     @endforelse
                                 </tbody>
                                 <tfoot class="bg-gray-50 border-t border-gray-200">
                                     <tr>
-                                        <td class="p-3 font-bold text-gray-800">TOTAL KESELURUHAN</td>
-                                        <td class="p-3 text-right font-bold text-gray-800">
+                                        <td class="p-2 sm:p-3 font-bold text-gray-800 text-[10px] sm:text-sm whitespace-nowrap">TOTAL</td>
+                                        <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap">
                                             Rp {{ number_format($reports->flatMap->setoranItems->sum('nominal_edc') ?: $totalSetoranKeseluruhan, 0, ',', '.') }}
                                         </td>
-                                        <td class="p-3 text-right font-bold text-emerald-700">
+                                        <td class="p-2 sm:p-3 text-right font-bold text-emerald-700 text-xs sm:text-sm whitespace-nowrap">
                                             Rp {{ number_format($reports->flatMap->setoranItems->sum('administrasi_toko'), 0, ',', '.') }}
                                         </td>
                                         <td></td>
@@ -186,19 +186,16 @@
                     {{-- ========================================== --}}
                     {{-- KANAN: STICKY CARD REKONSILIASI (1/3 layar) --}}
                     {{-- ========================================== --}}
-                    <div class="xl:col-span-1 sticky top-6 space-y-4">
+                    <div class="xl:col-span-1 xl:sticky xl:top-6 space-y-4">
                         <div class="flex items-center gap-2 mb-2 px-1">
                             <iconify-icon icon="mdi:shield-check" class="text-indigo-600 text-xl"></iconify-icon>
                             <h3 class="font-bold text-gray-800">Rekonsiliasi Mutasi</h3>
                         </div>
 
                         @php
-                            // Group data untuk Card Kanan
                             if ($storeId === 'all') {
-                                // Jika semua toko, group per tanggal
                                 $groupedForCard = $reports->groupBy(fn($r) => $r->periode_start->format('Y-m-d'));
                             } else {
-                                // Jika 1 toko, group per ID report
                                 $groupedForCard = $reports->groupBy('id');
                             }
                         @endphp
@@ -207,43 +204,39 @@
                             @php
                                 $firstReport = $reportsInGroup->first();
                                 $setoranRiil = $reportsInGroup->flatMap->setoranItems->sum('jumlah_setoran_riil');
-                                
-                                // Validasi mutasi: diambil dari report pertama atau dijumlahkan (jika semua toko)
                                 $validasiMutasi = $reportsInGroup->sum('manual_validasi_mutasi_rek');
                                 $selisih = $setoranRiil - $validasiMutasi;
-                                
-                                // Untuk form submit validasi (jika all, kita tidak bisa update ke 1 report saja, 
-                                // jadi kita tampilkan input readonly atau nonaktifkan form)
                                 $isSingleStore = ($storeId !== 'all');
                             @endphp
                             
                             <div class="bg-white rounded-xl shadow-sm border border-indigo-100 overflow-hidden">
                                 {{-- Header Card --}}
                                 <div class="bg-indigo-50 px-4 py-3 border-b border-indigo-100 flex justify-between items-center">
-                                    <span class="font-bold text-indigo-900">{{ $firstReport->periode_label ?? '-' }}</span>
+                                    <span class="font-bold text-indigo-900 text-sm sm:text-base">{{ $firstReport->periode_label ?? '-' }}</span>
                                     @if($storeId === 'all')
                                         <span class="text-[10px] text-indigo-500 bg-white px-2 py-0.5 rounded border">Total Semua Toko</span>
                                     @endif
                                 </div>
 
                                 <div class="p-4 space-y-4">
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+                                    <div class="flex flex-col sm:flex-row justify-between sm:items-center pb-2 border-b border-gray-100 gap-1">
                                         <span class="text-xs text-gray-500">Total Komisi Admin</span>
-                                        <span class="font-bold text-emerald-600">
+                                        <span class="font-bold text-emerald-600 text-sm sm:text-base">
                                             Rp {{ number_format($reportsInGroup->flatMap->setoranItems->sum('administrasi_toko'), 0, ',', '.') }}
                                         </span>
                                     </div>
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+                                    <div class="flex flex-col sm:flex-row justify-between sm:items-center pb-2 border-b border-gray-100 gap-1">
                                         <span class="text-xs text-gray-500">Jumlah Transaksi</span>
                                         <span class="font-bold text-gray-800">
-                                            {{-- Filter: Hanya hitung yang nominal_edc > 0 --}}
                                             {{ $reportsInGroup->flatMap->setoranItems->filter(fn($i) => ($i->nominal_edc ?: $i->jumlah_setoran_riil) > 0)->count() }} 
                                             <span class="text-[10px] font-normal text-gray-500">Nota</span>
                                         </span>
                                     </div>
-                                    <div class="flex justify-between items-center pb-2 border-b border-gray-100">
+                                    <div class="flex flex-col sm:flex-row justify-between sm:items-center pb-2 border-b border-gray-100 gap-1">
                                         <span class="text-xs text-gray-500">Jumlah Setoran Riil</span>
-                                        <span class="font-bold text-gray-800">Rp {{ number_format($setoranRiil, 0, ',', '.') }}</span>
+                                        <span class="font-bold text-gray-800 text-sm sm:text-base" id="setoran-riil-{{ $firstReport->id }}" data-value="{{ $setoranRiil }}">
+                                            Rp {{ number_format($setoranRiil, 0, ',', '.') }}
+                                        </span>
                                     </div>
 
                                     <div>
@@ -257,10 +250,11 @@
                                                         <span class="text-gray-500 text-xs font-medium">Rp</span>
                                                     </div>
                                                     <input type="text" name="manual_validasi_mutasi_rek" 
+                                                        id="input-validasi-{{ $firstReport->id }}"
                                                         value="{{ $validasiMutasi > 0 ? number_format($validasiMutasi, 0, ',', '.') : '' }}" 
                                                         placeholder="0"
                                                         class="w-full border border-indigo-300 rounded-lg text-right pl-8 pr-2 py-1.5 text-sm font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
-                                                        oninput="formatRupiahInput(this)">
+                                                        oninput="formatRupiahInput(this); hitungSelisihRealtime({{ $firstReport->id }})">
                                                 </div>
                                                 <button type="submit" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition shadow-sm" title="Simpan">
                                                     <iconify-icon icon="mdi:content-save" class="text-base block"></iconify-icon>
@@ -277,9 +271,9 @@
                                         @endif
                                     </div>
 
-                                    <div class="flex justify-between items-center pt-2 border-t border-gray-100">
+                                    <div class="flex flex-col sm:flex-row justify-between sm:items-center pt-2 border-t border-gray-100 gap-1">
                                         <span class="text-xs font-bold text-gray-600">Selisih Rekonsiliasi</span>
-                                        <span class="font-bold text-sm {{ $selisih == 0 ? 'text-gray-500' : ($selisih > 0 ? 'text-orange-600' : 'text-red-600') }}">
+                                        <span id="selisih-{{ $firstReport->id }}" class="font-bold text-sm {{ $selisih == 0 ? 'text-gray-500' : ($selisih > 0 ? 'text-orange-600' : 'text-red-600') }}">
                                             Rp {{ number_format($selisih, 0, ',', '.') }}
                                         </span>
                                     </div>
@@ -301,8 +295,8 @@
 
 <div id="setoranModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeSetoranModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <iconify-icon id="setoranModalIcon" icon="mdi:plus-circle" class="text-indigo-600 text-lg"></iconify-icon>
                 <h3 id="setoranModalTitle" class="font-bold text-gray-800">Tambah Setoran Manual</h3>
@@ -312,7 +306,7 @@
             </button>
         </div>
 
-        <form id="setoranForm" onsubmit="submitSetoranForm(event)">
+        <form id="setoranForm" onsubmit="submitSetoranForm(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
             {{-- Value store_id diupdate via JS --}}
             <input type="hidden" name="store_id" id="setoranStoreId" value="{{ $storeId }}">
@@ -380,7 +374,7 @@
                 </div>
             </div>
 
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" onclick="closeSetoranModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition">Batal</button>
                 <button type="submit" id="btnSubmitSetoran" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> <span id="btnSubmitSetoranText">Simpan</span>
@@ -436,12 +430,10 @@
         const storeIdHidden = document.getElementById('setoranStoreId');
 
         if (CURRENT_STORE_ID === 'all') {
-            // Jika Semua Toko, tampilkan dropdown
             tokoWrapper.classList.remove('hidden');
             tokoSelect.required = true;
             storeIdHidden.value = '';
         } else {
-            // Jika Toko Spesifik, sembunyikan dropdown
             tokoWrapper.classList.add('hidden');
             tokoSelect.required = false;
             storeIdHidden.value = CURRENT_STORE_ID;
@@ -452,7 +444,7 @@
     }
 
     // --- Buka Modal EDIT ---
-    function openEditSetoranModal(event, id, nominal, admin) {
+    function openEditSetoranModal(event, id, nominal, admin, keterangan) {
         document.getElementById('setoranForm').reset();
         document.getElementById('modalErrorSetoran').classList.add('hidden');
         
@@ -462,25 +454,23 @@
         document.getElementById('setoranModalIcon').setAttribute('icon', 'mdi:pencil');
         document.getElementById('btnSubmitSetoranText').textContent = 'Simpan Perubahan';
 
-        // Sembunyikan dropdown toko saat edit
         document.getElementById('tokoFieldWrapper').classList.add('hidden');
         document.getElementById('setoranStoreSelect').required = false;
 
         document.getElementById('tanggalSetoranWrapper').classList.add('hidden');
         document.getElementById('tanggalSetoranReadonlyWrapper').classList.remove('hidden');
         
-        // Ambil label tanggal dari baris tabel tempat tombol edit berada
         const btn = event.currentTarget;
         const td = btn.closest('td');
         const tr = td ? td.closest('tr') : null;
-        // Kolom pertama (indeks 0) adalah Tanggal
         const tanggalText = tr ? tr.querySelectorAll('td')[0].innerText.trim() : '-';
         document.getElementById('setoranTanggalReadonly').textContent = tanggalText;
 
         if (nominal > 0) document.getElementById('inputNominalEdc').value = new Intl.NumberFormat('id-ID').format(nominal);
         if (admin > 0) document.getElementById('inputAdminToko').value = new Intl.NumberFormat('id-ID').format(admin);
-
-        document.getElementById('inputKeteranganSetoran').value = keterangan;
+        
+        // Perbaikan: ambil dari parameter, bukan dari variabel global yang tidak didefinisikan
+        document.getElementById('inputKeteranganSetoran').value = keterangan || '';
 
         document.getElementById('setoranModal').classList.remove('hidden');
         document.getElementById('setoranModal').classList.add('flex');
@@ -508,7 +498,6 @@
         btnText.textContent = 'Menyimpan...';
         errorDiv.classList.add('hidden');
 
-        // Bersihkan titik
         const nominalEdcRaw = document.getElementById('inputNominalEdc').value.replace(/[^0-9]/g, '');
         const adminTokoRaw = document.getElementById('inputAdminToko').value.replace(/[^0-9]/g, '');
 
@@ -516,7 +505,6 @@
         formData.set('nominal_edc', nominalEdcRaw);
         formData.set('admin_toko', adminTokoRaw);
 
-        // Jika create & mode 'all', pastikan store_id terambil dari dropdown
         if (mode === 'create' && CURRENT_STORE_ID === 'all') {
             const selectedStore = document.getElementById('setoranStoreSelect').value;
             if (!selectedStore) {
@@ -592,7 +580,7 @@
         }
     }
 
-    // --- Submit Form Validasi Mutasi (Bawaan Sebelumnya) ---
+    // --- Submit Form Validasi Mutasi ---
     async function submitValidasiMutasi(e, reportId) {
         e.preventDefault();
         const form = e.target;
@@ -623,6 +611,36 @@
             alert('Error: ' + error.message);
             btn.disabled = false;
             btn.innerHTML = originalBtnHtml;
+        }
+    }
+
+    // --- Hitung Selisih Rekonsiliasi Secara Realtime ---
+    function hitungSelisihRealtime(reportId) {
+        const setoranEl = document.getElementById(`setoran-riil-${reportId}`);
+        if (!setoranEl) return;
+        const setoranRiil = parseInt(setoranEl.getAttribute('data-value')) || 0;
+
+        const inputEl = document.getElementById(`input-validasi-${reportId}`);
+        const validasiStr = inputEl.value.replace(/[^0-9]/g, '');
+        const validasiMutasi = parseInt(validasiStr) || 0;
+
+        const selisih = setoranRiil - validasiMutasi;
+
+        const formatter = new Intl.NumberFormat('id-ID');
+        const selisihFormatted = formatter.format(selisih);
+
+        const selisihEl = document.getElementById(`selisih-${reportId}`);
+        if (selisihEl) {
+            selisihEl.textContent = `Rp ${selisihFormatted}`;
+
+            selisihEl.classList.remove('text-gray-500', 'text-orange-600', 'text-red-600');
+            if (selisih === 0) {
+                selisihEl.classList.add('text-gray-500');
+            } else if (selisih > 0) {
+                selisihEl.classList.add('text-orange-600');
+            } else {
+                selisihEl.classList.add('text-red-600');
+            }
         }
     }
 

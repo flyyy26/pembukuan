@@ -152,7 +152,7 @@
             </form>
         </div>
 
-        <table class="w-full text-sm">
+                <table class="w-full text-sm">
             <thead class="bg-gray-50 border-b">
                 <tr>
                     <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">File</th>
@@ -160,11 +160,12 @@
                     <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
                     <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Baris</th>
                     <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                    <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-24">Aksi</th> {{-- BARU --}}
                 </tr>
             </thead>
             <tbody class="divide-y">
                 @forelse($imports as $imp)
-                <tr class="hover:bg-gray-50 transition">
+                <tr class="hover:bg-gray-50 transition" id="import-row-{{ $imp->id }}">
                     <td class="py-3 px-4 text-xs text-gray-700">{{ $imp->file_name }}</td>
                     <td class="py-3 px-4 text-gray-700">{{ $imp->store?->nama_toko ?? '-' }}</td>
                     <td class="py-3 px-4 text-xs">
@@ -181,10 +182,17 @@
                             {{ $imp->status }}
                         </span>
                     </td>
+                    {{-- TOMBOL HAPUS BARU --}}
+                    <td class="py-3 px-4 text-center">
+                        <button type="button" onclick="deleteImport({{ $imp->id }}, '{{ addslashes($imp->file_name) }}')"
+                            class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
+                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
+                        </button>
+                    </td>
                 </tr>
                 @empty
                 <tr>
-                    <td colspan="5" class="py-12 text-center text-gray-400">
+                    <td colspan="6" class="py-12 text-center text-gray-400">
                         <iconify-icon icon="mdi:inbox-outline" class="text-4xl block mb-2 w-max mx-auto"></iconify-icon>
                         <div class="text-sm">Belum ada riwayat import pada rentang tanggal ini.</div>
                         <div class="text-xs mt-1 text-gray-400">
@@ -200,4 +208,44 @@
         @endif
     </div>
 </div>
+
+<script>
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+
+    async function deleteImport(id, fileName) {
+        if (!confirm(`Yakin ingin menghapus data import "${fileName}"?\n\nSEMUA data transaksi (Saldo, PPOB, Setoran, Tarik Tunai, Pengeluaran) dari file ini akan ikut terhapus permanen.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/brilink/import/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.message || 'Gagal menghapus data.');
+                return;
+            }
+
+            // Hapus baris dari tabel tanpa reload (efek smooth)
+            const row = document.getElementById(`import-row-${id}`);
+            if (row) {
+                row.style.opacity = '0';
+                setTimeout(() => row.remove(), 300);
+            }
+
+            // Opsional: bisa pakai window.location.reload() untuk update total baris
+            // window.location.reload();
+
+        } catch (err) {
+            alert('Gagal menghapus: ' + err.message);
+        }
+    }
+</script>
 @endsection

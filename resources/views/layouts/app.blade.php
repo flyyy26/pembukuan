@@ -61,6 +61,7 @@
                         ['route' => 'brilink.profit', 'label' => 'Laporan Profit'],
                         ['route' => 'brilink.laporan-brangkas', 'label' => 'Laporan Brangkas'],
                         ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan'],
+                        ['route' => 'zakat.index', 'label' => 'Laporan Zakat', 'icon' => 'mdi:hand-heart'],
                     ]
                 ]
             ],
@@ -86,19 +87,31 @@
     ];
 @endphp
 
-<div class="flex min-h-screen">
+{{-- 🔥 HAPUS overflow-hidden DI SINI --}}
+<div class="flex min-h-screen relative">
+
+    {{-- ============ OVERLAY (Latar Gelap saat Sidebar Terbuka di HP) ============ --}}
+    <div id="sidebarOverlay" 
+         class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity lg:hidden" 
+         onclick="toggleSidebar()"></div>
 
     {{-- ============ SIDEBAR ============ --}}
-    <aside class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-screen">
+    <!-- Di desktop: w-64 tetap. Di mobile: posisi fixed, geser ke kiri (-translate-x-full) -->
+    <aside id="sidebar" 
+           class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-screen z-50 transition-transform duration-300 transform -translate-x-full lg:translate-x-0">
 
         {{-- Logo / Brand --}}
-        <div class="h-16 flex items-center px-6 border-b border-gray-200">
+        <div class="h-16 flex items-center justify-between px-6 border-b border-gray-200">
             <a href="/" class="flex items-center gap-2 font-bold text-lg text-gray-800">
                 <div class="w-8 h-8 bg-gradient-to-br from-blue-500 to-blue-600 rounded-lg flex items-center justify-center shadow-sm shadow-blue-500/30">
                     <iconify-icon icon="mdi:book-open-variant" class="text-white text-lg"></iconify-icon>
                 </div>
                 BukuBarokah
             </a>
+            {{-- Tombol Close (Hanya muncul di Mobile) --}}
+            <button class="lg:hidden text-gray-500 hover:text-gray-700" onclick="toggleSidebar()">
+                <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
+            </button>
         </div>
 
         {{-- Navigation --}}
@@ -188,15 +201,23 @@
     </aside>
 
     {{-- ============ MAIN CONTENT ============ --}}
-    <div class="flex-1 ml-64">
+    <!-- Di desktop margin-left 64 (ml-64), di mobile margin-left 0 (ml-0) -->
+    <div class="flex-1 w-full min-h-screen transition-all duration-300 ml-0 lg:ml-64 flex flex-col">
 
-        {{-- Topbar --}}
-        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 sticky top-0 z-10">
+        {{-- Topbar (Sticky) --}}
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-30">
+            
+            <div class="flex items-center gap-3">
+                {{-- Tombol Hamburger (Hanya muncul di Mobile/Tablet) --}}
+                <button class="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition" onclick="toggleSidebar()">
+                    <iconify-icon icon="mdi:menu" class="text-2xl"></iconify-icon>
+                </button>
 
-            {{-- Page Title --}}
-            <h1 class="text-lg font-semibold text-gray-800">
-                @yield('title', 'Pembukuan')
-            </h1>
+                {{-- Page Title --}}
+                <h1 class="text-lg font-semibold text-gray-800 truncate">
+                    @yield('title', 'Pembukuan')
+                </h1>
+            </div>
 
             {{-- User Dropdown --}}
             <div class="relative" id="userDropdownContainer">
@@ -268,13 +289,33 @@
         </header>
 
         {{-- Content --}}
-        <main class="p-8">
+        <main class="p-4 sm:p-6 lg:p-8 flex-1 overflow-x-hidden">
             @yield('content')
         </main>
     </div>
 </div>
 
 <script>
+    // ==================== SIDEBAR RESPONSIVE ====================
+    function toggleSidebar() {
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        
+        // Toggle class translate-x (geser sidebar)
+        sidebar.classList.toggle('-translate-x-full');
+        sidebar.classList.toggle('translate-x-0');
+
+        // Toggle overlay (latar hitam transparan)
+        if (overlay.classList.contains('hidden')) {
+            overlay.classList.remove('hidden');
+            // delay dikit biar animasi transisi opacity jalan
+            setTimeout(() => overlay.classList.remove('opacity-0'), 10); 
+        } else {
+            overlay.classList.add('opacity-0');
+            setTimeout(() => overlay.classList.add('hidden'), 300);
+        }
+    }
+
     // ==================== USER DROPDOWN ====================
     function toggleUserDropdown() {
         const dropdown = document.getElementById('userDropdown');
@@ -290,10 +331,17 @@
         }
     });
 
-    // ESC = tutup dropdown
+    // ESC = tutup dropdown & sidebar
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             document.getElementById('userDropdown').classList.add('hidden');
+            
+            // Tutup sidebar jika sedang terbuka di mobile
+            const sidebar = document.getElementById('sidebar');
+            const overlay = document.getElementById('sidebarOverlay');
+            if (sidebar.classList.contains('translate-x-0') && window.innerWidth < 1024) {
+                toggleSidebar();
+            }
         }
     });
 </script>

@@ -6,20 +6,20 @@
 <div class="w-full">
 
     {{-- HEADER --}}
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="mdi:cellphone-link" class="text-white text-xl"></iconify-icon>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Log Pulsa & PPOB</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">Log Pulsa & PPOB</h2>
+                <p class="text-xs sm:text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
             </div>
         </div>
 
         {{-- 🔥 TOMBOL SELALU MUNCUL --}}
-        <div class="flex justify-end">
-            <button type="button" onclick="openManualModal()" class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
+        <div class="w-full sm:w-auto flex justify-end">
+            <button type="button" onclick="openManualModal()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
                 <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
                 Tambah Transaksi Manual
             </button>
@@ -28,7 +28,7 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
             
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
@@ -40,8 +40,8 @@
                 </select>
             </div>
 
-            <div class="w-full md:flex-1">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Cari Kategori / Keterangan / Nominal</label>
+            <div class="w-full sm:col-span-2 md:col-span-1 md:flex-1">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Cari Kategori / Ket / Nominal</label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <iconify-icon icon="mdi:magnify" class="text-gray-400 text-lg"></iconify-icon>
@@ -51,24 +51,24 @@
                 </div>
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
                 <input type="date" name="from" value="{{ $from }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
                 <input type="date" name="to" value="{{ $to }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-600 focus:border-transparent">
             </div>
 
-            <div class="flex gap-2 w-full md:w-auto">
-                <button type="submit" class="bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium w-full md:w-auto flex items-center justify-center gap-2">
+            <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                <button type="submit" class="flex-1 md:flex-none bg-blue-600 text-white px-5 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
                 @if($search || $from || $to || $storeId !== 'all')
-                    <a href="{{ route('brilink.log-ppob') }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg w-full md:w-auto text-center transition">
+                    <a href="{{ route('brilink.log-ppob') }}" class="flex-1 md:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
                         Reset
                     </a>
                 @endif
@@ -78,15 +78,15 @@
 
     {{-- TABEL DATA HORIZONTAL & REKAP --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:table" class="text-blue-600 text-lg"></iconify-icon>
-                <h3 class="font-semibold text-gray-800">Rincian Transaksi Kasir PPOB</h3>
+                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Transaksi Kasir PPOB</h3>
             </div>
-            <div class="text-xs text-gray-500">{{ $ppobData->count() }} Data</div>
+            <div class="text-[10px] sm:text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max">{{ $ppobData->count() }} Data</div>
         </div>
 
-        <div class="overflow-x-auto p-5">
+        <div class="overflow-x-auto p-0 sm:p-5">
             @if($ppobData->isEmpty())
                 <div class="py-12 text-center text-gray-500">
                     <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
@@ -112,9 +112,9 @@
                 <table class="w-full text-sm border-collapse min-w-max">
                     <thead>
                         <tr class="bg-gray-100">
-                            <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Tanggal Report</th>
+                            <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-32 sm:w-40 whitespace-nowrap">Tanggal Report</th>
                             @foreach($allCategories as $kategori)
-                                <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">
+                                <th class="border border-gray-200 p-2 sm:p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">
                                     {{ $kategori }}
                                 </th>
                             @endforeach
@@ -139,7 +139,7 @@
                                             $rows[$index][$item->kategori] = [
                                                 'nominal' => $item->nominal,
                                                 'id' => $item->id,
-                                                'keterangan' => $item->keterangan, // 🔥 SIMPAN KETERANGAN
+                                                'keterangan' => $item->keterangan,
                                             ];
                                             $foundEmptySlot = true;
                                             break;
@@ -150,7 +150,7 @@
                                             $item->kategori => [
                                                 'nominal' => $item->nominal,
                                                 'id' => $item->id,
-                                                'keterangan' => $item->keterangan, // 🔥 SIMPAN KETERANGAN
+                                                'keterangan' => $item->keterangan,
                                             ]
                                         ];
                                     }
@@ -159,44 +159,45 @@
 
                             @foreach($rows as $row)
                                 <tr class="hover:bg-gray-50 transition">
-                                    <td class="border border-gray-200 p-3 text-gray-700 font-medium">
+                                    <td class="border border-gray-200 p-2 sm:p-3 text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
                                         {{ $firstReport->periode_label ?? '-' }}
                                     </td>
                                     
                                     @foreach($allCategories as $kategori)
                                         @if($kategori === 'Keterangan')
-                                            {{-- 🔥 KOLOM KETERANGAN (Ambil langsung dari item Barang Titip Jual) --}}
+                                            {{-- 🔥 KOLOM KETERANGAN --}}
                                             @php 
                                                 $transaksiTitip = $row['Barang Titip Jual'] ?? null; 
                                             @endphp
-                                            <td class="border border-gray-200 p-3 text-left text-gray-700 text-xs">
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-left text-gray-700 text-[10px] sm:text-xs max-w-[120px] sm:max-w-[200px] truncate" title="{{ $transaksiTitip['keterangan'] ?? '' }}">
                                                 {{ $transaksiTitip['keterangan'] ?? '-' }}
                                             </td>
                                         @else
                                             {{-- KOLOM NOMINAL --}}
                                             @php $transaksi = $row[$kategori] ?? null; @endphp
-                                            <td class="border border-gray-200 p-3 text-right text-blue-600 font-semibold group/cell relative h-full">
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-right text-blue-600 font-semibold group/cell relative">
                                                 @if($transaksi)
-                                                    <div class="flex items-center justify-center h-full">
-                                                        <span>Rp {{ number_format($transaksi['nominal'], 0, ',', '.') }}</span>
+                                                    <div class="flex flex-col items-end justify-center h-full gap-1">
+                                                        <span class="whitespace-nowrap text-xs sm:text-sm">Rp {{ number_format($transaksi['nominal'], 0, ',', '.') }}</span>
+                                                        
+                                                        {{-- TOMBOL AKSI: Selalu muncul di HP, Hover di Desktop --}}
+                                                        @if($storeId !== 'all')
+                                                            <div class="flex items-center gap-1 sm:opacity-0 sm:group-hover/cell:opacity-100 transition-opacity duration-150">
+                                                                <button type="button"
+                                                                        onclick="openEditPpobModal(event, {{ $transaksi['id'] }}, '{{ addslashes($kategori) }}', {{ $transaksi['nominal'] }}, '{{ addslashes($transaksi['keterangan'] ?? '') }}')"
+                                                                        class="p-1 text-blue-600 hover:bg-blue-100 rounded transition border border-blue-200 sm:border-0 bg-white"
+                                                                        title="Edit">
+                                                                    <iconify-icon icon="mdi:pencil" class="text-xs sm:text-sm"></iconify-icon>
+                                                                </button>
+                                                                <button type="button"
+                                                                        onclick="deletePpob({{ $transaksi['id'] }}, '{{ addslashes($kategori) }}', {{ $transaksi['nominal'] }})"
+                                                                        class="p-1 text-red-600 hover:bg-red-100 rounded transition border border-red-200 sm:border-0 bg-white"
+                                                                        title="Hapus">
+                                                                    <iconify-icon icon="mdi:delete" class="text-xs sm:text-sm"></iconify-icon>
+                                                                </button>
+                                                            </div>
+                                                        @endif
                                                     </div>
-
-                                                    @if($storeId !== 'all')
-                                                        <div class="absolute inset-y-0 right-2 flex items-center gap-0.5 opacity-0 group-hover/cell:opacity-100 transition-opacity duration-150 bg-white pl-2">
-                                                            <button type="button"
-                                                                    onclick="openEditPpobModal(event, {{ $transaksi['id'] }}, '{{ addslashes($kategori) }}', {{ $transaksi['nominal'] }}, '{{ addslashes($transaksi['keterangan'] ?? '') }}')"
-                                                                    class="p-1 text-blue-600 hover:bg-blue-100 rounded transition"
-                                                                    title="Edit">
-                                                                <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
-                                                            </button>
-                                                            <button type="button"
-                                                                    onclick="deletePpob({{ $transaksi['id'] }}, '{{ addslashes($kategori) }}', {{ $transaksi['nominal'] }})"
-                                                                    class="p-1 text-red-600 hover:bg-red-100 rounded transition"
-                                                                    title="Hapus">
-                                                                <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
-                                                            </button>
-                                                        </div>
-                                                    @endif
                                                 @else
                                                     <span class="text-gray-400">-</span>
                                                 @endif
@@ -209,19 +210,19 @@
                         
                         {{-- BARIS TOTAL REKAP OMSET --}}
                         <tr class="bg-blue-50 border-t-2 border-blue-300">
-                            <td class="border border-gray-200 p-3 font-bold text-gray-800 text-left">
+                            <td class="border border-gray-200 p-2 sm:p-3 font-bold text-gray-800 text-left text-xs sm:text-sm whitespace-nowrap">
                                 TOTAL REKAP
                             </td>
                             @foreach($allCategories as $kategori)
                                 @if($kategori === 'Keterangan')
-                                    <td class="border border-gray-200 p-3 text-center text-gray-400 text-xs italic">
-                                        (Keterangan)
+                                    <td class="border border-gray-200 p-2 sm:p-3 text-center text-gray-400 text-[10px] sm:text-xs italic whitespace-nowrap">
+                                        (Ket)
                                     </td>
                                 @else
                                     @php
                                         $totalPerKategori = $ppobData->filter(fn($item) => strtolower(trim($item->kategori)) === strtolower(trim($kategori)))->sum('nominal');
                                     @endphp
-                                    <td class="border border-gray-200 p-3 text-center text-blue-800 font-bold">
+                                    <td class="border border-gray-200 p-2 sm:p-3 text-center text-blue-800 font-bold text-xs sm:text-sm whitespace-nowrap">
                                         {{ $totalPerKategori > 0 ? 'Rp ' . number_format($totalPerKategori, 0, ',', '.') : '-' }}
                                     </td>
                                 @endif
@@ -230,9 +231,9 @@
                     </tbody>
                     <tfoot>
                         <tr class="bg-blue-600 text-white">
-                            <td colspan="{{ count($allCategories) + 1 }}" class="p-4 text-right">
-                                <span class="text-sm font-bold uppercase tracking-wider mr-4">Total Omset Keseluruhan</span>
-                                <span class="text-xl font-bold">Rp {{ number_format($totalOmset, 0, ',', '.') }}</span>
+                            <td colspan="{{ count($allCategories) + 1 }}" class="p-3 sm:p-4 text-right">
+                                <span class="text-[10px] sm:text-sm font-bold uppercase tracking-wider mr-2 sm:mr-4">Total Omset Keseluruhan</span>
+                                <span class="text-base sm:text-xl font-bold block sm:inline mt-1 sm:mt-0">Rp {{ number_format($totalOmset, 0, ',', '.') }}</span>
                             </td>
                         </tr>
                     </tfoot>
@@ -245,8 +246,8 @@
 
 <div id="manualModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeManualModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <iconify-icon id="manualModalIcon" icon="mdi:plus-circle" class="text-blue-600 text-lg"></iconify-icon>
                 <h3 id="manualModalTitle" class="font-bold text-gray-800">Tambah Transaksi Manual</h3>
@@ -256,9 +257,8 @@
             </button>
         </div>
 
-        <form id="manualForm" onsubmit="submitManualForm(event)">
+        <form id="manualForm" onsubmit="submitManualForm(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
-            {{-- Value store_id akan diupdate via JS --}}
             <input type="hidden" name="store_id" id="manualStoreId" value="{{ $storeId }}">
             <input type="hidden" id="manualPpobId" value="">
             <input type="hidden" id="manualMode" value="create">
@@ -266,7 +266,7 @@
             <div class="p-5 space-y-4">
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalError"></div>
 
-                {{-- 🔥 DROPDOWN TOKO (Hanya tampil jika Semua Toko) --}}
+                {{-- 🔥 DROPDOWN TOKO --}}
                 <div id="tokoFieldWrapper" class="hidden">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko <span class="text-red-500">*</span></label>
                     <select id="manualStoreSelect" required
@@ -278,14 +278,14 @@
                     </select>
                 </div>
 
-                {{-- Tanggal: hanya tampil saat CREATE --}}
+                {{-- Tanggal: CREATE --}}
                 <div id="tanggalManualWrapper">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal Transaksi</label>
                     <input type="date" name="tanggal" id="manualTanggal" value="{{ date('Y-m-d') }}" required
                         class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
                 </div>
 
-                {{-- Tanggal readonly saat EDIT --}}
+                {{-- Tanggal: EDIT (readonly) --}}
                 <div id="tanggalManualReadonlyWrapper" class="hidden">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal Transaksi</label>
                     <div class="w-full bg-gray-100 border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-600">
@@ -328,7 +328,7 @@
                 </div>
             </div>
 
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" onclick="closeManualModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition">Batal</button>
                 <button type="submit" id="btnSubmitManual" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> <span id="btnSubmitManualText">Simpan</span>
@@ -340,8 +340,6 @@
 
 <script>
     const CSRF_TOKEN_PPOB = document.querySelector('meta[name="csrf-token"]').content;
-    
-    // Cek status filter saat ini dari PHP
     const CURRENT_STORE_ID = "{{ $storeId }}";
 
     function todayLocal() {
@@ -352,9 +350,6 @@
         return `${yyyy}-${mm}-${dd}`;
     }
 
-    // ===================================================
-    // FORMAT NOMINAL
-    // ===================================================
     document.addEventListener('DOMContentLoaded', function () {
         const inputNominal = document.getElementById('inputNominalManual');
         if (inputNominal) {
@@ -365,9 +360,6 @@
         }
     });
 
-    // ===================================================
-    // TOGGLE INPUT KETERANGAN
-    // ===================================================
     function toggleKeteranganPpob() {
         const kategori = document.getElementById('manualKategori').value;
         const wrapper = document.getElementById('keteranganWrapper');
@@ -375,17 +367,14 @@
 
         if (kategori === 'Barang Titip Jual') {
             wrapper.classList.remove('hidden');
-            input.required = true; // Wajib diisi jika titip jual
+            input.required = true;
         } else {
             wrapper.classList.add('hidden');
             input.required = false;
-            input.value = ''; // Kosongkan jika bukan titip jual
+            input.value = '';
         }
     }
 
-    // ===================================================
-    // OPEN MODAL — CREATE
-    // ===================================================
     function openManualModal() {
         const modal = document.getElementById('manualModal');
         document.getElementById('manualForm').reset();
@@ -403,11 +392,9 @@
 
         document.getElementById('inputNominalManual').value = '';
 
-        // Sembunyikan Keterangan secara default saat buka modal
         document.getElementById('keteranganWrapper').classList.add('hidden');
         document.getElementById('inputKeteranganPpob').required = false;
 
-        // 🔥 LOGIKA TAMPILKAN/SEMBUNYIKAN DROPDOWN TOKO
         const tokoWrapper = document.getElementById('tokoFieldWrapper');
         const tokoSelect = document.getElementById('manualStoreSelect');
         const storeIdHidden = document.getElementById('manualStoreId');
@@ -426,9 +413,6 @@
         modal.classList.add('flex');
     }
 
-    // ===================================================
-    // OPEN MODAL — EDIT
-    // ===================================================
     function openEditPpobModal(event, id, kategori, nominal, keterangan = '') {
         const modal = document.getElementById('manualModal');
         document.getElementById('manualForm').reset();
@@ -440,14 +424,12 @@
         document.getElementById('manualModalIcon').setAttribute('icon', 'mdi:pencil');
         document.getElementById('btnSubmitManualText').textContent = 'Simpan Perubahan';
 
-        // Sembunyikan dropdown toko saat edit
         document.getElementById('tokoFieldWrapper').classList.add('hidden');
         document.getElementById('manualStoreSelect').required = false;
 
         document.getElementById('tanggalManualWrapper').classList.add('hidden');
         document.getElementById('tanggalManualReadonlyWrapper').classList.remove('hidden');
 
-        // Ambil label tanggal dari baris tabel
         const btn = event.currentTarget;
         const td = btn.closest('td');
         const tr = td ? td.closest('tr') : null;
@@ -457,12 +439,10 @@
         document.getElementById('manualKategori').value = kategori || '';
         document.getElementById('inputKeteranganPpob').value = keterangan || '';
         
-        // Panggil fungsi untuk memunculkan/menyembunyikan input keterangan
         toggleKeteranganPpob();
 
         if (nominal > 0) {
-            document.getElementById('inputNominalManual').value =
-                new Intl.NumberFormat('id-ID').format(nominal);
+            document.getElementById('inputNominalManual').value = new Intl.NumberFormat('id-ID').format(nominal);
         } else {
             document.getElementById('inputNominalManual').value = '';
         }
@@ -471,17 +451,11 @@
         modal.classList.add('flex');
     }
 
-    // ===================================================
-    // CLOSE
-    // ===================================================
     function closeManualModal() {
         document.getElementById('manualModal').classList.add('hidden');
         document.getElementById('manualModal').classList.remove('flex');
     }
 
-    // ===================================================
-    // SUBMIT (CREATE / EDIT)
-    // ===================================================
     async function submitManualForm(e) {
         e.preventDefault();
 
@@ -503,7 +477,6 @@
         const formData = new FormData(form);
         formData.set('nominal', nominalRaw);
 
-        // Jika create & mode 'all', pastikan store_id terambil dari dropdown
         if (mode === 'create' && CURRENT_STORE_ID === 'all') {
             const selectedStore = document.getElementById('manualStoreSelect').value;
             if (!selectedStore) {
@@ -552,9 +525,6 @@
         }
     }
 
-    // ===================================================
-    // DELETE PPOB
-    // ===================================================
     async function deletePpob(id, kategori, nominal) {
         const nominalFormatted = new Intl.NumberFormat('id-ID').format(nominal);
         if (!confirm(`Yakin hapus transaksi "${kategori}" dengan nominal Rp ${nominalFormatted}?`)) return;
@@ -581,9 +551,6 @@
         }
     }
 
-    // ===================================================
-    // ESC = tutup modal
-    // ===================================================
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closeManualModal();
     });

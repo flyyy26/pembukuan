@@ -1,23 +1,23 @@
 @extends('layouts.app')
 
-@section('title', 'Transaksi Gaji Karyawan')
+@section('title', 'Gaji Karyawan')
 
 @section('content')
 <div class="w-full">
 
     {{-- HEADER --}}
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="mdi:cash-multiple" class="text-white text-xl"></iconify-icon>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Transaksi Gaji</h2>
-                <p class="text-sm text-gray-500">Periode: {{ \Carbon\Carbon::createFromFormat('Y-m', $periode)->translatedFormat('F Y') }}</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">Transaksi Gaji</h2>
+                <p class="text-xs sm:text-sm text-gray-500">Periode: {{ \Carbon\Carbon::createFromFormat('Y-m', $periode)->translatedFormat('F Y') }}</p>
             </div>
         </div>
 
-        <button type="button" onclick="openGenerateModal()" class="inline-flex items-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm">
+        <button type="button" onclick="openGenerateModal()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:autorenew" class="text-lg"></iconify-icon>
             Generate Gaji
         </button>
@@ -25,7 +25,7 @@
 
     {{-- FILTER --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
             <div class="w-full md:w-48">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Periode (Bulan)</label>
                 <input type="month" name="periode" value="{{ $periode }}"
@@ -51,141 +51,231 @@
                 </select>
             </div>
 
-            <div class="flex gap-2">
-                <button type="submit" class="bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium flex items-center gap-2">
+            <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                <button type="submit" class="flex-1 md:flex-none bg-indigo-600 text-white px-5 py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
                 @if($storeId !== 'all' || $status !== 'all' || $periode !== now()->format('Y-m'))
-                    <a href="{{ route('gaji.index') }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg">Reset</a>
+                    <a href="{{ route('gaji.index') }}" class="flex-1 md:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
+                        Reset
+                    </a>
                 @endif
             </div>
         </form>
     </div>
 
-    {{-- SUMMARY --}}
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div class="flex items-center justify-between mb-2">
-                <div class="w-8 h-8 bg-indigo-100 rounded-lg flex items-center justify-center">
-                    <iconify-icon icon="mdi:wallet" class="text-indigo-600 text-lg"></iconify-icon>
+    {{-- SUMMARY (3 KOLOM) --}}
+    <div class="grid grid-cols-3 gap-2 sm:gap-4 mb-6">
+        
+        {{-- Total Gaji --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-2 sm:p-4 flex flex-col justify-center">
+            <div class="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-indigo-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <iconify-icon icon="mdi:wallet" class="text-indigo-600 text-xs sm:text-lg"></iconify-icon>
                 </div>
             </div>
-            <div class="text-xs text-gray-500 mb-1">Total Gaji</div>
-            <div class="text-xl font-bold text-gray-800">Rp {{ number_format($summary['total_gaji'], 0, ',', '.') }}</div>
-            <div class="text-xs text-gray-400 mt-1">{{ $summary['jumlah_karyawan'] }} karyawan</div>
+            <div class="text-[9px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1 leading-tight">Total Gaji</div>
+            <div class="text-xs sm:text-xl font-bold text-gray-800 break-words">
+                <span class="text-[8px] sm:text-xs text-gray-400 font-normal">Rp</span>
+                {{ number_format($summary['total_gaji'], 0, ',', '.') }}
+            </div>
+            <div class="text-[9px] sm:text-xs text-gray-400 mt-0.5 sm:mt-1 leading-tight">{{ $summary['jumlah_karyawan'] }} karyawan</div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div class="flex items-center justify-between mb-2">
-                <div class="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                    <iconify-icon icon="mdi:check-circle" class="text-green-600 text-lg"></iconify-icon>
+        {{-- Sudah Dibayar --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-2 sm:p-4 flex flex-col justify-center">
+            <div class="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-green-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <iconify-icon icon="mdi:check-circle" class="text-green-600 text-xs sm:text-lg"></iconify-icon>
                 </div>
             </div>
-            <div class="text-xs text-gray-500 mb-1">Sudah Dibayar</div>
-            <div class="text-xl font-bold text-green-600">Rp {{ number_format($summary['total_dibayar'], 0, ',', '.') }}</div>
+            <div class="text-[9px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1 leading-tight">Sudah Dibayar</div>
+            <div class="text-xs sm:text-xl font-bold text-green-600 break-words">
+                <span class="text-[8px] sm:text-xs text-gray-400 font-normal">Rp</span>
+                {{ number_format($summary['total_dibayar'], 0, ',', '.') }}
+            </div>
         </div>
 
-        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
-            <div class="flex items-center justify-between mb-2">
-                <div class="w-8 h-8 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <iconify-icon icon="mdi:clock-alert" class="text-orange-600 text-lg"></iconify-icon>
+        {{-- Belum Dibayar --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-2 sm:p-4 flex flex-col justify-center">
+            <div class="flex items-center gap-1.5 sm:gap-2 mb-1 sm:mb-2">
+                <div class="w-6 h-6 sm:w-8 sm:h-8 bg-orange-100 rounded-lg flex items-center justify-center flex-shrink-0">
+                    <iconify-icon icon="mdi:clock-alert" class="text-orange-600 text-xs sm:text-lg"></iconify-icon>
                 </div>
             </div>
-            <div class="text-xs text-gray-500 mb-1">Belum Dibayar</div>
-            <div class="text-xl font-bold text-orange-600">Rp {{ number_format($summary['total_draft'], 0, ',', '.') }}</div>
+            <div class="text-[9px] sm:text-xs text-gray-500 mb-0.5 sm:mb-1 leading-tight">Belum Dibayar</div>
+            <div class="text-xs sm:text-xl font-bold text-orange-600 break-words">
+                <span class="text-[8px] sm:text-xs text-gray-400 font-normal">Rp</span>
+                {{ number_format($summary['total_draft'], 0, ',', '.') }}
+            </div>
         </div>
     </div>
 
-    {{-- TABEL GAJI --}}
+    {{-- DATA GAJI --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-            <h3 class="font-semibold text-gray-800">Rincian Gaji</h3>
-            <div class="text-xs text-gray-500">{{ $gajiList->count() }} data</div>
+        <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Gaji</h3>
+            <div class="text-[10px] sm:text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max">{{ $gajiList->count() }} data</div>
         </div>
 
-        <div class="overflow-x-auto">
-            <table class="w-full text-sm">
-                <thead class="bg-gray-50 border-b border-gray-100">
-                    <tr>
-                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Karyawan</th>
-                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Toko</th>
-                        <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Gaji Pokok</th>
-                        <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Bonus</th>
-                        <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Potongan</th>
-                        <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Total</th>
-                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-48">Aksi</th>
-                    </tr>
-                </thead>
-                <tbody class="divide-y divide-gray-100">
-                    @forelse($gajiList as $g)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="py-3 px-4 font-medium text-gray-800">{{ $g->karyawan->nama ?? '-' }}</td>
-                            <td class="py-3 px-4 text-xs text-gray-600">
-                                <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
-                                {{ $g->karyawan->store->nama_toko ?? '-' }}
-                            </td>
-                            <td class="py-3 px-4 text-right text-gray-700">Rp {{ number_format($g->gaji_pokok, 0, ',', '.') }}</td>
-                            <td class="py-3 px-4 text-right text-emerald-600">Rp {{ number_format($g->bonus, 0, ',', '.') }}</td>
-                            <td class="py-3 px-4 text-right text-red-600">Rp {{ number_format($g->potongan, 0, ',', '.') }}</td>
-                            <td class="py-3 px-4 text-right font-bold text-gray-900">Rp {{ number_format($g->total_gaji, 0, ',', '.') }}</td>
-                            <td class="py-3 px-4 text-center">
+        @if($gajiList->isEmpty())
+            <div class="py-12 text-center text-gray-500">
+                <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                <span class="text-sm">Belum ada data gaji untuk periode ini. <br/>Klik "Generate Gaji" untuk membuat draft.</span>
+            </div>
+        @else
+
+            {{-- TAMPILAN TABEL (DESKTOP) --}}
+            <div class="hidden md:block overflow-x-auto">
+                <table class="w-full text-sm">
+                    <thead class="bg-gray-50 border-b border-gray-100">
+                        <tr>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Karyawan</th>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Toko</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Gaji Pokok</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Bonus</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Potongan</th>
+                            <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Total</th>
+                            <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Status</th>
+                            <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-48 whitespace-nowrap">Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($gajiList as $g)
+                            <tr class="hover:bg-gray-50 transition">
+                                <td class="py-3 px-4 font-medium text-gray-800 whitespace-nowrap">{{ $g->karyawan->nama ?? '-' }}</td>
+                                <td class="py-3 px-4 text-xs text-gray-600 whitespace-nowrap">
+                                    <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
+                                    {{ $g->karyawan->store->nama_toko ?? '-' }}
+                                </td>
+                                <td class="py-3 px-4 text-right text-gray-700 whitespace-nowrap">Rp {{ number_format($g->gaji_pokok, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right text-emerald-600 whitespace-nowrap">Rp {{ number_format($g->bonus, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right text-red-600 whitespace-nowrap">Rp {{ number_format($g->potongan, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-right font-bold text-gray-900 whitespace-nowrap">Rp {{ number_format($g->total_gaji, 0, ',', '.') }}</td>
+                                <td class="py-3 px-4 text-center whitespace-nowrap">
+                                    @if($g->status === 'dibayar')
+                                        <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                            <iconify-icon icon="mdi:check-circle" class="text-sm"></iconify-icon> Dibayar
+                                        </span>
+                                        @if($g->tanggal_bayar)
+                                            <div class="text-[10px] text-gray-400 mt-1">{{ $g->tanggal_bayar->format('d/m/Y') }}</div>
+                                        @endif
+                                    @else
+                                        <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
+                                            <iconify-icon icon="mdi:clock-alert" class="text-sm"></iconify-icon> Draft
+                                        </span>
+                                    @endif
+                                </td>
+                                <td class="py-3 px-4 text-center">
+                                    <div class="inline-flex items-center gap-1 flex-wrap justify-center">
+                                        @if($g->status === 'draft')
+                                            <button type="button"
+                                                    onclick="openEditGajiModal({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->bonus }}, {{ $g->potongan }}, '{{ $g->metode_bayar }}')"
+                                                    class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-blue-200">
+                                                <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
+                                            </button>
+                                            <button type="button"
+                                                    onclick="bayarGaji({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->total_gaji }})"
+                                                    class="inline-flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-emerald-200">
+                                                <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon> Bayar
+                                            </button>
+                                            <button type="button"
+                                                    onclick="deleteGaji({{ $g->id }})"
+                                                    class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-red-200">
+                                                <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
+                                            </button>
+                                        @else
+                                            <span class="text-xs text-gray-400 italic">Lunas</span>
+                                        @endif
+                                    </div>
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                </table>
+            </div>
+
+            {{-- TAMPILAN CARD (MOBILE) --}}
+            <div class="md:hidden divide-y divide-gray-100">
+                @foreach($gajiList as $g)
+                    <div class="p-4 space-y-2 text-xs">
+                        
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-bold text-gray-800 text-sm">{{ $g->karyawan->nama ?? '-' }}</div>
+                                <div class="flex items-center gap-1 text-[10px] text-gray-500 mt-0.5">
+                                    <iconify-icon icon="mdi:store" class="text-xs"></iconify-icon>
+                                    {{ $g->karyawan->store->nama_toko ?? '-' }}
+                                </div>
+                            </div>
+                            <div class="text-right">
                                 @if($g->status === 'dibayar')
-                                    <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                                        <iconify-icon icon="mdi:check-circle" class="text-sm"></iconify-icon> Dibayar
+                                    <span class="inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-2 py-0.5 rounded font-medium">
+                                        <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon> Dibayar
                                     </span>
                                     @if($g->tanggal_bayar)
-                                        <div class="text-[10px] text-gray-400 mt-1">{{ $g->tanggal_bayar->format('d/m/Y') }}</div>
+                                        <div class="text-[9px] text-gray-400 mt-0.5">{{ $g->tanggal_bayar->format('d/m/Y') }}</div>
                                     @endif
                                 @else
-                                    <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
-                                        <iconify-icon icon="mdi:clock-alert" class="text-sm"></iconify-icon> Draft
+                                    <span class="inline-flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 px-2 py-0.5 rounded font-medium">
+                                        <iconify-icon icon="mdi:clock-alert" class="text-xs"></iconify-icon> Draft
                                     </span>
                                 @endif
-                            </td>
-                            <td class="py-3 px-4 text-center">
-                                <div class="inline-flex items-center gap-1 flex-wrap justify-center">
-                                    @if($g->status === 'draft')
-                                        <button type="button"
-                                                onclick="openEditGajiModal({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->bonus }}, {{ $g->potongan }}, '{{ $g->metode_bayar }}')"
-                                                class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition">
-                                            <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
-                                        </button>
-                                        <button type="button"
-                                                onclick="bayarGaji({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->total_gaji }})"
-                                                class="inline-flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-medium transition">
-                                            <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon> Bayar
-                                        </button>
-                                        <button type="button"
-                                                onclick="deleteGaji({{ $g->id }})"
-                                                class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
-                                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
-                                        </button>
-                                    @else
-                                        <span class="text-xs text-gray-400 italic">Lunas</span>
-                                    @endif
-                                </div>
-                            </td>
-                        </tr>
-                    @empty
-                        <tr>
-                            <td colspan="8" class="py-12 text-center text-gray-500">
-                                <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
-                                Belum ada data gaji untuk periode ini. Klik "Generate Gaji" untuk membuat draft.
-                            </td>
-                        </tr>
-                    @endforelse
-                </tbody>
-            </table>
-        </div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 pt-2 border-t border-gray-50 mt-2">
+                            <div>
+                                <span class="text-gray-400 block text-[10px]">Gaji Pokok</span>
+                                <span class="text-gray-700">Rp {{ number_format($g->gaji_pokok, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-gray-400 block text-[10px]">Total Diterima</span>
+                                <span class="font-bold text-gray-900">Rp {{ number_format($g->total_gaji, 0, ',', '.') }}</span>
+                            </div>
+                            <div>
+                                <span class="text-gray-400 block text-[10px]">Bonus</span>
+                                <span class="text-emerald-600">+ Rp {{ number_format($g->bonus, 0, ',', '.') }}</span>
+                            </div>
+                            <div class="text-right">
+                                <span class="text-gray-400 block text-[10px]">Potongan</span>
+                                <span class="text-red-600">- Rp {{ number_format($g->potongan, 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+
+                        @if($g->status === 'draft')
+                            <div class="flex gap-2 pt-2">
+                                <button type="button"
+                                        onclick="openEditGajiModal({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->bonus }}, {{ $g->potongan }}, '{{ $g->metode_bayar }}')"
+                                        class="flex-1 inline-flex justify-center items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                                    <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
+                                </button>
+                                <button type="button"
+                                        onclick="bayarGaji({{ $g->id }}, '{{ addslashes($g->karyawan->nama ?? '') }}', {{ $g->total_gaji }})"
+                                        class="flex-1 inline-flex justify-center items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                                    <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon> Bayar
+                                </button>
+                                <button type="button"
+                                        onclick="deleteGaji({{ $g->id }})"
+                                        class="flex-none inline-flex justify-center items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded text-xs font-medium transition">
+                                    <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
+                                </button>
+                            </div>
+                        @endif
+
+                    </div>
+                @endforeach
+            </div>
+
+        @endif
     </div>
 </div>
 
 {{-- MODAL GENERATE --}}
 <div id="generateModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeGenerateModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50">
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-indigo-50 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:autorenew" class="text-indigo-600 text-lg"></iconify-icon>
                 <h3 class="font-bold text-gray-800">Generate Gaji</h3>
@@ -195,13 +285,13 @@
             </button>
         </div>
 
-        <form id="generateForm" onsubmit="submitGenerate(event)">
+        <form id="generateForm" onsubmit="submitGenerate(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
             <div class="p-5 space-y-4">
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorGenerate"></div>
 
                 <div class="bg-indigo-50 rounded-lg p-3 text-xs text-indigo-800 flex items-start gap-2">
-                    <iconify-icon icon="mdi:information" class="text-base mt-0.5"></iconify-icon>
+                    <iconify-icon icon="mdi:information" class="text-base mt-0.5 flex-shrink-0"></iconify-icon>
                     <div>
                         Draft gaji akan dibuat untuk <strong>semua karyawan aktif</strong> di periode ini.
                         Karyawan yang sudah punya gaji di periode ini akan dilewati.
@@ -226,7 +316,7 @@
                 </div>
             </div>
 
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" onclick="closeGenerateModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
                 <button type="submit" id="btnSubmitGenerate" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:autorenew" class="text-lg"></iconify-icon> Generate
@@ -239,8 +329,8 @@
 {{-- MODAL EDIT GAJI --}}
 <div id="gajiModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeGajiModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:pencil" class="text-blue-600 text-lg"></iconify-icon>
                 <h3 class="font-bold text-gray-800">Edit Gaji <span id="gajiKaryawanNama" class="text-blue-600"></span></h3>
@@ -250,7 +340,7 @@
             </button>
         </div>
 
-        <form id="gajiForm" onsubmit="submitEditGaji(event)">
+        <form id="gajiForm" onsubmit="submitEditGaji(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
             <input type="hidden" id="gajiId" value="">
 
@@ -288,7 +378,7 @@
                 </div>
             </div>
 
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" onclick="closeGajiModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
                 <button type="submit" id="btnSubmitGaji" class="bg-indigo-600 text-white px-4 py-2 rounded-lg hover:bg-indigo-700 text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> Simpan

@@ -616,4 +616,44 @@ class BrilinkImportController extends Controller
 
         return $map[$column] ?? 'tidak diketahui';
     }
+
+        /**
+     * Hapus data Import BRILink beserta seluruh transaksinya.
+     */
+    public function destroy($id)
+    {
+        $import = Import::where('tipe', 'brilink')->findOrFail($id);
+
+        DB::beginTransaction();
+        try {
+            // Cari report yang terhubung dengan import ini
+            $report = BrilinkReport::where('import_id', $import->id)->first();
+
+            if ($report) {
+                // Hapus manual relasi turunan untuk memastikan bersih (jika tidak pakai cascade DB)
+                $report->accounts()->delete();
+                $report->ppobItems()->delete();
+                $report->setoranItems()->delete();
+                $report->tarikTunaiItems()->delete();
+                $report->pengeluaranItems()->delete();
+                
+                $report->delete();
+            }
+
+            $import->delete();
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data import dan seluruh transaksinya berhasil dihapus.'
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Gagal menghapus: ' . $e->getMessage()
+            ], 500);
+        }
+    }
 }

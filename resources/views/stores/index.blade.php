@@ -6,20 +6,20 @@
 <div class="w-full">
 
     {{-- ============ HEADER ============ --}}
-    <div class="flex justify-between items-start mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="mdi:store-outline" class="text-emerald-600 text-xl"></iconify-icon>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Toko</h2>
-                <p class="text-sm text-gray-500">Daftar toko di marketplace</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">Toko</h2>
+                <p class="text-xs sm:text-sm text-gray-500">Daftar toko di marketplace</p>
             </div>
         </div>
 
         <button type="button"
                 onclick="openModal('create')"
-                class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
+                class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
             Tambah Toko
         </button>
@@ -37,10 +37,10 @@
     <div class="modal-backdrop absolute inset-0 bg-black/50" onclick="closeModal()"></div>
 
     {{-- Modal Content --}}
-    <div class="modal-content relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+    <div class="modal-content relative bg-white rounded-xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto flex flex-col">
 
         {{-- Header --}}
-        <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between flex-shrink-0">
             <div class="flex items-center gap-3">
                 <div class="w-10 h-10 bg-emerald-100 rounded-lg flex items-center justify-center">
                     <iconify-icon id="modalIcon" icon="mdi:store-plus" class="text-emerald-600 text-xl"></iconify-icon>
@@ -57,11 +57,11 @@
         </div>
 
         {{-- Form --}}
-        <form id="storeForm" onsubmit="submitStoreForm(event)">
+        <form id="storeForm" onsubmit="submitStoreForm(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
             <input type="hidden" id="storeId" name="store_id">
 
-            <div class="p-6 space-y-5">
+            <div class="p-5 sm:p-6 space-y-5">
 
                 {{-- Error Container --}}
                 <div id="formErrors" class="hidden bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg">
@@ -82,7 +82,7 @@
                             'brilink'   => ['label' => 'BRILink',      'icon' => 'mdi:bank'],
                         ];
                     @endphp
-                    <div class="grid grid-cols-2 gap-2">
+                    <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
                         @foreach($marketplaces as $val => $mp)
                             <label class="cursor-pointer">
                                 <input type="radio" name="marketplace" value="{{ $val }}" class="peer sr-only" required>
@@ -90,7 +90,7 @@
                                             hover:border-gray-300 hover:bg-gray-50
                                             peer-checked:border-emerald-500 peer-checked:bg-emerald-50">
                                     <iconify-icon icon="{{ $mp['icon'] }}" class="text-xl text-gray-400 m-auto text-center w-max mb-1 block"></iconify-icon>
-                                    <div class="text-xs font-medium text-gray-700">{{ $mp['label'] }}</div>
+                                    <div class="text-[10px] sm:text-xs font-medium text-gray-700">{{ $mp['label'] }}</div>
                                 </div>
                             </label>
                         @endforeach
@@ -121,13 +121,13 @@
             </div>
 
             {{-- Footer --}}
-            <div class="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2">
+            <div class="px-5 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-2 flex-shrink-0 mt-auto">
                 <button type="button" onclick="closeModal()"
-                        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition text-sm font-medium">
+                        class="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-gray-700 hover:bg-gray-100 transition text-sm font-medium">
                     Batal
                 </button>
                 <button type="submit" id="submitBtn"
-                        class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
+                        class="flex-1 sm:flex-none inline-flex justify-center items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
                     <iconify-icon icon="mdi:content-save" class="text-base"></iconify-icon>
                     <span id="submitBtnText">Simpan Toko</span>
                 </button>
@@ -138,40 +138,16 @@
 
 {{-- ============ ANIMASI & SCRIPT ============ --}}
 <style>
-    .modal-backdrop {
-        opacity: 0;
-        animation: fadeIn 0.2s ease-out forwards;
-    }
-    .modal-content {
-        opacity: 0;
-        transform: translateY(20px) scale(0.95);
-        animation: slideUpScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-    }
+    .modal-backdrop { opacity: 0; animation: fadeIn 0.2s ease-out forwards; }
+    .modal-content { opacity: 0; transform: translateY(20px) scale(0.95); animation: slideUpScale 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
     @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideUpScale {
-        from { opacity: 0; transform: translateY(20px) scale(0.95); }
-        to   { opacity: 1; transform: translateY(0) scale(1); }
-    }
+    @keyframes slideUpScale { from { opacity: 0; transform: translateY(20px) scale(0.95); } to { opacity: 1; transform: translateY(0) scale(1); } }
     .modal-closing .modal-backdrop { animation: fadeOut 0.2s ease-in forwards; }
-    .modal-closing .modal-content {
-        animation: slideDownScale 0.2s ease-in forwards;
-    }
+    .modal-closing .modal-content { animation: slideDownScale 0.2s ease-in forwards; }
     @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
-    @keyframes slideDownScale {
-        from { opacity: 1; transform: translateY(0) scale(1); }
-        to   { opacity: 0; transform: translateY(10px) scale(0.98); }
-    }
-    @keyframes slide-in {
-        from { opacity: 0; transform: translateX(20px); }
-        to   { opacity: 1; transform: translateX(0); }
-    }
+    @keyframes slideDownScale { from { opacity: 1; transform: translateY(0) scale(1); } to { opacity: 0; transform: translateY(10px) scale(0.98); } }
+    @keyframes slide-in { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
     .animate-slide-in { animation: slide-in 0.3s ease-out; }
-
-    tr.removing {
-        transition: opacity 0.3s, transform 0.3s;
-        opacity: 0;
-        transform: translateX(-20px);
-    }
 </style>
 
 <script>
@@ -201,10 +177,9 @@ function openModal(mode, storeId = null, btn = null) {
         form.dataset.mode = 'create';
         form.dataset.storeId = '';
     } else {
-        if (!btn) return; // Pastikan tombol dikirim
+        if (!btn) return; 
 
-        // 🔥 AMBIL DATA LANGSUNG DARI BARIS TABEL (Solusi Anti-Gagal)
-        const row = btn.closest('tr');
+        const row = btn.closest('tr, div[data-id]');
         const data = {
             id: row.getAttribute('data-id'),
             nama_toko: row.getAttribute('data-nama'),
@@ -302,28 +277,21 @@ async function submitStoreForm(event) {
                 ul.innerHTML = '<li>Terjadi kesalahan.</li>';
             }
 
-            // Jika gagal, hidupkan kembali tombol
             submitBtn.disabled = false;
             submitText.textContent = originalText;
             return;
         }
 
-        // 🔥 JIKA SUKSES: HIDUPKAN TOMBOL SEBELUM MENUTUP MODAL
         submitBtn.disabled = false;
         submitText.textContent = originalText;
 
-        // Sukses
         closeModal();
         showNotification(data.message, 'success');
-
-        // Update tabel via AJAX (tanpa reload)
         await refreshTable();
 
     } catch (err) {
         errors.classList.remove('hidden');
         errors.querySelector('ul').innerHTML = `<li>Gagal menyimpan: ${err.message}</li>`;
-        
-        // Jika error koneksi, hidupkan kembali tombol
         submitBtn.disabled = false;
         submitText.textContent = originalText;
     }
@@ -351,7 +319,6 @@ async function deleteStore(storeId, namaToko) {
 
         showNotification(data.message, 'success');
 
-        // Animasi hapus baris
         const row = document.getElementById(`store-row-${storeId}`);
         if (row) {
             row.classList.add('removing');
@@ -375,10 +342,6 @@ async function refreshTable() {
         });
         const html = await response.text();
         document.getElementById('storesTableContainer').innerHTML = html;
-
-        // Re-bind STORE_DATA dari HTML baru (opsional: parse ulang)
-        // Karena STORE_DATA di-render sekali di awal, setelah edit
-        // kita perlu update manual. Solusi: pakai data dari response JSON.
     } catch (err) {
         console.error('Gagal refresh tabel:', err);
     }

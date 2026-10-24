@@ -26,15 +26,21 @@ class ProductController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'sku_internal' => 'required|string|max:100|unique:products,sku_internal',
-            'nama_produk'  => 'required|string|max:255',
-            'hpp'          => 'required|integer|min:0',
-            'gambar'       => 'nullable|image|max:2048',
+            'sku_internal'       => 'required|string|max:100|unique:products,sku_internal',
+            'nama_produk'        => 'required|string|max:255',
+            'warna'              => 'nullable|string|max:50',
+            'ukuran'             => 'nullable|string|max:50',
+            'hpp'                => 'required|integer|min:0',
+            'stok'               => 'required|integer|min:0',
+            'is_active'          => 'nullable|boolean',
+            'gambar'             => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('gambar')) {
             $validated['gambar'] = $request->file('gambar')->store('products', 'public');
         }
+
+        $validated['is_active'] = $request->boolean('is_active', true);
 
         Product::create($validated);
 
@@ -50,12 +56,14 @@ class ProductController extends Controller
     public function update(Request $request, Product $product)
     {
         $validated = $request->validate([
-            'sku_internal' => 'required|string|max:100|unique:products,sku_internal,' . $product->id,
-            'nama_produk'  => 'required|string|max:255',
-            'warna'        => 'nullable|string|max:50',
-            'ukuran'       => 'nullable|string|max:50',
-            'hpp'          => 'required|integer|min:0',
-            'gambar'       => 'nullable|image|max:2048',
+            'sku_internal'       => 'required|string|max:100|unique:products,sku_internal,' . $product->id,
+            'nama_produk'        => 'required|string|max:255',
+            'warna'              => 'nullable|string|max:50',
+            'ukuran'             => 'nullable|string|max:50',
+            'hpp'                => 'required|integer|min:0',
+            'stok'               => 'required|integer|min:0',
+            'is_active'          => 'nullable|boolean',
+            'gambar'             => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('gambar')) {
@@ -64,6 +72,8 @@ class ProductController extends Controller
             }
             $validated['gambar'] = $request->file('gambar')->store('products', 'public');
         }
+
+        $validated['is_active'] = $request->boolean('is_active', $product->is_active);
 
         $product->update($validated);
 
@@ -106,22 +116,26 @@ class ProductController extends Controller
     }
 
     // ============================================
-    // AJAX (Tanpa Reload)
+    // AJAX
     // ============================================
     public function storeAjax(Request $request)
     {
         $validated = $request->validate([
-            'sku_internal' => 'required|string|max:100|unique:products,sku_internal',
-            'nama_produk'  => 'required|string|max:255',
-            'warna'        => 'nullable|string|max:50',
-            'ukuran'       => 'nullable|string|max:50',
-            'hpp'          => 'required|integer|min:0',
-            'gambar'       => 'nullable|image|max:2048',
+            'sku_internal'       => 'required|string|max:100|unique:products,sku_internal',
+            'nama_produk'        => 'required|string|max:255',
+            'warna'              => 'nullable|string|max:50',
+            'ukuran'             => 'nullable|string|max:50',
+            'hpp'                => 'required|integer|min:0',
+            'stok'               => 'required|integer|min:0',
+            'is_active'          => 'nullable|boolean',
+            'gambar'             => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('gambar')) {
             $validated['gambar'] = $request->file('gambar')->store('products', 'public');
         }
+
+        $validated['is_active'] = $request->boolean('is_active', true);
 
         $product = Product::create($validated);
 
@@ -135,12 +149,14 @@ class ProductController extends Controller
     public function updateAjax(Request $request, Product $product)
     {
         $validated = $request->validate([
-            'sku_internal' => 'required|string|max:100|unique:products,sku_internal,' . $product->id,
-            'nama_produk'  => 'required|string|max:255',
-            'warna'        => 'nullable|string|max:50',
-            'ukuran'       => 'nullable|string|max:50',
-            'hpp'          => 'required|integer|min:0',
-            'gambar'       => 'nullable|image|max:2048',
+            'sku_internal'       => 'required|string|max:100|unique:products,sku_internal,' . $product->id,
+            'nama_produk'        => 'required|string|max:255',
+            'warna'              => 'nullable|string|max:50',
+            'ukuran'             => 'nullable|string|max:50',
+            'hpp'                => 'required|integer|min:0',
+            'stok'               => 'required|integer|min:0',
+            'is_active'          => 'nullable|boolean',
+            'gambar'             => 'nullable|image|max:2048',
         ]);
 
         if ($request->hasFile('gambar')) {
@@ -150,9 +166,10 @@ class ProductController extends Controller
             $validated['gambar'] = $request->file('gambar')->store('products', 'public');
         }
 
+        $validated['is_active'] = $request->boolean('is_active', $product->is_active);
+
         $product->update($validated);
 
-        // Auto-reconcile untuk store yang mapping ke produk ini
         $storeIds = ProductMapping::where('product_id', $product->id)
             ->distinct()
             ->pluck('store_id');
@@ -198,9 +215,6 @@ class ProductController extends Controller
         ]);
     }
 
-    /**
-     * Return HTML tabel produk (untuk update via AJAX tanpa reload).
-     */
     public function tableHtml()
     {
         $products = Product::orderByDesc('id')->paginate(25);

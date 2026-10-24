@@ -13,6 +13,7 @@ use App\Http\Controllers\BrilinkImportController;
 use App\Http\Controllers\BrilinkController;
 use App\Http\Controllers\GajiKaryawanController;
 use App\Http\Controllers\TabunganController;
+use App\Http\Controllers\ZakatController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -138,6 +139,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/brilink',          [BrilinkController::class, 'index'])->name('brilink.index');
     Route::get('/brilink/{report}', [BrilinkController::class, 'show'])->name('brilink.show');
     Route::delete('/brilink/{report}', [BrilinkController::class, 'destroy'])->name('brilink.destroy');
+    Route::delete('/brilink/import/{id}', [BrilinkImportController::class, 'destroy'])->name('brilink.import.destroy');
 
     // ===== KARYAWAN =====
     Route::get('karyawan',                 [GajiKaryawanController::class, 'indexKaryawan'])->name('karyawan.index');
@@ -167,4 +169,14 @@ Route::middleware('auth')->group(function () {
     Route::put('/tabungan/transaction/{transaction}/ajax', [TabunganController::class, 'updateTransactionAjax'])->name('tabungan.transaction.update-ajax');
     Route::delete('/tabungan/transaction/{transaction}/ajax', [TabunganController::class, 'destroyTransactionAjax'])->name('tabungan.transaction.destroy-ajax');
     Route::get('/tabungan/transaction/{transaction}/invoice-pdf', [TabunganController::class, 'printInvoice'])->name('tabungan.transaction.invoice-pdf');
+
+    // ============ ZAKAT ============
+    Route::get('/zakat', [ZakatController::class, 'index'])->name('zakat.index');
+    Route::post('/zakat/barang/ajax', [ZakatController::class, 'storeBarangAjax'])->name('zakat.barang.store-ajax');
+    Route::put('/zakat/barang/{barang}/ajax', [ZakatController::class, 'updateBarangAjax'])->name('zakat.barang.update-ajax');
+    Route::delete('/zakat/barang/{barang}/ajax', [ZakatController::class, 'destroyBarangAjax'])->name('zakat.barang.destroy-ajax');
+    Route::post('/zakat/kategori/ajax', [ZakatController::class, 'storeKategoriAjax'])->name('zakat.kategori.store-ajax');
+    Route::delete('/zakat/kategori/{kategori}/ajax', [ZakatController::class, 'destroyKategoriAjax'])->name('zakat.kategori.destroy-ajax');
+    Route::get('/zakat/kategori/list-ajax', [ZakatController::class, 'listKategoriAjax'])->name('zakat.kategori.list-ajax');
+    Route::get('/zakat/invoice-pdf', [ZakatController::class, 'printPdf'])->name('zakat.invoice-pdf');
 });

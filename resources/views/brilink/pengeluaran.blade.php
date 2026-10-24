@@ -9,19 +9,19 @@
 <div class="w-full">
 
     {{-- HEADER --}}
-    <div class="flex justify-between items-center mb-6">
+    <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
         <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
+            <div class="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center flex-shrink-0">
                 <iconify-icon icon="mdi:cash-minus" class="text-white text-xl"></iconify-icon>
             </div>
             <div>
-                <h2 class="text-xl font-bold text-gray-800">Laporan Pengeluaran</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800">Laporan Pengeluaran</h2>
+                <p class="text-xs sm:text-sm text-gray-500">{{ $store?->nama_toko ?? 'Semua Toko' }}</p>
             </div>
         </div>
 
-        {{-- 🔥 TOMBOL TAMBAH SELALU MUNCUL --}}
-        <button type="button" onclick="openPengeluaranModal()" class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
+        {{-- 🔥 TOMBOL TAMBAH --}}
+        <button type="button" onclick="openPengeluaranModal()" class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
             <iconify-icon icon="mdi:plus" class="text-lg"></iconify-icon>
             Tambah Pengeluaran
         </button>
@@ -29,8 +29,7 @@
 
     {{-- FILTER & SEARCH --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <form method="GET" class="flex flex-col md:flex-row gap-3 items-end">
-            
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
             <input type="hidden" name="tab" value="{{ $activeTab }}">
 
             <div class="w-full md:w-48">
@@ -43,7 +42,7 @@
                 </select>
             </div>
 
-            <div class="w-full md:flex-1">
+            <div class="w-full sm:col-span-2 md:col-span-1 md:flex-1">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Cari Catatan / Kategori</label>
                 <div class="relative">
                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
@@ -54,24 +53,24 @@
                 </div>
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
                 <input type="date" name="from" value="{{ $from }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
             </div>
 
-            <div>
+            <div class="w-full sm:w-auto">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
                 <input type="date" name="to" value="{{ $to }}" 
-                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
+                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-600 focus:border-transparent">
             </div>
 
-            <div class="flex gap-2 w-full md:w-auto">
-                <button type="submit" class="bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium w-full md:w-auto flex items-center justify-center gap-2">
+            <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
+                <button type="submit" class="flex-1 md:flex-none bg-red-600 text-white px-5 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
                 @if($from || $to || $search || $storeId !== 'all')
-                    <a href="{{ route('brilink.pengeluaran', ['tab' => $activeTab]) }}" class="text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg w-full md:w-auto text-center transition">
+                    <a href="{{ route('brilink.pengeluaran', ['tab' => $activeTab]) }}" class="flex-1 md:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
                         Reset
                     </a>
                 @endif
@@ -83,41 +82,41 @@
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
         <div class="flex border-b border-gray-100 overflow-x-auto">
             <a href="{{ request()->fullUrlWithQuery(['tab' => 'semua']) }}"
-               class="flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap transition border-b-2
+               class="flex items-center gap-2 px-4 sm:px-5 py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition border-b-2
                       {{ strtolower($activeTab) === 'semua' ? 'text-gray-900 border-red-600 bg-gray-50/50' : 'text-gray-600 border-transparent hover:text-gray-800 hover:bg-gray-50' }}">
-                <iconify-icon icon="mdi:view-grid-outline" class="text-lg"></iconify-icon>
+                <iconify-icon icon="mdi:view-grid-outline" class="text-base sm:text-lg"></iconify-icon>
                 Semua Kategori
             </a>
 
             @foreach($kategoriList as $kategori)
                 @php $isActive = strtolower($activeTab) === strtolower($kategori); @endphp
                 <a href="{{ request()->fullUrlWithQuery(['tab' => strtolower($kategori)]) }}"
-                   class="flex items-center gap-2 px-5 py-3 text-sm font-medium whitespace-nowrap transition border-b-2
+                   class="flex items-center gap-2 px-4 sm:px-5 py-3 text-xs sm:text-sm font-medium whitespace-nowrap transition border-b-2
                           {{ $isActive ? 'text-gray-900 border-red-600 bg-gray-50/50' : 'text-gray-600 border-transparent hover:text-gray-800 hover:bg-gray-50' }}">
-                    <iconify-icon icon="mdi:folder-outline" class="text-lg"></iconify-icon>
+                    <iconify-icon icon="mdi:folder-outline" class="text-base sm:text-lg"></iconify-icon>
                     {{ $kategori }}
                 </a>
             @endforeach
         </div>
     </div>
 
-    {{-- TABEL DATA HORIZONTAL --}}
+    {{-- DATA PENGELUARAN --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         @php
             $isPiutangTab = str_contains(strtolower(trim($activeTab)), 'piutang');
         @endphp
 
-        <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+        <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:table" class="text-red-600 text-lg"></iconify-icon>
-                <h3 class="font-semibold text-gray-800">Rincian Pengeluaran: {{ ucwords($activeTab) }}</h3>
+                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian: {{ ucwords($activeTab) }}</h3>
             </div>
 
             @if($isPiutangTab)
-                <div class="flex items-center gap-2">
+                <div class="flex flex-col sm:flex-row items-center gap-2 w-full md:w-auto">
                     <button type="button"
                             onclick="openBulkBayarModal()"
-                            class="inline-flex items-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
+                            class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium shadow-sm">
                         <iconify-icon icon="mdi:cash-multiple" class="text-lg"></iconify-icon>
                         Bayar Piutang
                     </button>
@@ -129,277 +128,454 @@
                             'kategori' => $activeTab,
                         ]) }}"
                     target="_blank"
-                    class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
+                    class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
                         <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon>
                         Print Invoice
                     </a>
                 </div>
             @else
-                <div class="text-xs text-gray-500">{{ $groupedByReport->flatten()->count() }} Transaksi</div>
+                <div class="text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max">{{ $groupedByReport->flatten()->count() }} Transaksi</div>
             @endif
         </div>
 
-        <div class="overflow-x-auto p-5">
+        <div class="p-0 sm:p-5">
             @if($groupedByReport->isEmpty())
                 <div class="py-12 text-center text-gray-500">
                     <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                     Belum ada data pengeluaran untuk kategori dan filter ini.
                 </div>
             @else
-                {{-- JIKA TAB "SEMUA" (TAMPILAN MENYAMPING) --}}
+                {{-- ========================================================= --}}
+                {{-- JIKA TAB "SEMUA" (TAMPILAN MENYAMPING / MATRIX)          --}}
+                {{-- ========================================================= --}}
                 @if(strtolower($activeTab) === 'semua')
-                    <table class="w-full text-sm border-collapse min-w-max">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Tanggal Report</th>
-                                @if($storeId === 'all')
-                                    <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Toko</th>
-                                @endif
-                                @foreach($kategoriList as $kategori)
-                                    <th class="border border-gray-200 p-3 text-right text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">
-                                        {{ $kategori }}
-                                    </th>
-                                @endforeach
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($groupedByReport as $reportId => $itemsInReport)
-                                @php
-                                    $report = $itemsInReport->first()->report;
-                                    $rows = [];
-                                    foreach ($itemsInReport as $item) {
-                                        $foundEmptySlot = false;
-                                        foreach ($rows as $index => $row) {
-                                            if (!isset($row[$item->kategori])) {
-                                                $rows[$index][$item->kategori] = $item;
-                                                $foundEmptySlot = true;
-                                                break;
+                    
+                    {{-- TAMPILAN TABEL (DESKTOP) --}}
+                    <div class="hidden md:block overflow-x-auto">
+                        <table class="w-full text-sm border-collapse min-w-max">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-40 whitespace-nowrap">Tanggal Report</th>
+                                    @if($storeId === 'all')
+                                        <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-40 whitespace-nowrap">Toko</th>
+                                    @endif
+                                    @foreach($kategoriList as $kategori)
+                                        <th class="border border-gray-200 p-2 sm:p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">
+                                            {{ $kategori }}
+                                        </th>
+                                    @endforeach
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($groupedByReport as $reportId => $itemsInReport)
+                                    @php
+                                        $report = $itemsInReport->first()->report;
+                                        $rows = [];
+                                        foreach ($itemsInReport as $item) {
+                                            $foundEmptySlot = false;
+                                            foreach ($rows as $index => $row) {
+                                                if (!isset($row[$item->kategori])) {
+                                                    $rows[$index][$item->kategori] = $item;
+                                                    $foundEmptySlot = true;
+                                                    break;
+                                                }
+                                            }
+                                            if (!$foundEmptySlot) {
+                                                $rows[] = [ $item->kategori => $item ];
                                             }
                                         }
-                                        if (!$foundEmptySlot) {
-                                            $rows[] = [ $item->kategori => $item ];
+                                    @endphp
+
+                                    @foreach($rows as $row)
+                                        <tr class="hover:bg-gray-50 transition">
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
+                                                {{ $report->periode_label ?? '-' }}
+                                            </td>
+                                            
+                                            @if($storeId === 'all')
+                                                <td class="border border-gray-200 p-2 sm:p-3 text-[10px] sm:text-xs text-gray-600 whitespace-nowrap">
+                                                    <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
+                                                    {{ $report->store->nama_toko ?? '-' }}
+                                                </td>
+                                            @endif
+
+                                            @foreach($kategoriList as $kategori)
+                                                @php $transaksi = $row[$kategori] ?? null; @endphp
+                                                <td class="border border-gray-200 p-2 sm:p-3 text-right align-top">
+                                                    @if($transaksi)
+                                                        <div class="flex flex-col items-end">
+                                                            <div class="text-xs sm:text-sm font-semibold text-red-600 whitespace-nowrap">
+                                                                Rp {{ number_format($transaksi->nominal_kas, 0, ',', '.') }}
+                                                            </div>
+                                                            <div class="text-[10px] text-gray-500 mt-1 max-w-[100px] sm:max-w-[150px] truncate" title="{{ $transaksi->keterangan }}">
+                                                                {{ $transaksi->keterangan }}
+                                                            </div>
+                                                        </div>
+                                                    @else
+                                                        <span class="text-gray-400">-</span>
+                                                    @endif
+                                                </td>
+                                            @endforeach
+                                        </tr>
+                                    @endforeach
+                                @endforeach
+                                
+                                <tr class="bg-red-50 border-t-2 border-red-300">
+                                    <td colspan="{{ $storeId === 'all' ? '2' : '1' }}" class="border border-gray-200 p-2 sm:p-3 font-bold text-gray-800 text-left text-xs sm:text-sm whitespace-nowrap">
+                                        TOTAL
+                                    </td>
+                                    @foreach($kategoriList as $kategori)
+                                        @php
+                                            $totalPerKategori = $groupedByReport->flatten()->filter(function($item) use ($kategori) {
+                                                return strtolower(trim($item->kategori)) === strtolower(trim($kategori));
+                                            })->sum('nominal_kas');
+                                        @endphp
+                                        <td class="border border-gray-200 p-2 sm:p-3 text-right text-red-800 font-bold text-xs sm:text-sm whitespace-nowrap">
+                                            {{ $totalPerKategori > 0 ? 'Rp ' . number_format($totalPerKategori, 0, ',', '.') : '-' }}
+                                        </td>
+                                    @endforeach
+                                </tr>
+                            </tbody>
+                            <tfoot>
+                                <tr class="bg-red-600 text-white">
+                                    <td colspan="{{ count($kategoriList) + ($storeId === 'all' ? 2 : 1) }}" class="p-3 sm:p-4 text-right">
+                                        <span class="text-[10px] sm:text-sm font-bold uppercase tracking-wider mr-2 sm:mr-4">Total Pengeluaran</span>
+                                        <span class="text-base sm:text-xl font-bold block sm:inline mt-1 sm:mt-0">
+                                            Rp {{ number_format($groupedByReport->flatten()->sum('nominal_kas'), 0, ',', '.') }}
+                                        </span>
+                                    </td>
+                                </tr>
+                            </tfoot>
+                        </table>
+                    </div>
+
+                    {{-- TAMPILAN CARD MATRIX (MOBILE) --}}
+                    <div class="md:hidden divide-y divide-gray-100">
+                        @foreach($groupedByReport as $reportId => $itemsInReport)
+                            @php
+                                $report = $itemsInReport->first()->report;
+                                $rows = [];
+                                foreach ($itemsInReport as $item) {
+                                    $foundEmptySlot = false;
+                                    foreach ($rows as $index => $row) {
+                                        if (!isset($row[$item->kategori])) {
+                                            $rows[$index][$item->kategori] = $item;
+                                            $foundEmptySlot = true;
+                                            break;
                                         }
                                     }
+                                    if (!$foundEmptySlot) {
+                                        $rows[] = [ $item->kategori => $item ];
+                                    }
+                                }
+                            @endphp
+                            
+                            @foreach($rows as $row)
+                                <div class="p-4 space-y-2 text-xs">
+                                    <div class="flex justify-between items-start border-b border-gray-100 pb-2 mb-2">
+                                        <div class="font-bold text-gray-800 text-sm">{{ $report->periode_label ?? '-' }}</div>
+                                        @if($storeId === 'all')
+                                            <div class="text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded border">
+                                                <iconify-icon icon="mdi:store" class="mr-0.5"></iconify-icon>
+                                                {{ $report->store->nama_toko ?? '-' }}
+                                            </div>
+                                        @endif
+                                    </div>
+                                    
+                                    @foreach($kategoriList as $kategori)
+                                        @php $transaksi = $row[$kategori] ?? null; @endphp
+                                        @if($transaksi)
+                                            <div class="flex justify-between items-start gap-2">
+                                                <div class="flex-1">
+                                                    <div class="text-gray-600 font-medium text-[11px]">{{ $kategori }}</div>
+                                                    <div class="text-[10px] text-gray-400 mt-0.5 leading-tight">{{ $transaksi->keterangan }}</div>
+                                                </div>
+                                                <div class="text-right font-bold text-red-600 whitespace-nowrap">
+                                                    Rp {{ number_format($transaksi->nominal_kas, 0, ',', '.') }}
+                                                </div>
+                                            </div>
+                                        @endif
+                                    @endforeach
+                                </div>
+                            @endforeach
+                        @endforeach
+                        
+                        {{-- FOOTER TOTAL MOBILE --}}
+                        <div class="p-4 bg-red-50 space-y-2 text-xs border-t-2 border-red-200">
+                            <div class="font-bold text-gray-800 text-sm mb-2">TOTAL PENGELUARAN</div>
+                            @foreach($kategoriList as $kategori)
+                                @php
+                                    $totalPerKategori = $groupedByReport->flatten()->filter(function($item) use ($kategori) {
+                                        return strtolower(trim($item->kategori)) === strtolower(trim($kategori));
+                                    })->sum('nominal_kas');
+                                @endphp
+                                @if($totalPerKategori > 0)
+                                    <div class="flex justify-between items-center text-gray-700">
+                                        <span>{{ $kategori }}</span>
+                                        <span class="font-semibold text-red-800">Rp {{ number_format($totalPerKategori, 0, ',', '.') }}</span>
+                                    </div>
+                                @endif
+                            @endforeach
+                            <div class="flex justify-between items-center pt-2 mt-2 border-t border-red-200">
+                                <span class="font-bold text-gray-800">TOTAL KESELURUHAN</span>
+                                <span class="font-bold text-red-600 text-sm">Rp {{ number_format($groupedByReport->flatten()->sum('nominal_kas'), 0, ',', '.') }}</span>
+                            </div>
+                        </div>
+                    </div>
+
+                {{-- ========================================================= --}}
+                {{-- JIKA TAB SPESIFIK (TAMPILAN VERTIKAL / KE BAWAH)          --}}
+                {{-- ========================================================= --}}
+                @else
+                    
+                    {{-- TAMPILAN TABEL (DESKTOP) --}}
+                    <div class="hidden md:block overflow-x-auto">
+                        <table class="w-full text-sm border-collapse min-w-max">
+                            <thead>
+                                <tr class="bg-gray-100">
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-32 sm:w-40 whitespace-nowrap">Tanggal</th>
+                                    
+                                    @if($storeId === 'all')
+                                        <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Toko</th>
+                                    @endif
+
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-left text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Keterangan</th>
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Nominal</th>
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Kategori</th>
+                                    
+                                    @if($isPiutangTab)
+                                        <th class="border border-gray-200 p-2 sm:p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap">Status</th>
+                                    @endif
+                                    
+                                    <th class="border border-gray-200 p-2 sm:p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase w-32 sm:w-48 whitespace-nowrap">Aksi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach($groupedByReport as $reportId => $itemsInReport)
+                                    @php $report = $itemsInReport->first()->report; @endphp
+                                    
+                                    @foreach($itemsInReport as $item)
+                                        <tr id="pengeluaran-row-{{ $item->id }}" class="hover:bg-gray-50 transition">
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
+                                                {{ $report->periode_label ?? '-' }}
+                                            </td>
+
+                                            @if($storeId === 'all')
+                                                <td class="border border-gray-200 p-2 sm:p-3 text-[10px] sm:text-xs text-gray-600 whitespace-nowrap">
+                                                    <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
+                                                    {{ $item->report->store->nama_toko ?? '-' }}
+                                                </td>
+                                            @endif
+
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-gray-800 text-xs sm:text-sm">
+                                                {{ $item->keterangan ?? 'Tanpa catatan' }}
+                                            </td>
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-right font-bold text-red-600 text-xs sm:text-sm whitespace-nowrap">
+                                                Rp {{ number_format($item->nominal_kas, 0, ',', '.') }}
+                                            </td>
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-center whitespace-nowrap">
+                                                <span class="text-[10px] sm:text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
+                                                    {{ $item->kategori ?: '-' }}
+                                                </span>
+                                            </td>
+
+                                            {{-- KOLOM STATUS (KHUSUS PIUTANG) --}}
+                                            @if($isPiutangTab)
+                                                <td class="border border-gray-200 p-2 sm:p-3 text-center whitespace-nowrap">
+                                                    @if($item->is_paid)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                                            <iconify-icon icon="mdi:check-circle" class="text-xs sm:text-sm"></iconify-icon> Lunas
+                                                        </span>
+                                                    @elseif($item->paid_amount > 0)
+                                                        <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium" 
+                                                            title="Terbayar: Rp {{ number_format($item->paid_amount, 0, ',', '.') }}">
+                                                            <iconify-icon icon="mdi:progress-clock" class="text-xs sm:text-sm"></iconify-icon> 
+                                                            Sebagian
+                                                        </span>
+                                                    @else
+                                                        <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-medium">
+                                                            <iconify-icon icon="mdi:clock-alert" class="text-xs sm:text-sm"></iconify-icon> Belum
+                                                        </span>
+                                                    @endif
+                                                </td>
+                                            @endif
+
+                                            {{-- KOLOM AKSI --}}
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-center">
+                                                <div class="flex flex-col sm:flex-row items-center justify-center gap-1">
+                                                    
+                                                    {{-- TOMBOL BAYAR (KHUSUS PIUTANG & BELUM LUNAS) --}}
+                                                    @if($isPiutangTab && !$item->is_paid)
+                                                        <button type="button"
+                                                                onclick="bayarPiutangSingle({{ $item->id }}, {{ $item->nominal_kas - $item->paid_amount }})"
+                                                                class="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-emerald-200"
+                                                                title="Tandai Lunas">
+                                                            <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon>
+                                                            Bayar
+                                                        </button>
+                                                    @endif
+
+                                                    {{-- EDIT --}}
+                                                    <button type="button"
+                                                            onclick="openEditPengeluaranModal({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}', '{{ addslashes($item->kategori ?? '') }}', {{ $item->nominal_kas }})"
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-blue-200">
+                                                        <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
+                                                        Edit
+                                                    </button>
+
+                                                    {{-- HAPUS --}}
+                                                    <button type="button"
+                                                            onclick="deletePengeluaran({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}')"
+                                                            class="w-full sm:w-auto inline-flex items-center justify-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-red-200">
+                                                        <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
+                                                        Hapus
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                @endforeach
+                                
+                                @php
+                                    $totalNominal = $groupedByReport->flatten()->sum('nominal_kas');
+                                    $totalTerbayar = $groupedByReport->flatten()->sum('paid_amount');
+                                    $sisaPiutang = max(0, $totalNominal - $totalTerbayar);
                                 @endphp
 
-                                @foreach($rows as $row)
-                                    <tr class="hover:bg-gray-50 transition">
-                                        <td class="border border-gray-200 p-3 text-gray-700 font-medium">
-                                            {{ $report->periode_label ?? '-' }}
-                                        </td>
-                                        
-                                        @if($storeId === 'all')
-                                            <td class="border border-gray-200 p-3 text-xs text-gray-600">
-                                                <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
-                                                {{ $report->store->nama_toko ?? '-' }}
-                                            </td>
-                                        @endif
-
-                                        @foreach($kategoriList as $kategori)
-                                            @php $transaksi = $row[$kategori] ?? null; @endphp
-                                            <td class="border border-gray-200 p-3 text-right align-top">
-                                                @if($transaksi)
-                                                    <div class="flex flex-col items-end">
-                                                        <div class="text-sm font-semibold text-red-600">
-                                                            Rp {{ number_format($transaksi->nominal_kas, 0, ',', '.') }}
-                                                        </div>
-                                                        <div class="text-[10px] text-gray-500 mt-1 max-w-[150px] truncate" title="{{ $transaksi->keterangan }}">
-                                                            {{ $transaksi->keterangan }}
-                                                        </div>
-                                                    </div>
-                                                @else
-                                                    <span class="text-gray-400">-</span>
-                                                @endif
-                                            </td>
-                                        @endforeach
-                                    </tr>
-                                @endforeach
-                            @endforeach
-                            
-                            <tr class="bg-red-50 border-t-2 border-red-300">
-                                <td colspan="{{ $storeId === 'all' ? '2' : '1' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-left">
-                                    TOTAL
-                                </td>
-                                @foreach($kategoriList as $kategori)
-                                    @php
-                                        $totalPerKategori = $groupedByReport->flatten()->filter(function($item) use ($kategori) {
-                                            return strtolower(trim($item->kategori)) === strtolower(trim($kategori));
-                                        })->sum('nominal_kas');
-                                    @endphp
-                                    <td class="border border-gray-200 p-3 text-right text-red-800 font-bold">
-                                        {{ $totalPerKategori > 0 ? 'Rp ' . number_format($totalPerKategori, 0, ',', '.') : '-' }}
-                                    </td>
-                                @endforeach
-                            </tr>
-                        </tbody>
-                        <tfoot>
-                            <tr class="bg-red-600 text-white">
-                                <td colspan="{{ count($kategoriList) + ($storeId === 'all' ? 2 : 1) }}" class="p-4 text-right">
-                                    <span class="text-sm font-bold uppercase tracking-wider mr-4">Total Keseluruhan Pengeluaran</span>
-                                    <span class="text-xl font-bold">
-                                        Rp {{ number_format($groupedByReport->flatten()->sum('nominal_kas'), 0, ',', '.') }}
-                                    </span>
-                                </td>
-                            </tr>
-                        </tfoot>
-                    </table>
-
-                {{-- JIKA TAB SPESIFIK (TAMPILAN VERTIKAL / KE BAWAH) --}}
-                @else
-                    <table class="w-full text-sm border-collapse">
-                        <thead>
-                            <tr class="bg-gray-100">
-                                <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase w-40">Tanggal Report</th>
-                                
-                                @if($storeId === 'all')
-                                    <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Toko</th>
-                                @endif
-
-                                <th class="border border-gray-200 p-3 text-left text-xs font-semibold text-gray-600 uppercase">Keterangan</th>
-                                <th class="border border-gray-200 p-3 text-right text-xs font-semibold text-gray-600 uppercase">Nominal</th>
-                                <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase">Kategori Akuntansi</th>
-                                
-                                @if($isPiutangTab)
-                                    <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase">Status</th>
-                                @endif
-                                
-                                <th class="border border-gray-200 p-3 text-center text-xs font-semibold text-gray-600 uppercase w-48">Aksi</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($groupedByReport as $reportId => $itemsInReport)
-                                @php $report = $itemsInReport->first()->report; @endphp
-                                
-                                @foreach($itemsInReport as $item)
-                                    <tr id="pengeluaran-row-{{ $item->id }}" class="hover:bg-gray-50 transition">
-                                        <td class="border border-gray-200 p-3 text-gray-700 font-medium">
-                                            {{ $report->periode_label ?? '-' }}
-                                        </td>
-
-                                        @if($storeId === 'all')
-                                            <td class="border border-gray-200 p-3 text-xs text-gray-600">
-                                                <iconify-icon icon="mdi:store" class="mr-1"></iconify-icon>
-                                                {{ $item->report->store->nama_toko ?? '-' }}
-                                            </td>
-                                        @endif
-
-                                        <td class="border border-gray-200 p-3 text-gray-800">
-                                            {{ $item->keterangan ?? 'Tanpa catatan' }}
-                                        </td>
-                                        <td class="border border-gray-200 p-3 text-right font-bold text-red-600">
-                                            Rp {{ number_format($item->nominal_kas, 0, ',', '.') }}
-                                        </td>
-                                        <td class="border border-gray-200 p-3 text-center">
-                                            <span class="text-xs bg-gray-100 text-gray-700 px-2 py-1 rounded">
-                                                {{ $item->kategori ?: 'Tanpa Kategori' }}
-                                            </span>
-                                        </td>
-
-                                        {{-- KOLOM STATUS (KHUSUS PIUTANG) --}}
+                                <tr class="bg-red-50 border-t-2 border-red-300">
+                                    <td colspan="{{ $storeId === 'all' ? '3' : '2' }}" class="border border-gray-200 p-2 sm:p-3 font-bold text-gray-800 text-right align-top text-xs sm:text-sm">
+                                        <div>TOTAL PENGELUARAN</div>
                                         @if($isPiutangTab)
-                                            <td class="border border-gray-200 p-3 text-center">
-                                                @if($item->is_paid)
-                                                    <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                                                        <iconify-icon icon="mdi:check-circle" class="text-sm"></iconify-icon> Lunas
-                                                    </span>
-                                                @elseif($item->paid_amount > 0)
-                                                    <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium" 
-                                                        title="Terbayar: Rp {{ number_format($item->paid_amount, 0, ',', '.') }} dari Rp {{ number_format($item->nominal_kas, 0, ',', '.') }}">
-                                                        <iconify-icon icon="mdi:progress-clock" class="text-sm"></iconify-icon> 
-                                                        Terbayar (Rp {{ number_format($item->paid_amount, 0, ',', '.') }})
-                                                    </span>
-                                                @else
-                                                    <span class="inline-flex items-center gap-1 text-xs bg-red-100 text-red-700 px-2 py-1 rounded font-medium">
-                                                        <iconify-icon icon="mdi:clock-alert" class="text-sm"></iconify-icon> Belum Bayar
-                                                    </span>
-                                                @endif
-                                            </td>
-                                        @endif
-
-                                        {{-- KOLOM AKSI --}}
-                                        <td class="border border-gray-200 p-3 text-center">
-                                            <div class="inline-flex items-center gap-1 flex-wrap justify-center">
-                                                
-                                                {{-- TOMBOL BAYAR (KHUSUS PIUTANG & BELUM LUNAS) --}}
-                                                @if($isPiutangTab && !$item->is_paid)
-                                                    <button type="button"
-                                                            onclick="bayarPiutangSingle({{ $item->id }}, {{ $item->nominal_kas - $item->paid_amount }})"
-                                                            class="inline-flex items-center gap-1 text-emerald-600 hover:bg-emerald-50 px-2 py-1 rounded text-xs font-medium transition"
-                                                            title="Tandai Lunas">
-                                                        <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon>
-                                                        Bayar
-                                                    </button>
-                                                @endif
-
-                                                {{-- EDIT --}}
-                                                <button type="button"
-                                                        onclick="openEditPengeluaranModal({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}', '{{ addslashes($item->kategori ?? '') }}', {{ $item->nominal_kas }})"
-                                                        class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition">
-                                                    <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
-                                                    Edit
-                                                </button>
-
-                                                {{-- HAPUS --}}
-                                                <button type="button"
-                                                        onclick="deletePengeluaran({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}')"
-                                                        class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
-                                                    <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon>
-                                                    Hapus
-                                                </button>
+                                            <div class="text-[10px] sm:text-xs font-normal text-gray-500 mt-1">
+                                                Terbayar: Rp {{ number_format($totalTerbayar, 0, ',', '.') }}
                                             </div>
-                                        </td>
-                                    </tr>
-                                @endforeach
-                            @endforeach
-                            
-                            @php
-                                $totalNominal = $groupedByReport->flatten()->sum('nominal_kas');
-                                $totalTerbayar = $groupedByReport->flatten()->sum('paid_amount');
-                                $sisaPiutang = max(0, $totalNominal - $totalTerbayar);
-                            @endphp
-
-                            <tr class="bg-red-50 border-t-2 border-red-300">
-                                <td colspan="{{ $storeId === 'all' ? '3' : '2' }}" class="border border-gray-200 p-3 font-bold text-gray-800 text-right align-top">
-                                    <div>TOTAL PENGELUARAN</div>
-                                    @if($isPiutangTab)
-                                        <div class="text-xs font-normal text-gray-500 mt-1">
-                                            Total Terbayar: Rp {{ number_format($totalTerbayar, 0, ',', '.') }}
-                                        </div>
-                                    @endif
-                                </td>
-
-                                <td class="border border-gray-200 p-3 text-right align-top">
-                                    <div class="font-bold text-red-800">
-                                        Rp {{ number_format($totalNominal, 0, ',', '.') }}
-                                    </div>
-                                    @if($isPiutangTab)
-                                        <div class="mt-1 text-xs font-bold {{ $sisaPiutang > 0 ? 'text-orange-600' : 'text-green-600' }}">
-                                            Sisa: Rp {{ number_format($sisaPiutang, 0, ',', '.') }}
-                                        </div>
-                                    @endif
-                                </td>
-                                <td></td>
-
-                                {{-- Kolom STATUS (jika piutang) --}}
-                                @if($isPiutangTab)
-                                    <td class="border border-gray-200 p-3 text-center align-top">
-                                        @if($sisaPiutang == 0 && $totalNominal > 0)
-                                            <span class="inline-flex items-center gap-1 text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
-                                                <iconify-icon icon="mdi:check-all" class="text-sm"></iconify-icon> Semua Lunas
-                                            </span>
-                                        @elseif($sisaPiutang > 0)
-                                            <span class="inline-flex items-center gap-1 text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
-                                                <iconify-icon icon="mdi:alert-circle" class="text-sm"></iconify-icon> Belum Lunas
-                                            </span>
                                         @endif
                                     </td>
-                                @endif
 
-                                {{-- Kolom Aksi (kosong, hanya untuk align) --}}
-                                <td class="border border-gray-200 p-3"></td>
-                            </tr>
-                        </tbody>
-                    </table>
+                                    <td class="border border-gray-200 p-2 sm:p-3 text-right align-top whitespace-nowrap">
+                                        <div class="font-bold text-red-800 text-xs sm:text-sm">
+                                            Rp {{ number_format($totalNominal, 0, ',', '.') }}
+                                        </div>
+                                        @if($isPiutangTab)
+                                            <div class="mt-1 text-[10px] sm:text-xs font-bold {{ $sisaPiutang > 0 ? 'text-orange-600' : 'text-green-600' }}">
+                                                Sisa: Rp {{ number_format($sisaPiutang, 0, ',', '.') }}
+                                            </div>
+                                        @endif
+                                    </td>
+                                    <td></td>
+
+                                    {{-- Kolom STATUS (jika piutang) --}}
+                                    @if($isPiutangTab)
+                                        <td class="border border-gray-200 p-2 sm:p-3 text-center align-top whitespace-nowrap">
+                                            @if($sisaPiutang == 0 && $totalNominal > 0)
+                                                <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                                    <iconify-icon icon="mdi:check-all" class="text-xs sm:text-sm"></iconify-icon> Lunas
+                                                </span>
+                                            @elseif($sisaPiutang > 0)
+                                                <span class="inline-flex items-center gap-1 text-[10px] sm:text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
+                                                    <iconify-icon icon="mdi:alert-circle" class="text-xs sm:text-sm"></iconify-icon> Belum
+                                                </span>
+                                            @endif
+                                        </td>
+                                    @endif
+
+                                    {{-- Kolom Aksi (kosong) --}}
+                                    <td class="border border-gray-200 p-2 sm:p-3"></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {{-- TAMPILAN CARD SPESIFIK (MOBILE) --}}
+                    <div class="md:hidden divide-y divide-gray-100">
+                        @foreach($groupedByReport as $reportId => $itemsInReport)
+                            @php $report = $itemsInReport->first()->report; @endphp
+                            
+                            @foreach($itemsInReport as $item)
+                                <div id="pengeluaran-row-{{ $item->id }}" class="p-4 space-y-2 text-xs">
+                                    
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <div class="font-bold text-gray-800 text-sm">{{ $item->keterangan ?? 'Tanpa catatan' }}</div>
+                                            <div class="text-[10px] text-gray-500 mt-0.5">{{ $report->periode_label ?? '-' }}</div>
+                                        </div>
+                                        @if($storeId === 'all')
+                                            <div class="text-[10px] text-gray-500 bg-gray-50 px-2 py-0.5 rounded border whitespace-nowrap">
+                                                <iconify-icon icon="mdi:store" class="mr-0.5"></iconify-icon>
+                                                {{ $item->report->store->nama_toko ?? '-' }}
+                                            </div>
+                                        @endif
+                                    </div>
+
+                                    <div class="flex justify-between items-center pt-1">
+                                        <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-[10px]">{{ $item->kategori ?: '-' }}</span>
+                                        <span class="font-bold text-red-600 text-sm whitespace-nowrap">Rp {{ number_format($item->nominal_kas, 0, ',', '.') }}</span>
+                                    </div>
+
+                                    @if($isPiutangTab)
+                                        <div class="flex justify-between items-center pt-1 border-t border-gray-50">
+                                            <span class="text-gray-500 text-[10px]">Status:</span>
+                                            @if($item->is_paid)
+                                                <span class="inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 px-2 py-1 rounded font-medium">
+                                                    <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon> Lunas
+                                                </span>
+                                            @elseif($item->paid_amount > 0)
+                                                <span class="inline-flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 px-2 py-1 rounded font-medium">
+                                                    <iconify-icon icon="mdi:progress-clock" class="text-xs"></iconify-icon> 
+                                                    Terbayar (Rp {{ number_format($item->paid_amount, 0, ',', '.') }})
+                                                </span>
+                                            @else
+                                                <span class="inline-flex items-center gap-1 text-[10px] bg-red-100 text-red-700 px-2 py-1 rounded font-medium">
+                                                    <iconify-icon icon="mdi:clock-alert" class="text-xs"></iconify-icon> Belum Bayar
+                                                </span>
+                                            @endif
+                                        </div>
+                                    @endif
+
+                                    <div class="flex gap-2 pt-2">
+                                        @if($isPiutangTab && !$item->is_paid)
+                                            <button type="button"
+                                                    onclick="bayarPiutangSingle({{ $item->id }}, {{ $item->nominal_kas - $item->paid_amount }})"
+                                                    class="flex-1 inline-flex justify-center items-center gap-1 bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                                                <iconify-icon icon="mdi:cash-check" class="text-sm"></iconify-icon> Bayar
+                                            </button>
+                                        @endif
+                                        
+                                        <button type="button"
+                                                onclick="openEditPengeluaranModal({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}', '{{ addslashes($item->kategori ?? '') }}', {{ $item->nominal_kas }})"
+                                                class="flex-1 inline-flex justify-center items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                                            <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
+                                        </button>
+                                        
+                                        <button type="button"
+                                                onclick="deletePengeluaran({{ $item->id }}, '{{ addslashes($item->keterangan ?? '') }}')"
+                                                class="flex-1 inline-flex justify-center items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
+                                        </button>
+                                    </div>
+                                </div>
+                            @endforeach
+                        @endforeach
+                        
+                        {{-- FOOTER TOTAL MOBILE --}}
+                        <div class="p-4 bg-red-50 space-y-2 text-xs">
+                            <div class="flex justify-between items-center">
+                                <span class="font-semibold text-gray-800">TOTAL PENGELUARAN</span>
+                                <span class="font-bold text-red-800 text-sm">Rp {{ number_format($totalNominal, 0, ',', '.') }}</span>
+                            </div>
+                            @if($isPiutangTab)
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-gray-800">TOTAL TERBAYAR</span>
+                                    <span class="font-bold text-emerald-600">Rp {{ number_format($totalTerbayar, 0, ',', '.') }}</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="font-semibold text-gray-800">SISA PIUTANG</span>
+                                    <span class="font-bold {{ $sisaPiutang > 0 ? 'text-orange-600' : 'text-green-600' }}">Rp {{ number_format($sisaPiutang, 0, ',', '.') }}</span>
+                                </div>
+                            @endif
+                        </div>
+                    </div>
+
                 @endif
             @endif
         </div>
@@ -410,8 +586,8 @@
 {{-- MODAL TAMBAH / EDIT PENGELUARAN --}}
 <div id="pengeluaranModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closePengeluaranModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50">
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden animate-slide-up max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
             <div class="flex items-center gap-2">
                 <iconify-icon id="pengeluaranModalIcon" icon="mdi:plus-circle" class="text-red-600 text-lg"></iconify-icon>
                 <h3 id="pengeluaranModalTitle" class="font-bold text-gray-800">Tambah Pengeluaran</h3>
@@ -421,9 +597,8 @@
             </button>
         </div>
 
-        <form id="pengeluaranForm" onsubmit="submitPengeluaranForm(event)">
+        <form id="pengeluaranForm" onsubmit="submitPengeluaranForm(event)" class="overflow-y-auto flex-1 flex flex-col">
             @csrf
-            {{-- Value store_id di form akan diupdate via JS --}}
             <input type="hidden" name="store_id" id="pengeluaranStoreId" value="{{ $storeId }}">
             <input type="hidden" id="pengeluaranId" name="pengeluaran_id" value="">
             <input type="hidden" id="pengeluaranMode" value="create">
@@ -431,7 +606,7 @@
             <div class="p-5 space-y-4">
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorPengeluaran"></div>
 
-                {{-- 🔥 DROPDOWN TOKO (Hanya Tampil jika Semua Toko) --}}
+                {{-- DROPDOWN TOKO --}}
                 <div id="tokoFieldWrapper" class="hidden">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko <span class="text-red-500">*</span></label>
                     <select id="pengeluaranStoreSelect" required
@@ -489,7 +664,7 @@
                 </div>
             </div>
 
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2">
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
                 <button type="button" onclick="closePengeluaranModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition">Batal</button>
                 <button type="submit" id="btnSubmitPengeluaran" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium flex items-center gap-2">
                     <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> <span id="btnSubmitPengeluaranText">Simpan</span>
@@ -525,7 +700,7 @@
                 <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="bulkBayarError"></div>
 
                 <div class="bg-emerald-50 rounded-lg p-3 text-xs text-emerald-800 flex items-start gap-2">
-                    <iconify-icon icon="mdi:information" class="text-base mt-0.5"></iconify-icon>
+                    <iconify-icon icon="mdi:information" class="text-base mt-0.5 flex-shrink-0"></iconify-icon>
                     <div>
                         Piutang akan dilunasi otomatis <strong>dari yang paling lama</strong> (FIFO). 
                         Jika nominal tidak pas, piutang terakhir akan dibayar sebagian.
@@ -556,8 +731,6 @@
 
 <script>
     const CSRF_TOKEN_PENGELUARAN = document.querySelector('meta[name="csrf-token"]').content;
-
-    // Cek status filter saat ini dari PHP
     const CURRENT_STORE_ID = "{{ $storeId }}";
 
     function todayLocal() {
@@ -616,18 +789,15 @@
 
         document.getElementById('inputNominalPengeluaran').value = '';
 
-        // 🔥 LOGIKA TAMPILKAN/SEMBUNYIKAN DROPDOWN TOKO
         const tokoWrapper = document.getElementById('tokoFieldWrapper');
         const tokoSelect = document.getElementById('pengeluaranStoreSelect');
         const storeIdHidden = document.getElementById('pengeluaranStoreId');
 
         if (CURRENT_STORE_ID === 'all') {
-            // Jika Semua Toko, tampilkan dropdown dan kosongkan value hidden
             tokoWrapper.classList.remove('hidden');
             tokoSelect.required = true;
             storeIdHidden.value = '';
         } else {
-            // Jika Toko Spesifik, sembunyikan dropdown dan isi hidden
             tokoWrapper.classList.add('hidden');
             tokoSelect.required = false;
             storeIdHidden.value = CURRENT_STORE_ID;
@@ -654,7 +824,6 @@
         document.getElementById('pengeluaranModalIcon').setAttribute('icon', 'mdi:pencil');
         document.getElementById('btnSubmitPengeluaranText').textContent = 'Simpan Perubahan';
 
-        // Sembunyikan dropdown toko saat edit (karena toko tidak diubah)
         document.getElementById('tokoFieldWrapper').classList.add('hidden');
         document.getElementById('pengeluaranStoreSelect').required = false;
 
@@ -662,15 +831,15 @@
         document.getElementById('tanggalReadonlyWrapper').classList.remove('hidden');
 
         const row = document.getElementById('pengeluaran-row-' + id);
-        const tanggalText = row ? row.querySelector('td').innerText.trim() : '-';
+        // Ambil tanggal dari elemen pertama di baris (bisa div di mobile atau td di desktop)
+        const tanggalText = row ? (row.querySelector('td')?.innerText.trim() || row.querySelector('.text-\\[10px\\]')?.innerText.trim() || '-') : '-';
         document.getElementById('pengeluaranTanggalReadonly').textContent = tanggalText;
 
         document.getElementById('pengeluaranKeterangan').value = keterangan || '';
         document.getElementById('pengeluaranKategori').value = kategori || '';
 
         if (nominal > 0) {
-            document.getElementById('inputNominalPengeluaran').value =
-                new Intl.NumberFormat('id-ID').format(nominal);
+            document.getElementById('inputNominalPengeluaran').value = new Intl.NumberFormat('id-ID').format(nominal);
         } else {
             document.getElementById('inputNominalPengeluaran').value = '';
         }
@@ -679,13 +848,9 @@
         modal.classList.add('flex');
     }
 
-    // ===================================================
-    // CLOSE MODAL
-    // ===================================================
     function closePengeluaranModal() {
-        const modal = document.getElementById('pengeluaranModal');
-        modal.classList.add('hidden');
-        modal.classList.remove('flex');
+        document.getElementById('pengeluaranModal').classList.add('hidden');
+        document.getElementById('pengeluaranModal').classList.remove('flex');
     }
 
     // ===================================================
@@ -712,7 +877,6 @@
         const formData = new FormData(form);
         formData.set('nominal', nominalRaw);
 
-        // Jika create dan sedang di mode 'all', pastikan store_id terambil dari dropdown modal
         if (mode === 'create' && CURRENT_STORE_ID === 'all') {
             const selectedStore = document.getElementById('pengeluaranStoreSelect').value;
             if (!selectedStore) {
