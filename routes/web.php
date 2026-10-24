@@ -14,6 +14,9 @@ use App\Http\Controllers\BrilinkController;
 use App\Http\Controllers\GajiKaryawanController;
 use App\Http\Controllers\TabunganController;
 use App\Http\Controllers\ZakatController;
+use App\Http\Controllers\HutangController;
+use App\Http\Controllers\PiutangController;
+use App\Http\Controllers\ZakatPembayaranController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -127,6 +130,7 @@ Route::middleware('auth')->group(function () {
     // Print invoice SEMUA piutang pada filter aktif (dari tombol di header tab)
     Route::get('/brilink/pengeluaran/invoice-bulk-pdf', [BrilinkController::class, 'printInvoicePiutangBulk'])->name('brilink.pengeluaran.invoice-bulk-pdf');
     Route::get('/brilink/laporan-brangkas', [BrilinkController::class, 'laporanBrangkas'])->name('brilink.laporan-brangkas');
+    Route::get('/brilink/pertumbuhan-saldo', [BrilinkController::class, 'pertumbuhanSaldo'])->name('brilink.pertumbuhan-saldo');
 
     Route::get('/brilink/profit', [BrilinkController::class, 'profit'])->name('brilink.profit');
     Route::post('/brilink/log-ppob', [BrilinkController::class, 'storeLogPpob'])->name('brilink.log-ppob.store');
@@ -153,6 +157,7 @@ Route::middleware('auth')->group(function () {
     Route::match(['post', 'put'], 'gaji/{gaji}/ajax', [GajiKaryawanController::class, 'updateGajiAjax'])->name('gaji.update-ajax');
     Route::post('gaji/{gaji}/bayar',       [GajiKaryawanController::class, 'bayarGajiAjax'])->name('gaji.bayar-ajax');
     Route::delete('gaji/{gaji}/ajax',      [GajiKaryawanController::class, 'destroyGajiAjax'])->name('gaji.destroy-ajax');
+    Route::post('gaji/komisi-settings', [GajiKaryawanController::class, 'updateKomisiSettings'])->name('gaji.komisi-settings');
 
     // ===== LAPORAN MINUS =====
     Route::get('minus-karyawan',           [GajiKaryawanController::class, 'indexMinus'])->name('minus.index');
@@ -179,4 +184,25 @@ Route::middleware('auth')->group(function () {
     Route::delete('/zakat/kategori/{kategori}/ajax', [ZakatController::class, 'destroyKategoriAjax'])->name('zakat.kategori.destroy-ajax');
     Route::get('/zakat/kategori/list-ajax', [ZakatController::class, 'listKategoriAjax'])->name('zakat.kategori.list-ajax');
     Route::get('/zakat/invoice-pdf', [ZakatController::class, 'printPdf'])->name('zakat.invoice-pdf');
+
+    Route::post('/zakat/bayar', [ZakatController::class, 'bayarZakat'])->name('zakat.bayar');
+    Route::get('/laporan-bayar-zakat', [ZakatPembayaranController::class, 'index'])->name('laporan-zakat.index');
+    Route::delete('/laporan-bayar-zakat/{pembayaran}', [ZakatPembayaranController::class, 'destroy'])->name('laporan-zakat.destroy');
+
+    // CRUD Saldo Online
+    Route::post('/zakat/saldo-online/ajax', [ZakatController::class, 'storeSaldoOnlineAjax'])->name('zakat.saldo-online.store-ajax');
+    Route::delete('/zakat/saldo-online/{saldoOnline}/ajax', [ZakatController::class, 'destroySaldoOnlineAjax'])->name('zakat.saldo-online.destroy-ajax');
+
+    // ============ HUTANG ============
+    Route::get('/hutang', [HutangController::class, 'index'])->name('hutang.index');
+    Route::post('/hutang/ajax', [HutangController::class, 'storeAjax'])->name('hutang.store-ajax');
+    Route::put('/hutang/{hutang}/ajax', [HutangController::class, 'updateAjax'])->name('hutang.update-ajax');
+    Route::post('/hutang/{hutang}/bayar', [HutangController::class, 'bayarAjax'])->name('hutang.bayar');
+    Route::delete('/hutang/{hutang}/ajax', [HutangController::class, 'destroyAjax'])->name('hutang.destroy-ajax');
+
+    // ============ PIUTANG ============
+    Route::get('/piutang', [PiutangController::class, 'index'])->name('piutang.index');
+    Route::post('/piutang/{pengeluaran}/bayar', [PiutangController::class, 'bayarPiutang'])->name('piutang.bayar');
+    Route::get('/piutang/invoice-pdf', [PiutangController::class, 'printInvoiceBulk'])->name('piutang.invoice-pdf');
+    Route::post('/piutang/bayar-bulk', [PiutangController::class, 'bayarPiutangBulk'])->name('piutang.bayar-bulk');
 });

@@ -54,16 +54,24 @@
                     'submenu' => [
                         ['route' => 'brilink.index', 'label' => 'Ringkasan & Saldo'],
                         ['route' => 'brilink.saldo-keseluruhan', 'label' => 'Data Saldo Keseluruhan'],
+                        ['route' => 'brilink.pertumbuhan-saldo', 'label' => 'Pertumbuhan Saldo'],
                         ['route' => 'brilink.pengeluaran', 'label' => 'Laporan Pengeluaran'],
                         ['route' => 'brilink.log-ppob', 'label' => 'Log Pulsa & PPOB'],
                         ['route' => 'brilink.log-setoran', 'label' => 'Log Setoran BRILink'],
                         ['route' => 'brilink.log-tarik-tunai', 'label' => 'Log Tarik Tunai'],
                         ['route' => 'brilink.profit', 'label' => 'Laporan Profit'],
                         ['route' => 'brilink.laporan-brangkas', 'label' => 'Laporan Brangkas'],
-                        ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan'],
-                        ['route' => 'zakat.index', 'label' => 'Laporan Zakat', 'icon' => 'mdi:hand-heart'],
                     ]
                 ]
+            ],
+        ],
+        [
+            'section' => 'Aset & Kewajiban',
+            'items' => [
+                ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan', 'icon' => 'mdi:piggy-bank'],
+                ['route' => 'hutang.index',   'label' => 'Laporan Hutang',   'icon' => 'mdi:file-document-outline'],
+                ['route' => 'piutang.index',  'label' => 'Laporan Piutang',  'icon' => 'mdi:account-cash'],
+                ['route' => 'zakat.index', 'label' => 'Laporan Zakat', 'icon' => 'mdi:hand-heart'],
             ],
         ],
         [
@@ -125,6 +133,11 @@
                     @foreach($group['items'] as $item)
                         @php
                             $isActive = request()->routeIs($item['route']);
+
+                            if ($item['route'] === 'zakat.index' && request()->routeIs('laporan-zakat.*')) {
+                                $isActive = true;
+                            }
+
                             $hasSubmenu = isset($item['submenu']);
                             // Cek apakah ada submenu yang aktif
                             $isSubmenuActive = $hasSubmenu && collect($item['submenu'])->contains(fn($sub) => request()->routeIs($sub['route']));
@@ -132,10 +145,11 @@
                         @endphp
 
                         <a href="{{ route($item['route']) }}"
-                           class="flex items-center justify-between px-6 py-2.5 text-sm transition
-                                  {{ $isActive
-                                      ? 'bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600'
-                                      : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+                            @if($isActive) data-sidebar-active="true" @endif
+                            class="flex items-center justify-between px-6 py-2.5 text-sm transition
+                                    {{ $isActive
+                                        ? 'bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600'
+                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
                             <div class="flex items-center gap-3">
                                 <iconify-icon icon="{{ $item['icon'] }}" class="text-lg {{ $isActive ? 'text-blue-600' : 'text-gray-400' }}"></iconify-icon>
                                 {{ $item['label'] }}
@@ -342,6 +356,24 @@
             if (sidebar.classList.contains('translate-x-0') && window.innerWidth < 1024) {
                 toggleSidebar();
             }
+        }
+    });
+</script>
+
+<script>
+    // ==================== AUTO SCROLL KE MENU AKTIF ====================
+    document.addEventListener('DOMContentLoaded', function () {
+        const activeMenu = document.querySelector('[data-sidebar-active="true"]');
+        const navContainer = document.querySelector('aside nav');
+
+        if (activeMenu && navContainer) {
+            // Scroll menu aktif ke tengah sidebar
+            setTimeout(() => {
+                activeMenu.scrollIntoView({
+                    behavior: 'smooth',
+                    block: 'center',   // posisikan di tengah-tengah area scroll
+                });
+            }, 100); // delay sedikit agar layout sudah settle
         }
     });
 </script>

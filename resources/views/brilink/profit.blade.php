@@ -331,10 +331,10 @@
                     </div>
                 </div>
 
-                {{-- KOLOM 4: PENAMBAHAN SALDO --}}
+                {{-- KOLOM 4: PROFIT BERSIH --}}
                 <div class="space-y-3 flex flex-col justify-center">
                     <div class="p-4 sm:p-5 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-xl text-white shadow-md text-center">
-                        <div class="text-[10px] sm:text-xs font-medium text-emerald-100 mb-1 uppercase tracking-wider">Penambahan Saldo</div>
+                        <div class="text-[10px] sm:text-xs font-medium text-emerald-100 mb-1 uppercase tracking-wider">Profit Bersih</div>
                         <div class="text-xl sm:text-2xl font-bold">Rp {{ number_format($penambahanSaldo, 0, ',', '.') }}</div>
                     </div>
                 </div>

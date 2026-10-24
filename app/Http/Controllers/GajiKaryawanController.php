@@ -6,6 +6,7 @@ use App\Models\GajiKaryawan;
 use App\Models\Karyawan;
 use App\Models\LaporanMinusKaryawan;
 use App\Models\Store;
+use App\Models\StoreKomisiSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -100,6 +101,9 @@ class GajiKaryawanController extends Controller
         $status  = $request->input('status', 'all');
 
         $stores = Store::orderBy('nama_toko')->get();
+        
+        // ✅ Ambil setting komisi per toko
+        $komisiSettings = StoreKomisiSetting::pluck('komisi_per_transaksi', 'store_id');
 
         $query = GajiKaryawan::with(['karyawan.store', 'minusItems'])
             ->where('periode', $periode)
@@ -115,15 +119,34 @@ class GajiKaryawanController extends Controller
             'jumlah_karyawan' => $gajiList->count(),
         ];
 
+        // ✅ AMBIL DATA VOLUME TRANSAKSI DARI BRILINK
+        $volumeQuery = \App\Models\BrilinkReport::whereYear('periode_start', substr($periode, 0, 4))
+            ->whereMonth('periode_start', substr($periode, 5, 2));
+
+        if ($storeId !== 'all') {
+            $volumeQuery->where('store_id', $storeId);
+        }
+
+        $volumeTransaksiPerToko = $volumeQuery->get()
+            ->groupBy('store_id')
+            ->map(function ($reports) {
+                return (int) $reports->sum('volume_transaksi_agen');
+            });
+
+        $totalVolumeTransaksi = (int) $volumeTransaksiPerToko->sum();
+
         $karyawanAktif = Karyawan::where('is_active', true)
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->orderBy('nama')->get();
 
         return view('gaji.index', compact(
             'gajiList', 'stores', 'karyawanAktif',
-            'periode', 'storeId', 'status', 'summary'
+            'periode', 'storeId', 'status', 'summary',
+            'volumeTransaksiPerToko', 'totalVolumeTransaksi',
+            'komisiSettings' // ✅ Kirim setting ke view
         ));
     }
+
 
     /** Generate draft gaji untuk semua karyawan aktif di periode tsb */
     public function generateGaji(Request $request)
@@ -136,43 +159,60 @@ class GajiKaryawanController extends Controller
         $periode = $request->periode;
         $storeId = $request->store_id;
 
+        // ✅ Ambil setting komisi per toko
+        $komisiSettings = StoreKomisiSetting::pluck('komisi_per_transaksi', 'store_id');
+
         DB::beginTransaction();
         try {
             $karyawanList = Karyawan::where('is_active', true)
                 ->when($storeId && $storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
-                ->get();
+                ->get()
+                ->groupBy('store_id');
 
             $count = 0;
-            foreach ($karyawanList as $k) {
-                // Skip jika sudah ada gaji untuk periode ini
-                if (GajiKaryawan::where('karyawan_id', $k->id)->where('periode', $periode)->exists()) {
-                    continue;
+            foreach ($karyawanList as $sId => $karyawans) {
+                $jumlahKaryawan = $karyawans->count();
+                
+                // ✅ Gunakan setting komisi dari DB. Jika belum ada, default 0.
+                $komisiRate = $komisiSettings[$sId] ?? 0;
+
+                $volumeTransaksi = \App\Models\BrilinkReport::where('store_id', $sId)
+                    ->whereYear('periode_start', substr($periode, 0, 4))
+                    ->whereMonth('periode_start', substr($periode, 5, 2))
+                    ->sum('volume_transaksi_agen');
+                    
+                $totalKomisiToko = $volumeTransaksi * $komisiRate;
+                $komisiPerKaryawan = $jumlahKaryawan > 0 ? (int) floor($totalKomisiToko / $jumlahKaryawan) : 0;
+
+                foreach ($karyawans as $k) {
+                    if (GajiKaryawan::where('karyawan_id', $k->id)->where('periode', $periode)->exists()) {
+                        continue;
+                    }
+
+                    $minusItems = LaporanMinusKaryawan::where('karyawan_id', $k->id)
+                        ->where('sudah_dipotong', false)
+                        ->get();
+
+                    $totalMinus = $minusItems->sum('nominal');
+
+                    $gaji = GajiKaryawan::create([
+                        'karyawan_id' => $k->id,
+                        'periode'     => $periode,
+                        'gaji_pokok'  => $k->gaji_pokok,
+                        'bonus'       => 0,
+                        'komisi'      => $komisiPerKaryawan,
+                        'potongan'    => $totalMinus,
+                        'total_gaji'  => ($k->gaji_pokok + $komisiPerKaryawan) - $totalMinus,
+                        'status'      => 'draft',
+                    ]);
+
+                    if ($minusItems->count() > 0) {
+                        LaporanMinusKaryawan::whereIn('id', $minusItems->pluck('id'))
+                            ->update(['gaji_karyawan_id' => $gaji->id]);
+                    }
+
+                    $count++;
                 }
-
-                // Ambil data minus yang BELUM dipotong
-                $minusItems = LaporanMinusKaryawan::where('karyawan_id', $k->id)
-                    ->where('sudah_dipotong', false)
-                    ->get();
-
-                $totalMinus = $minusItems->sum('nominal');
-
-                $gaji = GajiKaryawan::create([
-                    'karyawan_id' => $k->id,
-                    'periode'     => $periode,
-                    'gaji_pokok'  => $k->gaji_pokok,
-                    'bonus'       => 0,
-                    'potongan'    => $totalMinus,
-                    'total_gaji'  => $k->gaji_pokok - $totalMinus,
-                    'status'      => 'draft',
-                ]);
-
-                // 🔥 KUNCI RELASI: Tandai minus ini milik gaji yang baru dibuat
-                if ($minusItems->count() > 0) {
-                    LaporanMinusKaryawan::whereIn('id', $minusItems->pluck('id'))
-                        ->update(['gaji_karyawan_id' => $gaji->id]);
-                }
-
-                $count++;
             }
 
             DB::commit();
@@ -192,15 +232,16 @@ class GajiKaryawanController extends Controller
         $validated = $request->validate([
             'bonus'        => 'nullable',
             'potongan'     => 'nullable',
+            'komisi'       => 'nullable', // ✅ Tambah validasi komisi
             'metode_bayar' => 'nullable|in:tunai,transfer',
         ]);
 
         $bonus    = (int) preg_replace('/[^0-9]/', '', $validated['bonus'] ?? 0);
         $potongan = (int) preg_replace('/[^0-9]/', '', $validated['potongan'] ?? 0);
+        $komisi   = (int) preg_replace('/[^0-9]/', '', $validated['komisi'] ?? $gaji->komisi); // ✅ Ambil komisi
 
         DB::beginTransaction();
         try {
-            // 🔥 LOGIKA OPSI A: Jika potongan diubah menjadi 0, lepas relasi minus
             if ($potongan == 0) {
                 LaporanMinusKaryawan::where('gaji_karyawan_id', $gaji->id)
                     ->update([
@@ -212,8 +253,10 @@ class GajiKaryawanController extends Controller
             $gaji->update([
                 'bonus'        => $bonus,
                 'potongan'     => $potongan,
+                'komisi'       => $komisi, // ✅ Update komisi
                 'metode_bayar' => $validated['metode_bayar'] ?? $gaji->metode_bayar,
-                'total_gaji'   => ($gaji->gaji_pokok + $bonus) - $potongan,
+                // ✅ Total = Pokok + Bonus + Komisi - Potongan
+                'total_gaji'   => ($gaji->gaji_pokok + $bonus + $komisi) - $potongan,
             ]);
 
             DB::commit();
@@ -365,5 +408,29 @@ class GajiKaryawanController extends Controller
             'success' => true,
             'message' => 'Laporan minus berhasil dihapus.',
         ]);
+    }
+
+    public function updateKomisiSettings(Request $request)
+    {
+        $request->validate([
+            'komisi' => 'required|array',
+            'komisi.*' => 'required|integer|min:0',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            foreach ($request->komisi as $storeId => $nominal) {
+                StoreKomisiSetting::updateOrCreate(
+                    ['store_id' => $storeId],
+                    ['komisi_per_transaksi' => (int) $nominal]
+                );
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Pengaturan komisi berhasil disimpan.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
+        }
     }
 }

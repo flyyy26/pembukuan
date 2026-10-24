@@ -351,53 +351,70 @@
                     </div>
                     
                     @if($latestReport)
-                    <form action="{{ route('brilink.update-validasi', $latestReport->id) }}" method="POST" class="space-y-3">
-                        @csrf
-                        
-                        {{-- Input Kas Akhir --}}
-                        <div>
-                            <label class="block text-xs text-indigo-600 mb-1">Kas Akhir (Uang Fisik Aktual)</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-sm text-gray-500 font-medium">Rp</span>
+                        @if($storeId === 'all')
+                            {{-- ✅ TAMPILAN JIKA SEMUA TOKO DIPILIH (HANYA TEKS) --}}
+                            <div class="flex flex-col items-center justify-center py-6 text-center space-y-2">
+                                <div class="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center mb-1">
+                                    <iconify-icon icon="mdi:store-alert-outline" class="text-indigo-500 text-2xl"></iconify-icon>
                                 </div>
-                                <input type="text" id="inputKasAkhir" name="manual_kas_akhir" value="{{ $summary['manual_kas_akhir'] ? number_format($summary['manual_kas_akhir'], 0, ',', '.') : '' }}" 
-                                    class="w-full border border-indigo-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm input-format-rupiah" placeholder="0">
-                            </div>
-                        </div>
-
-                        {{-- Jumlah Penjualan (Net) --}}
-                        <div class="flex flex-col sm:flex-row justify-between sm:items-center px-1 py-1 border-b border-indigo-100 gap-1">
-                            <span class="text-xs text-gray-600">Jumlah Penjualan (Net)</span>
-                            <span id="viewJmlPenjualan" data-value="{{ $summary['jml_penjualan'] }}" class="text-sm font-semibold text-gray-800">
-                                Rp {{ number_format($summary['jml_penjualan'], 0, ',', '.') }}
-                            </span>
-                        </div>
-
-                        {{-- Input Kas Awal --}}
-                        <div>
-                            <label class="block text-xs text-indigo-600 mb-1">Kas Awal</label>
-                            <div class="relative">
-                                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                    <span class="text-sm text-gray-500 font-medium">Rp</span>
+                                <div class="text-sm font-medium text-indigo-900">Pilih Toko Spesifik</div>
+                                <div class="text-xs text-indigo-600/80 px-4">
+                                    Validasi Uang Fisik hanya dapat dilakukan saat Anda memfilter <strong>satu toko</strong> tertentu.
                                 </div>
-                                <input type="text" id="inputKasAwal" name="manual_kas_awal" value="{{ $summary['manual_kas_awal'] ? number_format($summary['manual_kas_awal'], 0, ',', '.') : '' }}" 
-                                    class="w-full border border-indigo-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm input-format-rupiah" placeholder="0">
+                                <a href="{{ route('brilink.index', ['store' => $stores->first()?->id ?? '']) }}" class="mt-2 inline-flex items-center gap-1 text-xs bg-indigo-600 text-white px-3 py-1.5 rounded-lg hover:bg-indigo-700 transition">
+                                    Pilih Toko Sekarang
+                                </a>
                             </div>
-                        </div>
+                        @else
+                            {{-- TAMPILAN FORM INPUT (SEPERTI SEBELUMNYA) --}}
+                            <form action="{{ route('brilink.update-validasi', $latestReport->id) }}" method="POST" class="space-y-3">
+                                @csrf
+                                
+                                {{-- Input Kas Akhir --}}
+                                <div>
+                                    <label class="block text-xs text-indigo-600 mb-1">Kas Akhir (Uang Fisik Aktual)</label>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span class="text-sm text-gray-500 font-medium">Rp</span>
+                                        </div>
+                                        <input type="text" id="inputKasAkhir" name="manual_kas_akhir" value="{{ $summary['manual_kas_akhir'] ? number_format($summary['manual_kas_akhir'], 0, ',', '.') : '' }}" 
+                                            class="w-full border border-indigo-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm input-format-rupiah" placeholder="0">
+                                    </div>
+                                </div>
 
-                        <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm flex items-center justify-center gap-2 mt-2">
-                            <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon>
-                            Simpan Validasi
-                        </button>
-                    </form>
+                                {{-- Jumlah Penjualan (Net) --}}
+                                <div class="flex flex-col sm:flex-row justify-between sm:items-center px-1 py-1 border-b border-indigo-100 gap-1">
+                                    <span class="text-xs text-gray-600">Jumlah Penjualan (Net)</span>
+                                    <span id="viewJmlPenjualan" data-value="{{ $summary['jml_penjualan'] }}" class="text-sm font-semibold text-gray-800">
+                                        Rp {{ number_format($summary['jml_penjualan'], 0, ',', '.') }}
+                                    </span>
+                                </div>
 
-                    <div class="border-t border-indigo-200 mt-4 pt-3 flex flex-col sm:flex-row justify-between sm:items-center gap-1">
-                        <span class="text-sm font-bold text-indigo-900">Selisih Validasi</span>
-                        <span id="viewSelisihValidasi" class="text-base font-bold {{ $summary['selisih_validasi'] == 0 ? 'text-indigo-900' : 'text-red-600' }}">
-                            Rp {{ number_format($summary['selisih_validasi'], 0, ',', '.') }}
-                        </span>
-                    </div>
+                                {{-- Input Kas Awal --}}
+                                <div>
+                                    <label class="block text-xs text-indigo-600 mb-1">Kas Awal</label>
+                                    <div class="relative">
+                                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                                            <span class="text-sm text-gray-500 font-medium">Rp</span>
+                                        </div>
+                                        <input type="text" id="inputKasAwal" name="manual_kas_awal" value="{{ $summary['manual_kas_awal'] ? number_format($summary['manual_kas_awal'], 0, ',', '.') : '' }}" 
+                                            class="w-full border border-indigo-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold text-indigo-900 bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500 shadow-sm input-format-rupiah" placeholder="0">
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="w-full bg-indigo-600 text-white py-2 rounded-lg hover:bg-indigo-700 transition text-sm font-medium shadow-sm flex items-center justify-center gap-2 mt-2">
+                                    <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon>
+                                    Simpan Validasi
+                                </button>
+                            </form>
+
+                            <div class="border-t border-indigo-200 mt-4 pt-3 flex flex-col sm:flex-row justify-between sm:items-center gap-1">
+                                <span class="text-sm font-bold text-indigo-900">Selisih Validasi</span>
+                                <span id="viewSelisihValidasi" class="text-base font-bold {{ $summary['selisih_validasi'] == 0 ? 'text-indigo-900' : 'text-red-600' }}">
+                                    Rp {{ number_format($summary['selisih_validasi'], 0, ',', '.') }}
+                                </span>
+                            </div>
+                        @endif
                     @else
                         <div class="text-sm font-medium text-indigo-400 py-4 text-center">Belum ada report aktif</div>
                     @endif

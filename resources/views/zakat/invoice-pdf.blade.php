@@ -81,6 +81,14 @@
                     <td class="text-right">Rp {{ number_format($b['zakat'], 0, ',', '.') }}</td>
                 </tr>
             @endforeach
+            @foreach($saldoOnlineList as $so)
+                <tr>
+                    <td class="text-center">{{ count($breakdownSaldo) + $loop->iteration }}</td>
+                    <td>{{ $so->marketplace }} (Online)</td>
+                    <td class="text-right">Rp {{ number_format($so->saldo, 0, ',', '.') }}</td>
+                    <td class="text-right">Rp {{ number_format(round($so->saldo * 0.025), 0, ',', '.') }}</td>
+                </tr>
+            @endforeach
             <tr class="total-row">
                 <td colspan="2" class="text-right">TOTAL</td>
                 <td class="text-right">Rp {{ number_format($totalSaldo, 0, ',', '.') }}</td>
@@ -145,18 +153,17 @@
 
 @if($barangList->isEmpty())
     <div style="padding: 10px; text-align: center; color: #64748b; border: 1px dashed #cbd5e1;">
-        Belum ada produk aktif dengan stok.
+        Belum ada data barang online.
     </div>
 @else
     <table class="items">
         <thead>
             <tr>
                 <th style="width: 5%;" class="text-center">No</th>
-                <th style="width: 18%;">SKU</th>
-                <th style="width: 35%;">Nama Produk</th>
-                <th style="width: 8%;" class="text-center">Qty</th>
-                <th style="width: 17%;" class="text-right">HPP</th>
-                <th style="width: 17%;" class="text-right">Total</th>
+                <th style="width: 45%;">Nama Barang</th>
+                <th style="width: 10%;" class="text-center">Qty</th>
+                <th style="width: 20%;" class="text-right">HPP</th>
+                <th style="width: 20%;" class="text-right">Total</th>
             </tr>
         </thead>
         <tbody>
@@ -164,24 +171,18 @@
             @foreach($barangList as $b)
                 <tr>
                     <td class="text-center">{{ $no++ }}</td>
-                    <td style="font-family: monospace; font-size: 9px; color: #475569;">
-                        {{ $b['sku_internal'] }}
-                    </td>
-                    <td>
-                        {{-- Menggunakan Str::limit agar nama panjang tidak merusak PDF --}}
-                        {{ \Illuminate\Support\Str::limit($b['nama_produk'], 70) }}
-                    </td>
+                    <td>{{ $b['nama_barang'] }}</td>
                     <td class="text-center">{{ $b['qty'] }}</td>
                     <td class="text-right">Rp {{ number_format($b['harga_satuan'], 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($b['total'], 0, ',', '.') }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="5" class="text-right">Total Nilai Barang</td>
+                <td colspan="4" class="text-right">Total Nilai Barang</td>
                 <td class="text-right">Rp {{ number_format($totalBarang, 0, ',', '.') }}</td>
             </tr>
             <tr class="total-row">
-                <td colspan="5" class="text-right">Zakat Barang (2,5%)</td>
+                <td colspan="4" class="text-right">Zakat Barang (2,5%)</td>
                 <td class="text-right">Rp {{ number_format($zakatBarang, 0, ',', '.') }}</td>
             </tr>
         </tbody>

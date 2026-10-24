@@ -5,10 +5,15 @@ namespace App\Http\Controllers;
 use App\Models\BrilinkAccount;
 use App\Models\BrilinkPengeluaran;
 use App\Models\BrilinkReport;
-use App\Models\Product;
 use App\Models\Store;
+use App\Models\ZakatBarangMandiri;
+use App\Models\ZakatSaldoOnline;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
+use App\Models\Hutang;
+use App\Models\TabunganAccount;
+use App\Models\TabunganTransaction;
+use App\Models\ZakatPembayaran;
 
 class ZakatController extends Controller
 {
@@ -17,6 +22,8 @@ class ZakatController extends Controller
     public function index(Request $request)
     {
         $storeId = $request->input('store', 'all');
+        $from = $request->input('from');
+        $to = $request->input('to');
 
         $stores = Store::where('marketplace', 'brilink')
             ->orderBy('nama_toko')
@@ -29,9 +36,12 @@ class ZakatController extends Controller
         // ============================================
         $reportsQuery = BrilinkReport::query()
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
             ->orderByDesc('periode_start')
             ->orderByDesc('id');
 
+        // Ambil report terbaru HANYA dari rentang tanggal yang difilter
         $latestReports = $reportsQuery->get()
             ->groupBy('store_id')
             ->map(fn($items) => $items->first())
@@ -79,6 +89,14 @@ class ZakatController extends Controller
         $totalSaldo = (int) collect($breakdownSaldo)->sum('saldo');
         $zakatSaldo = (int) round($totalSaldo * self::RATE);
 
+        $saldoOnlineList = ZakatSaldoOnline::orderBy('id')->get();
+        $totalSaldoOnline = (int) $saldoOnlineList->sum('saldo');
+        $zakatSaldoOnline = (int) round($totalSaldoOnline * self::RATE);
+
+        // Gabungkan dengan total saldo sebelumnya
+        $totalSaldo += $totalSaldoOnline;
+        $zakatSaldo += $zakatSaldoOnline;
+
         // ============================================
         // 2) PIUTANG
         // ============================================
@@ -86,7 +104,9 @@ class ZakatController extends Controller
             ->whereRaw('LOWER(kategori) LIKE ?', ['%piutang%'])
             ->when($storeId !== 'all', function ($q) use ($storeId) {
                 $q->whereHas('report', fn($rq) => $rq->where('store_id', $storeId));
-            });
+            })
+            ->when($from, fn($q) => $q->whereHas('report', fn($rq) => $rq->whereDate('periode_start', '>=', $from)))
+            ->when($to, fn($q) => $q->whereHas('report', fn($rq) => $rq->whereDate('periode_start', '<=', $to)));
 
         $piutangList = $piutangQuery->get()
             ->map(function ($p) {
@@ -114,26 +134,22 @@ class ZakatController extends Controller
         $zakatPiutang = (int) round($totalPiutang * self::RATE);
 
         // ============================================
-        // 3) BARANG ONLINE — dari Master Produk
-        //    hanya produk aktif & stok > 0
+        // 3) BARANG ONLINE
         // ============================================
-        $barangList = Product::query()
-            ->where('is_active', true)
-            ->orderBy('nama_produk')
+        $barangList = ZakatBarangMandiri::query()
+            ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
+            ->orderByDesc('id')
             ->get()
-            ->map(function (Product $p) {
-                $harga = (int) $p->hpp;
-                $qty   = (int) $p->stok;
-
+            ->map(function ($b) {
+                $total = $b->qty * $b->harga_satuan;
                 return [
-                    'id'           => $p->id,
-                    'sku_internal' => $p->sku_internal,
-                    'nama_produk'  => $p->nama_produk,
-                    'gambar_url'   => $p->gambar_url,
-                    'qty'          => $qty,
-                    'harga_satuan' => $harga,
-                    'total'        => $qty * $harga,
-                    'zakat'        => (int) round($qty * $harga * self::RATE),
+                    'id'           => $b->id,
+                    'nama_barang'  => $b->nama_barang,
+                    'qty'          => (int) $b->qty,
+                    'harga_satuan' => (int) $b->harga_satuan,
+                    'total'        => $total,
+                    'zakat'        => (int) round($total * self::RATE),
                 ];
             });
 
@@ -141,9 +157,49 @@ class ZakatController extends Controller
         $zakatBarang = (int) round($totalBarang * self::RATE);
 
         // ============================================
-        // 4) TOTAL ZAKAT
+        // 4) HUTANG (Pengurang)
         // ============================================
-        $totalZakat = $zakatSaldo + $zakatPiutang + $zakatBarang;
+        $hutangList = Hutang::query()
+            ->when($from, fn($q) => $q->whereDate('tanggal', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('tanggal', '<=', $to))
+            ->orderByDesc('tanggal')
+            ->get();
+        $totalHutang = (int) $hutangList->sum('nominal');
+
+        // ============================================
+        // 5) TABUNGAN (Pengurang)
+        // ============================================
+        $tabunganList = TabunganAccount::orderBy('nama')->get()->map(function ($acc) use ($from, $to) {
+            // Filter transaksi berdasarkan tanggal (asumsi kolom created_at)
+            $transactions = $acc->transactions()
+                ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
+                ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to));
+
+            $setoran = (clone $transactions)->where('tipe', 'setoran')->sum('nominal');
+            $penarikan = (clone $transactions)->where('tipe', 'penarikan')->sum('nominal');
+            
+            return [
+                'id' => $acc->id,
+                'nama' => $acc->nama,
+                'saldo' => max(0, $setoran - $penarikan),
+            ];
+        })->filter(fn($a) => $a['saldo'] > 0);
+
+        $totalTabungan = (int) $tabunganList->sum('saldo');
+
+        // ============================================
+        // 6) TOTAL ZAKAT
+        // ============================================
+        $totalZakatAset = $zakatSaldo + $zakatPiutang + $zakatBarang;
+        $zakatHutang = (int) round($totalHutang * self::RATE);
+        $zakatTabungan = (int) round($totalTabungan * self::RATE);
+        $totalZakatKewajiban = $zakatHutang + $zakatTabungan;
+        $totalZakat = $totalZakatAset - $totalZakatKewajiban;
+        if ($totalZakat < 0) $totalZakat = 0;
+
+        $totalHarta = $totalSaldo + $totalPiutang + $totalBarang;
+        $totalKewajiban = $totalHutang + $totalTabungan;
+        $hartaBersih = max(0, $totalHarta - $totalKewajiban);
 
         return view('zakat.index', [
             'stores'         => $stores,
@@ -159,6 +215,80 @@ class ZakatController extends Controller
             'totalBarang'    => $totalBarang,
             'zakatBarang'    => $zakatBarang,
             'totalZakat'     => $totalZakat,
+            'saldoOnlineList'=> $saldoOnlineList,
+            'totalSaldoOnline'=> $totalSaldoOnline,
+            'zakatSaldoOnline'=> $zakatSaldoOnline,
+            'hutangList'     => $hutangList,
+            'totalHutang'    => $totalHutang,
+            'totalTabungan'  => $totalTabungan,
+            'tabunganList'   => $tabunganList,
+            
+            'totalHarta'     => $totalHarta,
+            'hartaBersih'    => $hartaBersih,
+            'zakatHutang'    => $zakatHutang,
+            'zakatTabungan'  => $zakatTabungan,
+            
+            // ✅ Kirim balik nilai from & to ke view
+            'from'           => $from,
+            'to'             => $to,
+        ]);
+    }
+
+    // ============================================
+    // CRUD ZAKAT BARANG MANDIRI
+    // ============================================
+    public function storeBarangAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'nama_barang'       => 'required|string|max:255',
+            'qty'               => 'required|integer|min:1',
+            'harga_satuan'      => 'required',
+        ]);
+
+        $harga = (int) preg_replace('/[^0-9]/', '', (string) $request->harga_satuan);
+        if ($harga <= 0) {
+            return response()->json(['message' => 'Harga satuan tidak valid.'], 422);
+        }
+        $validated['harga_satuan'] = $harga;
+
+        $barang = ZakatBarangMandiri::create($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Barang '{$barang->nama_barang}' berhasil ditambahkan.",
+        ]);
+    }
+
+    public function updateBarangAjax(Request $request, ZakatBarangMandiri $barang)
+    {
+        $validated = $request->validate([
+            'nama_barang'       => 'required|string|max:255',
+            'qty'               => 'required|integer|min:1',
+            'harga_satuan'      => 'required',
+        ]);
+
+        $harga = (int) preg_replace('/[^0-9]/', '', (string) $request->harga_satuan);
+        if ($harga <= 0) {
+            return response()->json(['message' => 'Harga satuan tidak valid.'], 422);
+        }
+        $validated['harga_satuan'] = $harga;
+
+        $barang->update($validated);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Barang '{$barang->nama_barang}' berhasil diperbarui.",
+        ]);
+    }
+
+    public function destroyBarangAjax(ZakatBarangMandiri $barang)
+    {
+        $nama = $barang->nama_barang;
+        $barang->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Barang '{$nama}' berhasil dihapus.",
         ]);
     }
 
@@ -170,7 +300,7 @@ class ZakatController extends Controller
         $storeId = $request->input('store', 'all');
         $store   = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // Saldo
+        // (SALDO & PIUTANG sama seperti index)
         $reportsQuery = BrilinkReport::query()
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->orderByDesc('periode_start')
@@ -217,7 +347,13 @@ class ZakatController extends Controller
         $totalSaldo = (int) collect($breakdownSaldo)->sum('saldo');
         $zakatSaldo = (int) round($totalSaldo * self::RATE);
 
-        // Piutang
+        $saldoOnlineList = ZakatSaldoOnline::orderBy('id')->get();
+        $totalSaldoOnline = (int) $saldoOnlineList->sum('saldo');
+        $zakatSaldoOnline = (int) round($totalSaldoOnline * self::RATE);
+
+        $totalSaldo += $totalSaldoOnline;
+        $zakatSaldo += $zakatSaldoOnline;
+
         $piutangQuery = BrilinkPengeluaran::query()
             ->whereRaw('LOWER(kategori) LIKE ?', ['%piutang%'])
             ->when($storeId !== 'all', function ($q) use ($storeId) {
@@ -246,24 +382,17 @@ class ZakatController extends Controller
         });
         $zakatPiutang = (int) round($totalPiutang * self::RATE);
 
-        // Barang — dari Master Produk
-        $barangList = Product::query()
-            ->where('is_active', true)
-            ->orderBy('nama_produk')
-            ->get()
-            ->map(function (Product $p) {
-                $harga = (int) $p->hpp;
-                $qty   = (int) $p->stok;
-
-                return [
-                    'sku_internal' => $p->sku_internal,
-                    'nama_produk'  => $p->nama_produk,
-                    'qty'          => $qty,
-                    'harga_satuan' => $harga,
-                    'total'        => $qty * $harga,
-                    'zakat'        => (int) round($qty * $harga * self::RATE),
-                ];
-            });
+        // BARANG DARI TABEL BARU
+        $barangList = ZakatBarangMandiri::orderByDesc('id')->get()->map(function ($b) {
+            $total = $b->qty * $b->harga_satuan;
+            return [
+                'nama_barang'  => $b->nama_barang,
+                'qty'          => (int) $b->qty,
+                'harga_satuan' => (int) $b->harga_satuan,
+                'total'        => $total,
+                'zakat'        => (int) round($total * self::RATE),
+            ];
+        });
 
         $totalBarang = (int) $barangList->sum('total');
         $zakatBarang = (int) round($totalBarang * self::RATE);
@@ -279,6 +408,9 @@ class ZakatController extends Controller
             'piutangList'    => $piutangList,
             'totalPiutang'   => $totalPiutang,
             'zakatPiutang'   => $zakatPiutang,
+            'saldoOnlineList'    => $saldoOnlineList,
+            'totalSaldoOnline'   => $totalSaldoOnline,
+            'zakatSaldoOnline'   => $zakatSaldoOnline,
             'barangList'     => $barangList,
             'totalBarang'    => $totalBarang,
             'zakatBarang'    => $zakatBarang,
@@ -290,5 +422,65 @@ class ZakatController extends Controller
         $fileName = 'Laporan-Zakat-' . now()->format('Ymd-His') . '.pdf';
 
         return $pdf->stream($fileName);
+    }
+
+    public function storeSaldoOnlineAjax(Request $request)
+    {
+        $validated = $request->validate([
+            'marketplace' => 'required|string|max:50',
+            'saldo'       => 'required',
+        ]);
+
+        $saldo = (int) preg_replace('/[^0-9]/', '', (string) $request->saldo);
+        
+        ZakatSaldoOnline::create([
+            'marketplace' => $validated['marketplace'],
+            'saldo'       => $saldo,
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'message' => "Saldo online '{$validated['marketplace']}' berhasil ditambahkan.",
+        ]);
+    }
+
+    public function destroySaldoOnlineAjax(ZakatSaldoOnline $saldoOnline)
+    {
+        $nama = $saldoOnline->marketplace;
+        $saldoOnline->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => "Saldo online '{$nama}' berhasil dihapus.",
+        ]);
+    }
+
+    public function bayarZakat(Request $request)
+    {
+        $request->validate([
+            'tanggal' => 'required|date',
+            'total_zakat' => 'required|integer',
+            'total_saldo' => 'required|integer',
+            'total_piutang' => 'required|integer',
+            'total_barang' => 'required|integer',
+            'total_hutang' => 'required|integer',
+            'total_tabungan' => 'required|integer',
+            'keterangan' => 'nullable|string|max:255',
+            'detail_breakdown' => 'nullable|string',
+        ]);
+
+        ZakatPembayaran::create([
+            'tanggal' => $request->tanggal,
+            'total_zakat' => $request->total_zakat,
+            'total_saldo' => $request->total_saldo,
+            'total_piutang' => $request->total_piutang,
+            'total_barang' => $request->total_barang,
+            'total_hutang' => $request->total_hutang,
+            'total_tabungan' => $request->total_tabungan,
+            'keterangan' => $request->keterangan,
+            'detail_breakdown' => json_decode($request->detail_breakdown, true),
+        ]);
+
+        return response()->json(['success' => true, 'message' => 'Pembayaran zakat berhasil disimpan.']);
     }
 }

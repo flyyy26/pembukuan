@@ -1369,7 +1369,7 @@ class BrilinkController extends Controller
             ->get();
 
         $allPpob = $reportsInPeriod->flatMap->ppobItems;
-    
+
         $penjualanPulsa = $allPpob->filter(fn($i) => stripos($i->kategori, 'Pulsa') !== false)->sum('nominal');
         $penjualanKasirPintar = $allPpob->filter(fn($i) => 
             stripos($i->kategori, 'Kasir Pintar') !== false || 
@@ -1406,7 +1406,7 @@ class BrilinkController extends Controller
         $pemakaianBrangkas = $allPpob
             ->filter(function($i) {
                 $isPenambahanKas = stripos($i->kategori, 'Penambahan Kas') !== false;
-                $isBrangkas = stripos($i->keterangan, 'brangkas') !== false; // Cek kata "brangkas" di keterangan
+                $isBrangkas = stripos($i->keterangan, 'brangkas') !== false;
                 return $isPenambahanKas && $isBrangkas;
             })
             ->sum('nominal');
@@ -1415,9 +1415,6 @@ class BrilinkController extends Controller
         $topupPulsa = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'top up pulsa') || str_contains(strtolower($i->keterangan ?? ''), 'top up pulsa'))->sum('nominal_kas');
         $totalPrive = $allPengeluaran->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'prive'))->sum('nominal_kas');
 
-        // ============================================
-        // BREAKDOWN PRIVE — group by keterangan
-        // ============================================
         $breakdownPrive = $allPengeluaran
             ->filter(fn($i) => str_contains(strtolower($i->kategori ?? ''), 'prive'))
             ->groupBy(fn($i) => strtolower(trim($i->keterangan ?? 'Tanpa keterangan')))
@@ -1483,9 +1480,6 @@ class BrilinkController extends Controller
             $dataProfit[$key]['saldo_terpakai'] = $dataProfit[$key]['saldo_awal'] - $dataProfit[$key]['saldo_akhir'];
         }
 
-        $totalSaldoAwal = array_sum(array_column($dataProfit, 'saldo_awal'));
-        $totalSaldoAkhir = array_sum(array_column($dataProfit, 'saldo_akhir'));
-
         $profitPulsa = $dataProfit['pulsa']['profit'];
         $profitPpob = $dataProfit['ppob']['profit'];
         $adminBrilink = $dataProfit['brilink']['pendapatan_admin'];
@@ -1502,6 +1496,42 @@ class BrilinkController extends Controller
         // Penambahan saldo = pendapatan - pengeluaran
         $penambahanSaldo = $pendapatanHarian - $pengeluaranHarian;
 
+        // ============================================
+        // ✅ HITUNG TOTAL SALDO AWAL & AKHIR (SAMA PERSIS dengan Ringkasan & Saldo)
+        // ============================================
+        // 1) Ambil REPORT TERAKHIR per toko dalam rentang filter
+        $baseReports = BrilinkReport::query()
+            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
+            ->orderByDesc('periode_start')
+            ->orderByDesc('id')
+            ->get();
+
+        $latestReportsPerStore = $baseReports
+            ->groupBy('store_id')
+            ->map(fn($items) => $items->first())
+            ->values();
+
+        // 2) Ambil report paling AWAL per toko (untuk saldo awal)
+        $earliestReportsPerStore = $baseReports
+            ->groupBy('store_id')
+            ->map(fn($items) => $items->last())   // urutan desc, jadi yang paling akhir = paling lama
+            ->values();
+
+        $reportIdsForAkhir = $latestReportsPerStore->pluck('id')->all();
+        $reportIdsForAwal  = $earliestReportsPerStore->pluck('id')->all();
+
+        // 3) Group by nama_rekening → sum saldo_awal & saldo_akhir
+        $accountsAkhir = BrilinkAccount::whereIn('brilink_report_id', $reportIdsForAkhir)->get()
+            ->groupBy(fn($a) => mb_strtolower(trim($a->nama_rekening)));
+
+        $accountsAwal = BrilinkAccount::whereIn('brilink_report_id', $reportIdsForAwal)->get()
+            ->groupBy(fn($a) => mb_strtolower(trim($a->nama_rekening)));
+
+        $totalSaldoAwal  = (int) $accountsAwal->sum(fn($items) => $items->sum('saldo_awal'));
+        $totalSaldoAkhir = (int) $accountsAkhir->sum(fn($items) => $items->sum('saldo_akhir'));
+
         return view('brilink.profit', [
             'stores' => $stores,
             'store' => $store,
@@ -1509,8 +1539,8 @@ class BrilinkController extends Controller
             'from' => $fromInput,
             'to' => $toInput,
             'dataProfit' => $dataProfit,
-            'totalSaldoAwal' => $totalSaldoAwal,
-            'totalSaldoAkhir' => $totalSaldoAkhir,
+            'totalSaldoAwal' => $totalSaldoAwal,        // ✅ sekarang dari Ringkasan
+            'totalSaldoAkhir' => $totalSaldoAkhir,      // ✅ sekarang dari Ringkasan
             'profitPulsa' => $profitPulsa,
             'profitPpob' => $profitPpob,
             'adminBrilink' => $adminBrilink,
@@ -1521,7 +1551,7 @@ class BrilinkController extends Controller
             'pendapatanHarian' => $pendapatanHarian,
             'pengeluaranHarian' => $pengeluaranHarian,
             'penambahanSaldo' => $penambahanSaldo,
-            'breakdownPrive' => $breakdownPrive, // ← BARU
+            'breakdownPrive' => $breakdownPrive,
         ]);
     }
 
@@ -2086,6 +2116,86 @@ class BrilinkController extends Controller
             'groupedByMonth'  => $groupedByMonth,
             'monthlySummary'  => $monthlySummary,
             'summary'         => $summary,
+        ]);
+    }
+
+    public function pertumbuhanSaldo(Request $request)
+    {
+        $storeId = $request->input('store', 'all');
+        $from    = $request->input('from');
+        $to      = $request->input('to');
+        $mode    = $request->input('mode', 'bulanan');
+
+        $stores = Store::where('marketplace', 'brilink')->orderBy('nama_toko')->get();
+        $store  = ($storeId !== 'all') ? Store::find($storeId) : null;
+
+        // 1. Ambil semua report sesuai filter
+        $reports = BrilinkReport::with('accounts')
+            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('periode_start', '<=', $to))
+            ->orderBy('periode_start', 'asc')
+            ->get();
+
+        $data = [];
+
+        // 2. Grouping per Bulan / Tahun
+        $groupedByPeriod = $reports->groupBy(function($r) use ($mode) {
+            return $mode === 'tahunan' 
+                ? $r->periode_start->format('Y') 
+                : $r->periode_start->format('Y-m');
+        });
+
+        foreach ($groupedByPeriod as $period => $reportsInPeriod) {
+            $totalSaldoAwal = 0;
+            $totalSaldoAkhir = 0;
+
+            // 3. Jumlahkan SEMUA saldo awal & akhir dari setiap report harian di periode ini
+            foreach ($reportsInPeriod as $report) {
+                $totalSaldoAwal += $report->accounts->sum('saldo_awal');
+                $totalSaldoAkhir += $report->accounts->sum('saldo_akhir');
+            }
+
+            // Label
+            if ($mode === 'tahunan') {
+                $label = 'Tahun ' . $period;
+                $labelShort = $period;
+            } else {
+                $carbon = \Carbon\Carbon::createFromFormat('Y-m', $period);
+                $label = $carbon->translatedFormat('F Y');
+                $labelShort = $carbon->translatedFormat('M Y');
+            }
+
+            $data[] = [
+                'periode'    => $period,
+                'label'      => $label,
+                'label_short'=> $labelShort,
+                'saldo_awal' => (int) $totalSaldoAwal,
+                'saldo_akhir'=> (int) $totalSaldoAkhir,
+                'penambahan' => (int) ($totalSaldoAkhir - $totalSaldoAwal),
+                'jumlah_report' => $reportsInPeriod->count(),
+            ];
+        }
+
+        // Urutkan dari terbaru ke terlama
+        usort($data, fn($a, $b) => strcmp($b['periode'], $a['periode']));
+
+        $summary = [
+            'total_saldo_awal'  => collect($data)->sum('saldo_awal'),
+            'total_saldo_akhir' => collect($data)->sum('saldo_akhir'),
+            'total_penambahan'  => collect($data)->sum('penambahan'),
+            'total_periode'     => count($data),
+        ];
+
+        return view('brilink.pertumbuhan-saldo', [
+            'stores'   => $stores,
+            'store'    => $store,
+            'storeId'  => $storeId,
+            'from'     => $from,
+            'to'       => $to,
+            'mode'     => $mode,
+            'data'     => $data,
+            'summary'  => $summary,
         ]);
     }
 }

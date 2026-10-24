@@ -14,6 +14,7 @@ class GajiKaryawan extends Model
         'gaji_pokok',
         'bonus',
         'potongan',
+        'komisi', // ✅ TAMBAH
         'total_gaji',
         'status',
         'tanggal_bayar',
@@ -24,6 +25,7 @@ class GajiKaryawan extends Model
         'gaji_pokok'    => 'integer',
         'bonus'         => 'integer',
         'potongan'      => 'integer',
+        'komisi'        => 'integer', // ✅ TAMBAH
         'total_gaji'    => 'integer',
         'tanggal_bayar' => 'date',
     ];
@@ -38,10 +40,10 @@ class GajiKaryawan extends Model
         return $this->hasMany(LaporanMinusKaryawan::class);
     }
 
-    /** Hitung ulang total gaji */
     public function recalculateTotal(): void
     {
-        $this->total_gaji = ($this->gaji_pokok + $this->bonus) - $this->potongan;
+        // ✅ UPDATE RUMUS
+        $this->total_gaji = ($this->gaji_pokok + $this->bonus + $this->komisi) - $this->potongan;
         $this->save();
     }
 

@@ -48,7 +48,8 @@
                 </div>
             @endif
 
-            <form method="POST" action="{{ route('login.post') }}" class="space-y-5">
+            {{-- Tambahkan id="loginForm" pada form --}}
+            <form method="POST" action="{{ route('login.post') }}" class="space-y-5" id="loginForm">
                 @csrf
 
                 {{-- Email --}}
@@ -100,12 +101,14 @@
                     <label for="remember" class="text-sm text-gray-600">Ingat saya</label>
                 </div>
 
-                {{-- Submit --}}
+                {{-- Submit (Tambahkan ID) --}}
                 <button type="submit"
+                        id="btnLogin"
                         class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition
-                               font-medium shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2">
-                    <iconify-icon icon="mdi:login" class="text-lg"></iconify-icon>
-                    Masuk
+                               font-medium shadow-lg shadow-blue-500/30 flex items-center justify-center gap-2
+                               disabled:opacity-70 disabled:cursor-not-allowed">
+                    <iconify-icon id="btnLoginIcon" icon="mdi:login" class="text-lg"></iconify-icon>
+                    <span id="btnLoginText">Masuk</span>
                 </button>
             </form>
         </div>
@@ -128,6 +131,21 @@
                 icon.setAttribute('icon', 'mdi:eye-outline');
             }
         }
+
+        // ✅ TAMBAHAN: Efek Loading saat submit (baik via Enter maupun klik)
+        document.getElementById('loginForm').addEventListener('submit', function() {
+            const btn = document.getElementById('btnLogin');
+            const btnText = document.getElementById('btnLoginText');
+            const btnIcon = document.getElementById('btnLoginIcon');
+
+            // Disable tombol agar tidak bisa diklik 2x
+            btn.disabled = true;
+            
+            // Ubah teks dan icon menjadi loading
+            btnText.textContent = 'Memproses...';
+            btnIcon.setAttribute('icon', 'mdi:loading');
+            btnIcon.classList.add('animate-spin');
+        });
     </script>
 
 </body>
