@@ -100,10 +100,20 @@ class GajiKaryawanController extends Controller
         $storeId = $request->input('store', 'all');
         $status  = $request->input('status', 'all');
 
-        $stores = Store::orderBy('nama_toko')->get();
-        
-        // ✅ Ambil setting komisi per toko
-        $komisiSettings = StoreKomisiSetting::pluck('komisi_per_transaksi', 'store_id');
+        // ✅ Hanya toko yang punya karyawan aktif
+        $storeIdsWithKaryawan = Karyawan::where('is_active', true)
+            ->whereNotNull('store_id')
+            ->distinct()
+            ->pluck('store_id')
+            ->toArray();
+
+        $stores = Store::whereIn('id', $storeIdsWithKaryawan)
+            ->orderBy('marketplace')
+            ->orderBy('nama_toko')
+            ->get();
+
+        $komisiSettings = StoreKomisiSetting::all()->keyBy('store_id');
+        $komisiHostLiveGlobal = StoreKomisiSetting::getKomisiHostLiveGlobal();
 
         $query = GajiKaryawan::with(['karyawan.store', 'minusItems'])
             ->where('periode', $periode)
@@ -119,37 +129,66 @@ class GajiKaryawanController extends Controller
             'jumlah_karyawan' => $gajiList->count(),
         ];
 
-        // ✅ AMBIL DATA VOLUME TRANSAKSI DARI BRILINK
+        // Volume BRILink
         $volumeQuery = \App\Models\BrilinkReport::whereYear('periode_start', substr($periode, 0, 4))
             ->whereMonth('periode_start', substr($periode, 5, 2));
-
-        if ($storeId !== 'all') {
-            $volumeQuery->where('store_id', $storeId);
-        }
+        if ($storeId !== 'all') $volumeQuery->where('store_id', $storeId);
 
         $volumeTransaksiPerToko = $volumeQuery->get()
             ->groupBy('store_id')
-            ->map(function ($reports) {
-                return (int) $reports->sum('volume_transaksi_agen');
-            });
+            ->map(fn($reports) => (int) $reports->sum('volume_transaksi_agen'));
 
         $totalVolumeTransaksi = (int) $volumeTransaksiPerToko->sum();
+
+        // Transaksi Live
+        $totalTransaksiLive = 0;
+        $targetStores = $stores->filter(function($s) use ($storeId) {
+            if ($storeId !== 'all' && $s->id != $storeId) return false;
+            return $s->marketplace !== 'brilink';
+        });
+
+        if ($targetStores->isNotEmpty()) {
+            $liveQuery = \App\Models\TiktokLiveSession::whereYear('tanggal', substr($periode, 0, 4))
+                ->whereMonth('tanggal', substr($periode, 5, 2))
+                ->whereIn('store_id', $targetStores->pluck('id'));
+            $totalTransaksiLive = (int) $liveQuery->sum('total_transaksi');
+        }
+
+        $totalKomisiLive = $totalTransaksiLive * $komisiHostLiveGlobal;
 
         $karyawanAktif = Karyawan::where('is_active', true)
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->orderBy('nama')->get();
 
+        $totalGmvWeb = 0;
+        $webSales = \App\Models\WebOrderSnapshot::whereYear('web_created_at', substr($periode, 0, 4))
+            ->whereMonth('web_created_at', substr($periode, 5, 2))
+            ->where('status', 'delivered')
+            ->sum('total_amount');
+        
+        // Jika filter toko bukan 'all', kita asumsikan GMV ini milik toko tersebut
+        if ($storeId !== 'all') {
+            $totalGmvWeb = (int) $webSales;
+        } else {
+            // Jika 'all', tampilkan total GMV dari semua web sales di bulan itu
+            $totalGmvWeb = (int) $webSales; 
+        }
+
         return view('gaji.index', compact(
             'gajiList', 'stores', 'karyawanAktif',
             'periode', 'storeId', 'status', 'summary',
             'volumeTransaksiPerToko', 'totalVolumeTransaksi',
-            'komisiSettings' // ✅ Kirim setting ke view
+            'komisiSettings',
+            'totalTransaksiLive',
+            'totalKomisiLive',
+            'komisiHostLiveGlobal',
+            'totalGmvWeb'
         ));
     }
 
 
     /** Generate draft gaji untuk semua karyawan aktif di periode tsb */
-    public function generateGaji(Request $request)
+        public function generateGaji(Request $request)
     {
         $request->validate([
             'periode'  => 'required|date_format:Y-m',
@@ -159,8 +198,14 @@ class GajiKaryawanController extends Controller
         $periode = $request->periode;
         $storeId = $request->store_id;
 
-        // ✅ Ambil setting komisi per toko
-        $komisiSettings = StoreKomisiSetting::pluck('komisi_per_transaksi', 'store_id');
+        $komisiSettings = StoreKomisiSetting::all()->keyBy('store_id');
+        $komisiHostLiveRate = StoreKomisiSetting::getKomisiHostLiveGlobal();
+
+        // Ambil total GMV Web untuk bulan ini (untuk toko non-brilink)
+        $totalGmvWeb = (int) \App\Models\WebOrderSnapshot::whereYear('web_created_at', substr($periode, 0, 4))
+            ->whereMonth('web_created_at', substr($periode, 5, 2))
+            ->where('status', 'delivered')
+            ->sum('total_amount');
 
         DB::beginTransaction();
         try {
@@ -169,58 +214,159 @@ class GajiKaryawanController extends Controller
                 ->get()
                 ->groupBy('store_id');
 
-            $count = 0;
+            $createdCount = 0;
+            $updatedCount = 0;
+            $skippedCount = 0;
+
             foreach ($karyawanList as $sId => $karyawans) {
                 $jumlahKaryawan = $karyawans->count();
-                
-                // ✅ Gunakan setting komisi dari DB. Jika belum ada, default 0.
-                $komisiRate = $komisiSettings[$sId] ?? 0;
+                $store = Store::find($sId);
+                $isBrilink = $store && $store->marketplace === 'brilink';
+                $setting = $komisiSettings[$sId] ?? null;
 
-                $volumeTransaksi = \App\Models\BrilinkReport::where('store_id', $sId)
-                    ->whereYear('periode_start', substr($periode, 0, 4))
-                    ->whereMonth('periode_start', substr($periode, 5, 2))
-                    ->sum('volume_transaksi_agen');
+                // ==========================================
+                // 1. HITUNG KOMISI BRILINK (JIKA TOKO BRILINK)
+                // ==========================================
+                $komisiBrilinkPerKaryawan = 0;
+                if ($isBrilink) {
+                    $tipeKomisi = $setting->tipe_komisi ?? 'rp';
+                    $komisiRate = $setting ? (int) $setting->komisi_per_transaksi : 0;
                     
-                $totalKomisiToko = $volumeTransaksi * $komisiRate;
-                $komisiPerKaryawan = $jumlahKaryawan > 0 ? (int) floor($totalKomisiToko / $jumlahKaryawan) : 0;
+                    // ✅ Perbaikan: Memastikan format Y-m terbaca dengan benar
+                    $tahun = substr($periode, 0, 4);
+                    $bulan = substr($periode, 5, 2);
 
+                    $reports = \App\Models\BrilinkReport::where('store_id', $sId)
+                        ->whereYear('periode_start', $tahun)
+                        ->whereMonth('periode_start', $bulan)
+                        ->get();
+                        
+                    $volumeTransaksi = (int) $reports->sum('volume_transaksi_agen');
+                    $profitKotor     = (int) $reports->sum('total_pendapatan_admin');
+
+                    if ($tipeKomisi === 'persen') {
+                        $totalKomisiToko = (int) round($profitKotor * $komisiRate / 100);
+                    } else {
+                        $totalKomisiToko = $volumeTransaksi * $komisiRate;
+                    }
+                    
+                    $komisiBrilinkPerKaryawan = $jumlahKaryawan > 0 ? (int) floor($totalKomisiToko / $jumlahKaryawan) : 0;
+                }
+
+                // ==========================================
+                // 2. HITUNG KOMISI WEB (JIKA TOKO NON-BRILINK)
+                // ==========================================
+                $komisiWebPerKaryawan = 0;
+                if (!$isBrilink) {
+                    $tipeWeb = $setting->tipe_komisi_web ?? 'rp';
+                    $rateWeb = $setting ? (int) $setting->komisi_web_per_trx : 0;
+
+                    if ($rateWeb > 0 && $totalGmvWeb > 0) {
+                        // ✅ LANGKAH 1: Hitung Total Komisi untuk SATU TOKO
+                        if ($tipeWeb === 'persen') {
+                            $totalKomisiWebToko = (int) round($totalGmvWeb * $rateWeb / 100);
+                        } else {
+                            $totalKomisiWebToko = $totalGmvWeb * $rateWeb;
+                        }
+
+                        // ✅ LANGKAH 2: Bagi rata total komisi tersebut ke jumlah karyawan
+                        $komisiWebPerKaryawan = $jumlahKaryawan > 0 ? (int) floor($totalKomisiWebToko / $jumlahKaryawan) : 0;
+                    }
+                }
+
+                // ==========================================
+                // 3. LOOPING MASING-MASING KARYAWAN
+                // ==========================================
                 foreach ($karyawans as $k) {
-                    if (GajiKaryawan::where('karyawan_id', $k->id)->where('periode', $periode)->exists()) {
+                    $existing = GajiKaryawan::where('karyawan_id', $k->id)
+                        ->where('periode', $periode)
+                        ->first();
+
+                    if ($existing && $existing->status === 'dibayar') {
+                        $skippedCount++;
                         continue;
                     }
 
-                    $minusItems = LaporanMinusKaryawan::where('karyawan_id', $k->id)
-                        ->where('sudah_dipotong', false)
-                        ->get();
-
-                    $totalMinus = $minusItems->sum('nominal');
-
-                    $gaji = GajiKaryawan::create([
-                        'karyawan_id' => $k->id,
-                        'periode'     => $periode,
-                        'gaji_pokok'  => $k->gaji_pokok,
-                        'bonus'       => 0,
-                        'komisi'      => $komisiPerKaryawan,
-                        'potongan'    => $totalMinus,
-                        'total_gaji'  => ($k->gaji_pokok + $komisiPerKaryawan) - $totalMinus,
-                        'status'      => 'draft',
-                    ]);
-
-                    if ($minusItems->count() > 0) {
-                        LaporanMinusKaryawan::whereIn('id', $minusItems->pluck('id'))
-                            ->update(['gaji_karyawan_id' => $gaji->id]);
+                    // --- HITUNG KOMISI HOST LIVE ---
+                    $komisiHostLive = 0;
+                    $totalTransaksiLive = \App\Models\TiktokLiveSession::where('karyawan_id', $k->id)
+                        ->whereYear('tanggal', substr($periode, 0, 4))
+                        ->whereMonth('tanggal', substr($periode, 5, 2))
+                        ->sum('total_transaksi');
+                    
+                    $isHostLive = $totalTransaksiLive > 0;
+                    
+                    if (!$isBrilink) {
+                        $komisiHostLive = $totalTransaksiLive * $komisiHostLiveRate;
                     }
 
-                    $count++;
+                    // ✅ ATURAN: Jika punya data Live, komisi Web-nya 0
+                    $komisiWebKaryawanIni = $isHostLive ? 0 : $komisiWebPerKaryawan;
+
+                    // TOTAL KOMPONEN KOMISI
+                    $totalKomisiBaru = $komisiBrilinkPerKaryawan + $komisiWebKaryawanIni + $komisiHostLive;
+
+                    // --- HITUNG POTONGAN MINUS ---
+                    $minusQuery = LaporanMinusKaryawan::where('karyawan_id', $k->id);
+                    if ($existing) {
+                        $minusQuery->where(function ($q) use ($existing) {
+                            $q->where('sudah_dipotong', false)->orWhere('gaji_karyawan_id', $existing->id);
+                        });
+                    } else {
+                        $minusQuery->where('sudah_dipotong', false);
+                    }
+                    $minusItems = $minusQuery->get();
+                    $totalMinus = (int) $minusItems->sum('nominal');
+
+                    // --- SIMPAN KE DATABASE ---
+                    if ($existing) {
+                        $existing->update([
+                            'gaji_pokok' => $k->gaji_pokok,
+                            'komisi'     => $totalKomisiBaru,
+                            'potongan'   => $totalMinus,
+                            'total_gaji' => ($k->gaji_pokok + $existing->bonus + $totalKomisiBaru) - $totalMinus,
+                        ]);
+
+                        if ($minusItems->count() > 0) {
+                            LaporanMinusKaryawan::whereIn('id', $minusItems->pluck('id'))
+                                ->update(['gaji_karyawan_id' => $existing->id]);
+                        }
+                        LaporanMinusKaryawan::where('gaji_karyawan_id', $existing->id)
+                            ->whereNotIn('id', $minusItems->pluck('id'))
+                            ->update(['gaji_karyawan_id' => null, 'sudah_dipotong' => false]);
+
+                        $updatedCount++;
+                    } else {
+                        $gaji = GajiKaryawan::create([
+                            'karyawan_id' => $k->id,
+                            'periode'     => $periode,
+                            'gaji_pokok'  => $k->gaji_pokok,
+                            'bonus'       => 0,
+                            'komisi'      => $totalKomisiBaru,
+                            'potongan'    => $totalMinus,
+                            'total_gaji'  => ($k->gaji_pokok + $totalKomisiBaru) - $totalMinus,
+                            'status'      => 'draft',
+                        ]);
+
+                        if ($minusItems->count() > 0) {
+                            LaporanMinusKaryawan::whereIn('id', $minusItems->pluck('id'))
+                                ->update(['gaji_karyawan_id' => $gaji->id]);
+                        }
+                        $createdCount++;
+                    }
                 }
             }
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => "Berhasil generate {$count} draft gaji untuk periode {$periode}.",
-            ]);
+            $msgParts = [];
+            if ($createdCount > 0) $msgParts[] = "{$createdCount} draft baru dibuat";
+            if ($updatedCount > 0) $msgParts[] = "{$updatedCount} draft diperbarui";
+            if ($skippedCount > 0) $msgParts[] = "{$skippedCount} dilewati (sudah dibayar)";
+
+            $message = "Generate gaji periode {$periode} selesai. " . implode(', ', $msgParts) . '.';
+
+            return response()->json(['success' => true, 'message' => $message]);
         } catch (\Throwable $e) {
             DB::rollBack();
             return response()->json(['message' => 'Gagal: ' . $e->getMessage()], 500);
@@ -413,18 +559,50 @@ class GajiKaryawanController extends Controller
     public function updateKomisiSettings(Request $request)
     {
         $request->validate([
-            'komisi' => 'required|array',
-            'komisi.*' => 'required|integer|min:0',
+            'komisi'                  => 'nullable|array',
+            'komisi.*'                => 'nullable|integer|min:0',
+            'tipe_komisi'             => 'nullable|array',
+            'tipe_komisi.*'           => 'nullable|in:rp,persen',
+            
+            // ✅ Pastikan validasi untuk komisi web ada
+            'komisi_web'              => 'nullable|array', 
+            'komisi_web.*'            => 'nullable|integer|min:0',
+            'tipe_komisi_web'         => 'nullable|array', 
+            'tipe_komisi_web.*'       => 'nullable|in:rp,persen',
+            
+            'komisi_host_live_global' => 'required|integer|min:0',
         ]);
 
         DB::beginTransaction();
         try {
-            foreach ($request->komisi as $storeId => $nominal) {
+            // Ambil semua ID toko dari request komisi (untuk handle toko brilink maupun non-brilink)
+            $storeIds = array_unique(array_merge(
+                array_keys($request->komisi ?? []),
+                array_keys($request->komisi_web ?? [])
+            ));
+
+            foreach ($storeIds as $storeId) {
+                $tipe = $request->tipe_komisi[$storeId] ?? 'rp';
+                if (!in_array($tipe, ['rp', 'persen'], true)) $tipe = 'rp';
+                $nominal = isset($request->komisi[$storeId]) ? (int) $request->komisi[$storeId] : 0;
+
+                $komisiWeb = isset($request->komisi_web[$storeId]) ? (int) $request->komisi_web[$storeId] : 0;
+                $tipeWeb = $request->tipe_komisi_web[$storeId] ?? 'rp';
+                if (!in_array($tipeWeb, ['rp', 'persen'], true)) $tipeWeb = 'rp';
+
                 StoreKomisiSetting::updateOrCreate(
                     ['store_id' => $storeId],
-                    ['komisi_per_transaksi' => (int) $nominal]
+                    [
+                        'komisi_per_transaksi'    => $nominal,
+                        'tipe_komisi'             => $tipe,
+                        'komisi_web_per_trx'      => $komisiWeb, // ✅ Simpan GMV
+                        'tipe_komisi_web'         => $tipeWeb,   // ✅ Simpan tipe GMV
+                        'komisi_host_live_global' => (int) $request->komisi_host_live_global,
+                    ]
                 );
             }
+
+            StoreKomisiSetting::setKomisiHostLiveGlobal((int) $request->komisi_host_live_global);
 
             DB::commit();
             return response()->json(['success' => true, 'message' => 'Pengaturan komisi berhasil disimpan.']);

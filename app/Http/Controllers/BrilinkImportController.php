@@ -377,12 +377,14 @@ class BrilinkImportController extends Controller
 
             'total_pengeluaran_riil'     => 0,
             'total_pindah_saldo'         => 0,
-            'volume_transaksi_agen'      => $safeInt('B18'),
-            'saldo_awal_total'           => $safeInt('B44'),
-            'saldo_akhir_total'          => $safeInt('B68'),
+            
+            'volume_transaksi_agen'      => $safeInt('B19'),
+            'saldo_awal_total'           => $safeInt('B45'),
+            'saldo_akhir_total'          => $safeInt('B69'),
             'manual_validasi_kas_uang'   => $safeInt('B24'),
-            'laba_kasir_pintar'          => $safeInt('B72'),
-            'penambahan_brangkas'        => $safeInt('B73'),
+            
+            'laba_kasir_pintar'          => $safeInt('B73'),
+            'penambahan_brangkas'        => $safeInt('B74'),
         ];
     }
 
@@ -391,7 +393,8 @@ class BrilinkImportController extends Controller
         $accounts = [];
         $awalMap = [];
 
-        for ($r = 27; $r <= 47; $r++) {
+        // ✅ SALDO AWAL: Dari baris 32 sampai 48 (sebelumnya 27-47)
+        for ($r = 32; $r <= 48; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
 
@@ -411,7 +414,8 @@ class BrilinkImportController extends Controller
             ];
         }
 
-        for ($r = 51; $r <= 72; $r++) {
+        // ✅ SALDO AKHIR: Dari baris 55 sampai 71 (sebelumnya 51-72)
+        for ($r = 55; $r <= 71; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
 

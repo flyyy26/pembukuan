@@ -190,6 +190,62 @@ class TiktokImportController extends Controller
             ->with('success', 'Import selesai. ' . implode('. ', $messages) . '. Rekonsiliasi otomatis dijalankan.');
     }
 
+    public function destroy($id)
+    {
+        // Cari berdasarkan ID saja, tanpa filter tipe dulu
+        $import = Import::find($id);
+
+        // Jika data tidak ditemukan sama sekali (mungkin sudah dihapus atau ID salah)
+        if (!$import) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data import tidak ditemukan. Mungkin sudah dihapus sebelumnya.'
+            ], 404);
+        }
+
+        // Cek apakah ini benar-benar import TikTok
+        if (!in_array($import->tipe, ['tiktok_order', 'tiktok_income'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data ini bukan bagian dari import TikTok.'
+            ], 400);
+        }
+
+        $storeId = $import->store_id;
+
+        DB::beginTransaction();
+        try {
+            // Hapus data turunan berdasarkan tipe import
+            if ($import->tipe === 'tiktok_order') {
+                TiktokOrderItem::where('import_id', $import->id)->delete();
+            } elseif ($import->tipe === 'tiktok_income') {
+                TiktokIncome::where('import_id', $import->id)->delete();
+            }
+
+            // Hapus record import utama
+            $import->delete();
+
+            // Rekonsiliasi ulang untuk memperbarui tabel Sales (agar data yang dihapus hilang dari laporan)
+            if ($storeId) {
+                \Artisan::call('tiktok:reconcile', ['store_id' => $storeId]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data import beserta transaksi terkait berhasil dihapus.'
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     /**
      * Parse file Order TikTok.
      */

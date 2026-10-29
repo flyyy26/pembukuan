@@ -274,6 +274,19 @@
                 </div>
             </div>
 
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
+                <div class="flex items-center justify-between mb-2">
+                    <div class="w-7 h-7 sm:w-8 sm:h-8 bg-blue-100 rounded-lg flex items-center justify-center">
+                        <iconify-icon icon="akar-icons:bank" class="text-blue-600 text-base sm:text-lg"></iconify-icon>
+                    </div>
+                </div>
+                <div class="text-[10px] sm:text-xs text-gray-500 mb-1 leading-tight">Operational BRILink</div>
+                <div class="text-sm sm:text-lg md:text-xl font-bold text-gray-800 break-words">
+                    <span class="text-[10px] sm:text-xs text-gray-400 font-normal">Rp</span>
+                    {{ number_format($breakdownPengeluaran['op_brilink'], 0, ',', '.') }}
+                </div>
+            </div>
+
             {{-- 14. Volume Transaksi Agen --}}
             <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-3 sm:p-4">
                 <div class="flex items-center justify-between mb-2">
@@ -582,7 +595,8 @@
                 </div>
                 
                 <div class="space-y-3">
-                    @php                        $pengeluaranItems = [
+                    @php                        
+                        $pengeluaranItems = [
                             ['label' => 'Pindah Saldo Kas Internal', 'value' => $breakdownPengeluaran['pindah_saldo'], 'icon' => 'mdi:swap-horizontal', 'color' => 'text-orange-600'],
                             ['label' => 'Top Up PPOB',               'value' => $breakdownPengeluaran['topup_ppob'],   'icon' => 'mdi:wallet-plus',     'color' => 'text-cyan-600'],
                             ['label' => 'Top Up Pulsa',              'value' => $breakdownPengeluaran['topup_pulsa'],  'icon' => 'mdi:cellphone-arrow-down', 'color' => 'text-sky-600'],
@@ -591,6 +605,7 @@
                             ['label' => 'Piutang Lain-lain',         'value' => $breakdownPengeluaran['piutang_lain'], 'icon' => 'mdi:account-cash',    'color' => 'text-amber-600'],
                             ['label' => 'Prive',                     'value' => $breakdownPengeluaran['prive'],        'icon' => 'mdi:cash-minus',      'color' => 'text-red-600'],
                             ['label' => 'Operasional Konveksi',      'value' => $breakdownPengeluaran['operasional'],  'icon' => 'mdi:store',           'color' => 'text-gray-700'],
+                            ['label' => 'Operational BRILink',       'value' => $breakdownPengeluaran['op_brilink'],   'icon' => 'akar-icons:bank',        'color' => 'text-blue-600'],
                         ];
                     @endphp
 

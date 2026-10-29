@@ -189,10 +189,72 @@
     </table>
 @endif
 
+{{-- ============ BAGIAN D: PENGURANG (HUTANG & TABUNGAN) ============ --}}
+<div class="section-title">D. Pengurang: Hutang & Tabungan</div>
+
+<table class="items">
+    <thead>
+        <tr>
+            <th style="width: 50%;">Keterangan</th>
+            <th style="width: 25%;" class="text-right">Nominal</th>
+            <th style="width: 25%;" class="text-right">Zakat (2,5%)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {{-- HUTANG --}}
+        @forelse($hutangList as $h)
+            <tr>
+                <td>Hutang: {{ $h->nama_pemberi_hutang }} ({{ $h->tanggal->format('d/m/Y') }})</td>
+                <td class="text-right">Rp {{ number_format($h->nominal, 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format(round($h->nominal * 0.025), 0, ',', '.') }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="3" class="text-center">Tidak ada hutang.</td>
+            </tr>
+        @endforelse
+
+        {{-- TABUNGAN --}}
+        @forelse($tabunganList as $t)
+            <tr>
+                <td>Tabungan: {{ $t['nama'] }}</td>
+                <td class="text-right">Rp {{ number_format($t['saldo'], 0, ',', '.') }}</td>
+                <td class="text-right">Rp {{ number_format(round($t['saldo'] * 0.025), 0, ',', '.') }}</td>
+            </tr>
+        @empty
+            <tr>
+                <td colspan="3" class="text-center">Tidak ada tabungan.</td>
+            </tr>
+        @endforelse
+        
+        <tr class="total-row" style="background-color: #fef2f2; color: #991b1b;">
+            <td class="text-right">Total Pengurang</td>
+            <td class="text-right">Rp {{ number_format($totalHutang + $totalTabungan, 0, ',', '.') }}</td>
+            <td class="text-right">- Rp {{ number_format($zakatHutang + $zakatTabungan, 0, ',', '.') }}</td>
+        </tr>
+    </tbody>
+</table>
+
 {{-- ============ GRAND TOTAL ============ --}}
-<div class="grand">
-    <div class="grand-label">Total Zakat (Saldo + Piutang + Barang)</div>
-    <div class="grand-value">Rp {{ number_format($totalZakat, 0, ',', '.') }}</div>
+<div style="margin-top: 16px;">
+    
+    <table class="items" style="margin-bottom: 8px; border: none;">
+        <tbody>
+            <tr>
+                <td style="width: 70%; text-align: right; font-size: 11px; border: none; padding-bottom: 4px;">Subtotal Zakat Aset (Saldo + Piutang + Barang)</td>
+                <td style="width: 30%; text-align: right; font-size: 11px; border: none; font-weight: bold; padding-bottom: 4px;">Rp {{ number_format($zakatSaldo + $zakatPiutang + $zakatBarang, 0, ',', '.') }}</td>
+            </tr>
+            <tr>
+                <td style="text-align: right; font-size: 11px; border: none; color: #b91c1c; padding-bottom: 8px;">(-) Zakat Pengurang (Hutang & Tabungan)</td>
+                <td style="text-align: right; font-size: 11px; border: none; font-weight: bold; color: #b91c1c; padding-bottom: 8px;">- Rp {{ number_format($zakatHutang + $zakatTabungan, 0, ',', '.') }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <div class="grand" style="margin-top: 0;">
+        <div class="grand-label">Total Zakat Akhir (2,5%)</div>
+        <div class="grand-value">Rp {{ number_format($totalZakat, 0, ',', '.') }}</div>
+    </div>
 </div>
 
 {{-- ============ TANDA TANGAN ============ --}}

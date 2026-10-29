@@ -41,7 +41,16 @@
             'section' => 'Utama',
             'items' => [
                 ['route' => 'shopee.index',  'label' => 'Laporan Shopee',  'icon' => 'mdi:shopping-outline'],
-                ['route' => 'tiktok.index',  'label' => 'Laporan TikTok',  'icon' => 'mdi:music-note-outline'],
+                [
+                    'route' => 'tiktok.index',
+                    'label' => 'Laporan TikTok',
+                    'icon' => 'mdi:music-note-outline',
+                    'submenu' => [
+                        ['route' => 'tiktok.index', 'label' => 'Ringkasan & Transaksi'],
+                        ['route' => 'tiktok.live.index', 'label' => 'Laporan Live'], // ✅ Menu Baru
+                    ]
+                ],
+                ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'],
             ],
         ],
         [
@@ -95,7 +104,6 @@
     ];
 @endphp
 
-{{-- 🔥 HAPUS overflow-hidden DI SINI --}}
 <div class="flex min-h-screen relative">
 
     {{-- ============ OVERLAY (Latar Gelap saat Sidebar Terbuka di HP) ============ --}}
@@ -104,7 +112,6 @@
          onclick="toggleSidebar()"></div>
 
     {{-- ============ SIDEBAR ============ --}}
-    <!-- Di desktop: w-64 tetap. Di mobile: posisi fixed, geser ke kiri (-translate-x-full) -->
     <aside id="sidebar" 
            class="w-64 bg-white border-r border-gray-200 flex flex-col fixed h-screen z-50 transition-transform duration-300 transform -translate-x-full lg:translate-x-0">
 
@@ -215,11 +222,11 @@
     </aside>
 
     {{-- ============ MAIN CONTENT ============ --}}
-    <!-- Di desktop margin-left 64 (ml-64), di mobile margin-left 0 (ml-0) -->
-    <div class="flex-1 w-full min-h-screen transition-all duration-300 ml-0 lg:ml-64 flex flex-col">
+    {{-- KUNCI UTAMA: Tambahkan w-full dan min-w-0 agar konten tidak memaksa layout melebar --}}
+    <div class="flex-1 w-full min-w-0 min-h-screen transition-all duration-300 ml-0 lg:ml-64 flex flex-col">
 
         {{-- Topbar (Sticky) --}}
-        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-30">
+        <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-30 w-full">
             
             <div class="flex items-center gap-3">
                 {{-- Tombol Hamburger (Hanya muncul di Mobile/Tablet) --}}
@@ -303,7 +310,8 @@
         </header>
 
         {{-- Content --}}
-        <main class="p-4 sm:p-6 lg:p-8 flex-1 overflow-x-hidden">
+        {{-- KUNCI KEDUA: main harus w-full dan overflow-x-hidden --}}
+        <main class="p-4 sm:p-6 lg:p-8 flex-1 w-full overflow-x-hidden">
             @yield('content')
         </main>
     </div>

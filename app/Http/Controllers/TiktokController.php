@@ -7,6 +7,10 @@ use App\Models\Store;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Barryvdh\DomPDF\Facade\Pdf;
+use App\Models\TiktokLiveSession;
+use App\Models\TiktokLiveProduct;
+use Illuminate\Support\Facades\DB;
+use App\Models\Karyawan;
 
 class TiktokController extends Controller
 {
@@ -468,5 +472,133 @@ class TiktokController extends Controller
         $sales = $query->orderBy('tanggal', 'desc')->get();
 
         return view('tiktok.partials.sku-detail-modal', compact('sales', 'sku'))->render();
+    }
+
+    public function liveIndex(Request $request)
+    {
+        $storeId = $request->input('store', 'all');
+        $search = trim($request->input('search', ''));
+        $from = $request->input('from');
+        $to = $request->input('to');
+
+        $stores = Store::where('marketplace', 'tiktok')->orderBy('nama_toko')->get();
+        
+        if (!$storeId) $storeId = 'all';
+        $store = ($storeId !== 'all') ? Store::find($storeId) : null;
+
+        $query = TiktokLiveSession::with(['store', 'karyawan', 'products'])
+            ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
+            ->when($from, fn($q) => $q->whereDate('tanggal', '>=', $from))
+            ->when($to, fn($q) => $q->whereDate('tanggal', '<=', $to));
+
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('keterangan', 'LIKE', "%{$search}%")
+                ->orWhereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $liveSessions = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+        
+        // Ambil semua karyawan untuk dropdown modal (termasuk yang tidak aktif untuk history)
+        $karyawans = Karyawan::orderBy('nama')->get();
+
+        return view('tiktok.live', compact('liveSessions', 'stores', 'storeId', 'store', 'search', 'from', 'to', 'karyawans'));
+    }
+
+    public function liveStoreAjax(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'nullable|exists:stores,id',
+            'karyawan_id' => 'required|exists:karyawan,id',
+            'tanggal' => 'required|date',
+            'waktu_mulai' => 'required',
+            'waktu_selesai' => 'required',
+            'total_transaksi' => 'required',
+            'produk' => 'nullable|array',
+            'produk.*.nama_produk' => 'required|string',
+            'produk.*.ukuran' => 'nullable|string',
+            'produk.*.qty' => 'required|integer|min:1',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $session = TiktokLiveSession::create([
+                'store_id' => $request->store_id,
+                'karyawan_id' => $request->karyawan_id,
+                'tanggal' => $request->tanggal,
+                'waktu_mulai' => $request->waktu_mulai,
+                'waktu_selesai' => $request->waktu_selesai,
+                'total_transaksi' => (int) $request->total_transaksi,
+                'keterangan' => $request->keterangan,
+            ]);
+
+            if ($request->has('produk')) {
+                foreach ($request->produk as $p) {
+                    $session->products()->create([
+                        'nama_produk' => $p['nama_produk'],
+                        'ukuran' => $p['ukuran'] ?? null,
+                        'qty' => $p['qty'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Sesi Live berhasil disimpan.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function liveUpdateAjax(Request $request, TiktokLiveSession $session)
+    {
+        $request->validate([
+            'store_id' => 'nullable|exists:stores,id',
+            'karyawan_id' => 'required|exists:karyawan,id',
+            'tanggal' => 'required|date',
+            'waktu_mulai' => 'required',
+            'waktu_selesai' => 'required',
+            'total_transaksi' => 'required',
+            'produk' => 'nullable|array',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $session->update([
+                'store_id' => $request->store_id,
+                'karyawan_id' => $request->karyawan_id,
+                'tanggal' => $request->tanggal,
+                'waktu_mulai' => $request->waktu_mulai,
+                'waktu_selesai' => $request->waktu_selesai,
+                'total_transaksi' => (int) $request->total_transaksi,
+                'keterangan' => $request->keterangan,
+            ]);
+
+            // Hapus produk lama, ganti dengan yang baru
+            $session->products()->delete();
+
+            if ($request->has('produk')) {
+                foreach ($request->produk as $p) {
+                    $session->products()->create([
+                        'nama_produk' => $p['nama_produk'],
+                        'ukuran' => $p['ukuran'] ?? null,
+                        'qty' => $p['qty'],
+                    ]);
+                }
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Sesi Live berhasil diperbarui.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal update: ' . $e->getMessage()], 500);
+        }
+    }
+
+    public function liveDestroyAjax(TiktokLiveSession $session)
+    {
+        $session->delete();
+        return response()->json(['success' => true, 'message' => 'Sesi Live berhasil dihapus.']);
     }
 }

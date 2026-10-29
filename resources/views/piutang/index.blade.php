@@ -3,7 +3,7 @@
 @section('title', 'Laporan Piutang')
 
 @section('content')
-<div class="w-full">
+<div class="w-full min-w-0">
 
     {{-- HEADER --}}
     <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
@@ -19,78 +19,78 @@
     </div>
 
     {{-- FILTER --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
-        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
+    {{-- Diperbaiki: Menggunakan xl:flex-row agar di Desktop menjadi 1 baris --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6 w-full">
+        <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 xl:flex xl:flex-row gap-3 xl:items-end w-full">
             
-            <div class="w-full md:w-48">
+            {{-- Toko --}}
+            <div class="w-full xl:w-40 flex-shrink-0">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
-                <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent">
-                    <option value="all" {{ $storeId === 'all' ? 'selected' : '' }}>Semua Toko</option>
-                    @foreach($stores as $s)
-                        <option value="{{ $s->id }}" {{ $storeId == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
+                <select name="store" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
+                    <option value="all">Semua Toko</option>
+                    @foreach($stores ?? [] as $s)
+                        <option value="{{ $s->id }}" {{ request('store') == $s->id ? 'selected' : '' }}>{{ $s->nama_toko }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="w-full md:w-48">
+            {{-- Kategori Piutang --}}
+            <div class="w-full xl:w-44 flex-shrink-0">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Kategori Piutang</label>
-                <select name="kategori" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent">
-                    <option value="all" {{ $kategoriFilter === 'all' ? 'selected' : '' }}>Semua Kategori</option>
-                    @foreach($kategoriList as $kat)
-                        <option value="{{ $kat }}" {{ $kategoriFilter == $kat ? 'selected' : '' }}>{{ $kat }}</option>
+                <select name="kategori" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
+                    <option value="all">Semua Kategori</option>
+                    {{-- Pastikan Controller mengirim variabel $kategoriList --}}
+                    @foreach($kategoriList ?? [] as $kat)
+                        <option value="{{ $kat }}" {{ request('kategori') == $kat ? 'selected' : '' }}>{{ $kat }}</option>
                     @endforeach
                 </select>
             </div>
 
-            <div class="w-full md:w-40">
+            {{-- Status --}}
+            <div class="w-full xl:w-36 flex-shrink-0">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Status</label>
-                <select name="status" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-amber-600 focus:outline-none">
-                    <option value="all" {{ $status === 'all' ? 'selected' : '' }}>Semua</option>
-                    <option value="belum" {{ $status === 'belum' ? 'selected' : '' }}>Belum Lunas</option>
-                    <option value="sudah" {{ $status === 'sudah' ? 'selected' : '' }}>Sudah Lunas</option>
+                <select name="status" onchange="this.form.submit()" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
+                    <option value="all" {{ request('status') === 'all' ? 'selected' : '' }}>Semua</option>
+                    <option value="belum_lunas" {{ request('status') === 'belum_lunas' ? 'selected' : '' }}>Belum Lunas</option>
+                    <option value="lunas" {{ request('status') === 'lunas' ? 'selected' : '' }}>Lunas</option>
                 </select>
             </div>
 
-            <div class="w-full sm:col-span-2 md:col-span-1 md:flex-1">
+            {{-- Cari Keterangan --}}
+            <div class="w-full xl:flex-1 min-w-[150px]">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Cari Keterangan</label>
-                <div class="relative">
-                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                        <iconify-icon icon="mdi:magnify" class="text-gray-400 text-lg"></iconify-icon>
-                    </div>
-                    <input type="text" name="search" value="{{ $search }}" placeholder="Cari keterangan piutang..." 
-                        class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent">
-                </div>
+                <input type="text" name="search" value="{{ request('search') }}" placeholder="Cari ket..." class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
             </div>
 
-            <div class="w-full sm:w-auto">
+            {{-- Dari Tanggal --}}
+            <div class="w-full xl:w-36 flex-shrink-0">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Dari Tanggal</label>
-                {{-- value={{ $from }} otomatis kosong jika tidak ada request --}}
-                <input type="date" name="from" value="{{ $from }}" 
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent">
+                <input type="date" name="from" value="{{ $from }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
             </div>
 
-            <div class="w-full sm:w-auto">
+            {{-- Sampai Tanggal --}}
+            <div class="w-full xl:w-36 flex-shrink-0">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Sampai Tanggal</label>
-                <input type="date" name="to" value="{{ $to }}" 
-                    class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-600 focus:border-transparent">
+                <input type="date" name="to" value="{{ $to }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-600 focus:outline-none">
             </div>
 
-            <div class="flex gap-2 w-full md:w-auto mt-2 md:mt-0">
-                <button type="submit" class="flex-1 md:flex-none bg-amber-600 text-white px-5 py-2 rounded-lg hover:bg-amber-700 transition text-sm font-medium flex items-center justify-center gap-2">
+            {{-- Tombol Aksi --}}
+            <div class="flex gap-2 w-full sm:col-span-2 xl:col-span-1 xl:w-auto mt-2 xl:mt-0 flex-shrink-0">
+                <button type="submit" class="flex-1 xl:flex-none bg-orange-500 text-white px-5 py-2 rounded-lg hover:bg-orange-600 transition text-sm font-medium flex items-center justify-center gap-2">
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon> Filter
                 </button>
-                {{-- Tombol reset muncul jika ada filter aktif --}}
-                @if($search || $status !== 'all' || $from || $to || $storeId !== 'all' || $kategoriFilter !== 'all')
-                    <a href="{{ route('piutang.index') }}" class="flex-1 md:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
+                @if(request()->anyFilled(['store', 'kategori', 'status', 'search', 'from', 'to']))
+                    <a href="{{ url()->current() }}" class="flex-1 xl:flex-none text-gray-500 hover:text-gray-700 px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-center transition flex items-center justify-center">
                         Reset
                     </a>
                 @endif
             </div>
+
         </form>
     </div>
 
     {{-- SUMMARY --}}
-    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+    <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6 w-full">
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4">
             <div class="text-xs text-gray-500 mb-1">Total Piutang Awal</div>
             <div class="text-lg sm:text-xl font-bold text-gray-800">Rp {{ number_format($summary['total_nominal'], 0, ',', '.') }}</div>
@@ -106,22 +106,20 @@
     </div>
 
     {{-- DATA PIUTANG --}}
-    <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+    <div class="bg-white rounded-xl shadow-sm border border-gray-100 w-full overflow-hidden">
         <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Daftar Piutang</h3>
             <div class="flex flex-col sm:flex-row items-center gap-2 w-full sm:w-auto">
                 <div class="text-[10px] sm:text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max order-3 sm:order-1">{{ $summary['jumlah_data'] }} Data</div>
                 
-                {{-- TOMBOL BAYAR BULK (Hanya muncul jika kategori dipilih) --}}
                 @if($kategoriFilter !== 'all')
                     <button type="button" onclick="openBulkBayarModal()"
                             class="w-full sm:w-auto order-1 sm:order-2 inline-flex items-center justify-center gap-2 bg-emerald-600 text-white px-4 py-1.5 rounded-lg hover:bg-emerald-700 transition text-xs font-medium shadow-sm">
                         <iconify-icon icon="mdi:cash-multiple" class="text-sm"></iconify-icon>
-                        Bayar Bulk
+                        Bayar Semua
                     </button>
                 @endif
 
-                {{-- TOMBOL PRINT INVOICE --}}
                 <a href="{{ route('piutang.invoice-pdf', [
                         'store' => $storeId, 
                         'from' => $from, 
@@ -144,9 +142,10 @@
                 <span class="text-sm">Tidak ada data piutang untuk filter ini.</span>
             </div>
         @else
-            {{-- TAMPILAN TABEL (DESKTOP) --}}
-            <div class="hidden md:block overflow-x-auto">
-                <table class="w-full text-sm">
+            {{-- TAMPILAN TABEL (DESKTOP & TABLET) --}}
+            {{-- Diperbaiki: Gunakan md:block dan overflow-x-auto --}}
+            <div class="hidden md:block w-full overflow-x-auto relative">
+                <table class="w-full text-sm min-w-[900px]">
                     <thead class="bg-gray-50 border-b border-gray-100">
                         <tr>
                             <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Tanggal</th>
@@ -166,7 +165,7 @@
                         @foreach($piutangList as $p)
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="py-3 px-4 text-xs text-gray-700 whitespace-nowrap">{{ $p['tanggal_label'] }}</td>
-                                <td class="py-3 px-4 text-gray-800">{{ $p['keterangan'] }}</td>
+                                <td class="py-3 px-4 text-gray-800 min-w-[150px]">{{ $p['keterangan'] }}</td>
                                 <td class="py-3 px-4 text-xs whitespace-nowrap">
                                     <span class="bg-amber-50 text-amber-700 border border-amber-200 px-2 py-1 rounded text-[10px]">
                                         {{ $p['kategori'] }}

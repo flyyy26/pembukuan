@@ -17,6 +17,7 @@ use App\Http\Controllers\ZakatController;
 use App\Http\Controllers\HutangController;
 use App\Http\Controllers\PiutangController;
 use App\Http\Controllers\ZakatPembayaranController;
+use App\Http\Controllers\WebSalesReportController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -26,14 +27,34 @@ Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
 Route::post('/login', [AuthController::class, 'login'])->name('login.post');
 Route::post('/logout', [AuthController::class, 'logout'])->name('logout');
 
+Route::get('/test-web-db', function () {
+        try {
+            $tables = DB::connection('mysql_web')->select('SHOW TABLES');
+            return response()->json([
+                'status' => 'OK',
+                'tables' => $tables,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json(['error' => $e->getMessage()], 500);
+        }
+    });
 
 // ============================================
 // SEMUA ROUTE YANG BUTUH LOGIN
 // ============================================
 Route::middleware('auth')->group(function () {
 
+
+
     Route::get('/', function () {
         return redirect('/shopee');
+    });
+
+    Route::prefix('reports/web-sales')->group(function () {
+        Route::get('/', [WebSalesReportController::class, 'index'])->name('reports.web-sales.index');
+        Route::get('/{id}', [WebSalesReportController::class, 'show'])->name('reports.web-sales.show');
+        Route::post('/sync', [WebSalesReportController::class, 'syncNow'])->name('reports.web-sales.sync');
+        Route::delete('/web-sales/{id}', [WebSalesReportController::class, 'destroy'])->name('reports.web-sales.destroy');
     });
 
     // ============ SHOPEE ============
@@ -205,4 +226,11 @@ Route::middleware('auth')->group(function () {
     Route::post('/piutang/{pengeluaran}/bayar', [PiutangController::class, 'bayarPiutang'])->name('piutang.bayar');
     Route::get('/piutang/invoice-pdf', [PiutangController::class, 'printInvoiceBulk'])->name('piutang.invoice-pdf');
     Route::post('/piutang/bayar-bulk', [PiutangController::class, 'bayarPiutangBulk'])->name('piutang.bayar-bulk');
+
+    // Laporan Live TikTok
+    Route::get('/tiktok/live', [TiktokController::class, 'liveIndex'])->name('tiktok.live.index');
+    Route::post('/tiktok/live/ajax', [TiktokController::class, 'liveStoreAjax'])->name('tiktok.live.store-ajax');
+    Route::put('/tiktok/live/{session}/ajax', [TiktokController::class, 'liveUpdateAjax'])->name('tiktok.live.update-ajax');
+    Route::delete('/tiktok/live/{session}/ajax', [TiktokController::class, 'liveDestroyAjax'])->name('tiktok.live.destroy-ajax');
+    Route::delete('/tiktok/import/{id}', [TiktokImportController::class, 'destroy'])->name('tiktok.import.destroy');
 });

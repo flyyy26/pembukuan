@@ -300,7 +300,9 @@ class ZakatController extends Controller
         $storeId = $request->input('store', 'all');
         $store   = ($storeId !== 'all') ? Store::find($storeId) : null;
 
-        // (SALDO & PIUTANG sama seperti index)
+        // ============================================
+        // 1) SALDO
+        // ============================================
         $reportsQuery = BrilinkReport::query()
             ->when($storeId !== 'all', fn($q) => $q->where('store_id', $storeId))
             ->orderByDesc('periode_start')
@@ -354,6 +356,9 @@ class ZakatController extends Controller
         $totalSaldo += $totalSaldoOnline;
         $zakatSaldo += $zakatSaldoOnline;
 
+        // ============================================
+        // 2) PIUTANG
+        // ============================================
         $piutangQuery = BrilinkPengeluaran::query()
             ->whereRaw('LOWER(kategori) LIKE ?', ['%piutang%'])
             ->when($storeId !== 'all', function ($q) use ($storeId) {
@@ -382,7 +387,9 @@ class ZakatController extends Controller
         });
         $zakatPiutang = (int) round($totalPiutang * self::RATE);
 
-        // BARANG DARI TABEL BARU
+        // ============================================
+        // 3) BARANG
+        // ============================================
         $barangList = ZakatBarangMandiri::orderByDesc('id')->get()->map(function ($b) {
             $total = $b->qty * $b->harga_satuan;
             return [
@@ -397,7 +404,32 @@ class ZakatController extends Controller
         $totalBarang = (int) $barangList->sum('total');
         $zakatBarang = (int) round($totalBarang * self::RATE);
 
-        $totalZakat = $zakatSaldo + $zakatPiutang + $zakatBarang;
+        // ============================================
+        // 4) HUTANG & TABUNGAN (PENGURANG)
+        // ============================================
+        $hutangList = Hutang::orderByDesc('tanggal')->get();
+        $totalHutang = (int) $hutangList->sum('nominal');
+        $zakatHutang = (int) round($totalHutang * self::RATE);
+
+        $tabunganList = TabunganAccount::orderBy('nama')->get()->map(function ($acc) {
+            $setoran = $acc->transactions()->where('tipe', 'setoran')->sum('nominal');
+            $penarikan = $acc->transactions()->where('tipe', 'penarikan')->sum('nominal');
+            return [
+                'nama' => $acc->nama,
+                'saldo' => max(0, $setoran - $penarikan),
+            ];
+        })->filter(fn($a) => $a['saldo'] > 0);
+
+        $totalTabungan = (int) $tabunganList->sum('saldo');
+        $zakatTabungan = (int) round($totalTabungan * self::RATE);
+
+        // ============================================
+        // 5) TOTAL ZAKAT AKHIR
+        // ============================================
+        $totalZakatAset = $zakatSaldo + $zakatPiutang + $zakatBarang;
+        $totalZakatKewajiban = $zakatHutang + $zakatTabungan;
+        $totalZakat = $totalZakatAset - $totalZakatKewajiban;
+        if ($totalZakat < 0) $totalZakat = 0;
 
         $pdf = Pdf::loadView('zakat.invoice-pdf', [
             'store'          => $store,
@@ -408,13 +440,20 @@ class ZakatController extends Controller
             'piutangList'    => $piutangList,
             'totalPiutang'   => $totalPiutang,
             'zakatPiutang'   => $zakatPiutang,
-            'saldoOnlineList'    => $saldoOnlineList,
-            'totalSaldoOnline'   => $totalSaldoOnline,
-            'zakatSaldoOnline'   => $zakatSaldoOnline,
+            'saldoOnlineList'=> $saldoOnlineList,
             'barangList'     => $barangList,
             'totalBarang'    => $totalBarang,
             'zakatBarang'    => $zakatBarang,
+            
+            // ✅ Data Pengurang
+            'hutangList'     => $hutangList,
+            'totalHutang'    => $totalHutang,
+            'zakatHutang'    => $zakatHutang,
+            'tabunganList'   => $tabunganList,
+            'totalTabungan'  => $totalTabungan,
+            'zakatTabungan'  => $zakatTabungan,
             'totalZakat'     => $totalZakat,
+
             'rate'           => self::RATE,
             'tanggalCetak'   => now()->format('d/m/Y H:i'),
         ])->setPaper('a4', 'portrait');

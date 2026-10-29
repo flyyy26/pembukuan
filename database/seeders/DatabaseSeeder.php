@@ -35,5 +35,8 @@ class DatabaseSeeder extends Seeder
         }
 
         $this->command->info('Seeded ' . count($products) . ' products');
+        $this->call([
+            KomisiHostLiveGlobalSeeder::class,
+        ]);
     }
 }

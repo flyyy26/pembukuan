@@ -49,6 +49,131 @@
         </form>
     </div>
 
+    {{-- ======================================================= --}}
+    {{-- TABEL PROFIT HARIAN --}}
+    {{-- ======================================================= --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6 mt-6">
+        <div class="bg-gray-800 px-4 sm:px-6 py-4 border-b border-gray-700 flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:table" class="text-white text-xl"></iconify-icon>
+                <h3 class="font-bold text-white text-sm sm:text-lg">Laporan Profit Harian</h3>
+            </div>
+            <span class="text-[10px] sm:text-xs text-gray-400 font-mono">
+                Bulan: {{ \Carbon\Carbon::parse($from)->translatedFormat('F Y') }}
+            </span>
+        </div>
+
+        <div class="overflow-x-auto overflow-y-auto max-h-[600px] p-0 sm:p-0 relative">
+            @if(empty($dailyProfit))
+                <div class="py-12 text-center text-gray-500">
+                    <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                    Belum ada data profit untuk filter ini.
+                </div>
+            @else
+                <table class="w-full text-sm border-collapse min-w-max">
+                    <thead class="sticky top-0 z-20 shadow-sm bg-gray-100">
+                        {{-- Header Tingkat 1 --}}
+                        <tr class="bg-gray-100">
+                            <th class="border border-gray-200 p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100" rowspan="2">Tanggal</th>
+                            <th class="border border-gray-200 p-2 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100" colspan="7">Profit & Pendapatan</th>
+                            <th class="border border-gray-200 p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100" rowspan="2">Prive</th>
+                            <th class="border border-gray-200 p-3 text-center text-[10px] sm:text-xs font-semibold text-blue-600 uppercase whitespace-nowrap bg-gray-100" rowspan="2">Profit Bersih</th>
+                        </tr>
+                        {{-- Header Tingkat 2 --}}
+                        <tr class="bg-gray-50">
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">Profit Pulsa</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">Profit PPOB</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">BRILink Admin</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">MBanking Admin</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">Barang Titip Jual</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">Komisi Merchant (KMC)</th>
+                            <th class="border border-gray-200 p-2 text-right text-[9px] sm:text-[10px] font-semibold text-gray-500 uppercase whitespace-nowrap bg-gray-50">Laba Kasir Pintar</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100">
+                        @foreach($dailyProfit as $row)
+                            @php
+                                $isEmpty = ($row['pendapatan'] == 0 && $row['prive'] == 0);
+                            @endphp
+                            <tr class="hover:bg-gray-50 transition {{ $isEmpty ? 'opacity-50' : '' }}">
+                                <td class="p-2 sm:p-3 text-center text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
+                                    {{ $row['tanggal_label'] }}
+                                </td>
+                                
+                                {{-- 7 Kolom Profit & Pendapatan --}}
+                                <td class="p-2 sm:p-3 text-right {{ $row['profit_pulsa'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['profit_pulsa'] != 0 ? number_format($row['profit_pulsa'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['profit_ppob'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['profit_ppob'] != 0 ? number_format($row['profit_ppob'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['admin_brilink'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['admin_brilink'] != 0 ? number_format($row['admin_brilink'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['admin_mbanking'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['admin_mbanking'] != 0 ? number_format($row['admin_mbanking'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['titip_jual'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['titip_jual'] != 0 ? number_format($row['titip_jual'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['kmc'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['kmc'] != 0 ? number_format($row['kmc'], 0, ',', '.') : '-' }}
+                                </td>
+                                <td class="p-2 sm:p-3 text-right {{ $row['laba_kasir'] > 0 ? 'text-gray-800' : 'text-gray-400' }} text-[10px] sm:text-xs whitespace-nowrap">
+                                    {{ $row['laba_kasir'] != 0 ? number_format($row['laba_kasir'], 0, ',', '.') : '-' }}
+                                </td>
+
+                                {{-- Prive --}}
+                                <td class="p-2 sm:p-3 text-right {{ $row['prive'] > 0 ? 'text-red-600 font-semibold' : 'text-gray-400' }} text-xs sm:text-sm whitespace-nowrap">
+                                    {{ $row['prive'] > 0 ? '- ' . number_format($row['prive'], 0, ',', '.') : '-' }}
+                                </td>
+
+                                {{-- Profit Bersih --}}
+                                <td class="p-2 sm:p-3 text-right {{ $row['profit_bersih'] != 0 ? 'text-blue-600 font-bold' : 'text-gray-400' }} text-xs sm:text-sm whitespace-nowrap">
+                                    {{ $row['profit_bersih'] != 0 ? number_format($row['profit_bersih'], 0, ',', '.') : '-' }}
+                                </td>
+                            </tr>
+                        @endforeach
+                    </tbody>
+                    
+                    {{-- Footer Total --}}
+                    <tfoot class="bg-gray-50 border-t-2 border-gray-300">
+                        <tr>
+                            <td class="p-2 sm:p-3 font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap text-center">TOTAL</td>
+                            {{-- Total 7 Kolom Pendapatan --}}
+                            @php
+                                $sumPulsa = collect($dailyProfit)->sum('profit_pulsa');
+                                $sumPpob = collect($dailyProfit)->sum('profit_ppob');
+                                $sumBrilink = collect($dailyProfit)->sum('admin_brilink');
+                                $sumMb = collect($dailyProfit)->sum('admin_mbanking');
+                                $sumTitip = collect($dailyProfit)->sum('titip_jual');
+                                $sumKmc = collect($dailyProfit)->sum('kmc');
+                                $sumKasir = collect($dailyProfit)->sum('laba_kasir');
+                            @endphp
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumPulsa, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumPpob, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumBrilink, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumMb, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumTitip, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumKmc, 0, ',', '.') }}</td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-gray-800 text-[10px] sm:text-xs whitespace-nowrap">{{ number_format($sumKasir, 0, ',', '.') }}</td>
+                            
+                            {{-- Total Prive --}}
+                            <td class="p-2 sm:p-3 text-right font-bold text-red-700 text-xs sm:text-sm whitespace-nowrap">
+                                {{ $totalPriveHarian > 0 ? '- ' . number_format($totalPriveHarian, 0, ',', '.') : '-' }}
+                            </td>
+                            
+                            {{-- Total Profit Bersih --}}
+                            <td class="p-2 sm:p-3 text-right font-bold text-blue-700 text-sm sm:text-base whitespace-nowrap">
+                                {{ number_format($totalProfitBersihHarian, 0, ',', '.') }}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            @endif
+        </div>
+    </div>
+
     {{-- GRID CARD PROFIT: 2 KOLOM DI HP, 3 KOLOM DI DESKTOP --}}
     <div class="grid grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5 mb-6">
         
@@ -280,6 +405,19 @@
                         <span class="text-gray-600">MBanking Admin</span>
                         <span class="font-semibold text-gray-800">Rp {{ number_format($adminMbanking, 0, ',', '.') }}</span>
                     </div>
+                    
+                    {{-- ✅ BARU: Barang Titip Jual --}}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs sm:text-sm gap-0.5">
+                        <span class="text-gray-600">Barang Titip Jual</span>
+                        <span class="font-semibold text-gray-800">Rp {{ number_format($penjualanBarangTitipJual, 0, ',', '.') }}</span>
+                    </div>
+
+                    {{-- ✅ BARU: Komisi Merchant (KMC) --}}
+                    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs sm:text-sm gap-0.5">
+                        <span class="text-gray-600">Komisi Merchant (KMC)</span>
+                        <span class="font-semibold text-gray-800">Rp {{ number_format($totalKmc, 0, ',', '.') }}</span>
+                    </div>
+
                     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center text-xs sm:text-sm border-b border-gray-100 pb-2 gap-0.5">
                         <span class="text-gray-600">Laba Kasir Pintar</span>
                         <span class="font-semibold text-gray-800">Rp {{ number_format($labaKasirPintar, 0, ',', '.') }}</span>

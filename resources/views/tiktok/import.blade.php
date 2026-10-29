@@ -206,13 +206,13 @@
         <div class="overflow-x-auto">
             <table class="w-full text-sm">
                 <thead class="bg-gray-50 border-b border-gray-100">
-                    <tr>
+                                        <tr>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">File</th>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Toko</th>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Tipe</th>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Periode</th>
                         <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Baris</th>
-                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
+                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider w-24">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -247,17 +247,11 @@
                         </td>
                         <td class="py-3 px-4 text-center text-gray-700 font-medium">{{ $imp->total_rows }}</td>
                         <td class="py-3 px-4 text-center">
-                            @if($imp->status === 'imported')
-                                <span class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
-                                    <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon>
-                                    Berhasil
-                                </span>
-                            @else
-                                <span class="inline-flex items-center gap-1 bg-gray-50 text-gray-700 px-2 py-1 rounded-full text-xs font-medium">
-                                    {{ $imp->status }}
-                                </span>
-                            @endif
-                        </td>
+                        <button type="button" onclick="deleteImport({{ $imp->id }}, '{{ addslashes($imp->file_name) }}')"
+                            class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
+                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
+                        </button>
+                    </td>
                     </tr>
                     @empty
                     <tr>
@@ -286,4 +280,38 @@
     </div>
 
 </div>
+
+<script>
+    const CSRF_TOKEN_TIKTOK = document.querySelector('meta[name="csrf-token"]').content;
+
+    async function deleteImport(id, fileName) {
+        if (!confirm(`Yakin ingin menghapus data import "${fileName}"?\n\nSEMUA data transaksi (Order & Income) dari file ini akan ikut terhapus permanen, dan laporan penjualan akan dihitung ulang.`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/tiktok/import/${id}`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-TOKEN': CSRF_TOKEN_TIKTOK,
+                    'Accept': 'application/json',
+                }
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                alert(data.message || 'Gagal menghapus data.');
+                return;
+            }
+
+            // ✅ REFRESH HALAMAN SETELAH SUKSES MENGHAPUS
+            alert(data.message);
+            window.location.reload();
+
+        } catch (err) {
+            alert('Gagal menghapus: ' + err.message);
+        }
+    }
+</script>
 @endsection

@@ -17,9 +17,9 @@ class PiutangController extends Controller
         $status = $request->input('status', 'all');
         $kategoriFilter = $request->input('kategori', 'all');
 
-        // ✅ Tidak ada default tanggal, biarkan kosong
-        $fromInput = $request->input('from');
-        $toInput   = $request->input('to');
+        // ✅ Default tanggal: Awal bulan ini s/d Akhir bulan ini
+        $fromInput = $request->input('from', now()->startOfMonth()->format('Y-m-d'));
+        $toInput   = $request->input('to', now()->endOfMonth()->format('Y-m-d'));
 
         $from = $fromInput;
         $to   = $toInput;
@@ -69,12 +69,12 @@ class PiutangController extends Controller
             });
         }
 
-        if ($status === 'belum') {
+        if ($status === 'belum_lunas') {
             $query->where('is_paid', false);
-        } elseif ($status === 'sudah') {
+        } elseif ($status === 'lunas') {
             $query->where('is_paid', true);
         }
-
+        
         $piutangList = $query->orderByDesc('id')->get()->map(function ($p) {
             $sisa = max(0, (int) $p->nominal_kas - (int) $p->paid_amount);
             
@@ -137,15 +137,15 @@ class PiutangController extends Controller
         ]);
     }
 
-    public function printInvoiceBulk()
+    public function printInvoiceBulk(Request $request)
     {
         $storeId = $request->input('store', 'all');
         $search = trim($request->input('search', ''));
         $status = $request->input('status', 'all');
         $kategoriFilter = $request->input('kategori', 'all');
 
-        $fromInput = $request->input('from');
-        $toInput   = $request->input('to');
+        $fromInput = $request->input('from', now()->startOfMonth()->format('Y-m-d'));
+        $toInput   = $request->input('to', now()->endOfMonth()->format('Y-m-d'));
 
         // ✅ Tidak ada default tanggal
         $from = $fromInput;
@@ -154,14 +154,40 @@ class PiutangController extends Controller
         if ($from && !$to) $to = $from;
         elseif ($to && !$from) $from = $to;
         
-        // Ambil SEMUA data piutang tanpa filter
-        $piutangData = BrilinkPengeluaran::with('report.store')
+        // ✅ Terapkan filter ke query
+        $query = BrilinkPengeluaran::with('report.store')
             ->whereRaw('LOWER(kategori) LIKE ?', ['%piutang%'])
-            ->orderByDesc('id')
-            ->get();
+            ->when($storeId !== 'all', function ($q) use ($storeId) {
+                $q->whereHas('report', fn($rq) => $rq->where('store_id', $storeId));
+            })
+            ->when($from, function ($q) use ($from) {
+                $q->whereHas('report', fn($rq) => $rq->whereDate('periode_start', '>=', $from));
+            })
+            ->when($to, function ($q) use ($to) {
+                $q->whereHas('report', fn($rq) => $rq->whereDate('periode_start', '<=', $to));
+            });
+
+        if ($kategoriFilter !== 'all') {
+            $query->where('kategori', $kategoriFilter);
+        }
+
+        if (!empty($search)) {
+            $query->where(function($q) use ($search) {
+                $q->where('keterangan', 'LIKE', "%{$search}%")
+                  ->orWhere('kategori', 'LIKE', "%{$search}%");
+            });
+        }
+
+        if ($status === 'belum_lunas') {
+            $query->where('is_paid', false);
+        } elseif ($status === 'lunas') {
+            $query->where('is_paid', true);
+        }
+
+        $piutangData = $query->orderByDesc('id')->get();
 
         if ($piutangData->isEmpty()) {
-            abort(404, 'Tidak ada data piutang untuk dicetak.');
+            abort(404, 'Tidak ada data piutang untuk dicetak pada filter ini.');
         }
 
         $items = $piutangData->map(function ($p) {
@@ -191,18 +217,21 @@ class PiutangController extends Controller
             return max(0, $p->nominal_kas - $p->paid_amount);
         });
 
+        // ✅ Ambil object store berdasarkan filter yang dipilih
+        $store = $storeId === 'all' ? null : Store::find($storeId);
+
         $pdf = Pdf::loadView('piutang.invoice-pdf', [
             'items'            => $items,
-            'store'            => null, // Semua Toko
+            'store'            => $store,
             'totalPiutang'     => $totalPiutang,
             'totalSisaPiutang' => $totalSisaPiutang,
             'mode'             => 'bulk',
             'tanggalCetak'     => now()->format('d/m/Y H:i'),
-            'filterFrom'       => 'all', // Tidak difilter
-            'filterTo'         => 'all',
+            'filterFrom'       => $from ?? 'all', // Pastikan dikirim
+            'filterTo'         => $to ?? 'all',   // Pastikan dikirim
         ])->setPaper('A4', 'portrait');
 
-        $fileName = 'Invoice-Piutang-Semua-' . now()->format('Ymd-His') . '.pdf';
+        $fileName = 'Invoice-Piutang-' . now()->format('Ymd-His') . '.pdf';
 
         return $pdf->stream($fileName);
     }

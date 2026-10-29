@@ -189,7 +189,8 @@
 
 <script>
 const PRODUCT_CSRF = document.querySelector('meta[name="csrf-token"]').content;
-const PRODUCT_DATA = @json($products->items());
+// Gunakan let agar bisa di-reassign jika perlu (meski kita pakai reload)
+let PRODUCT_DATA = @json($products->items());
 
 // ==================== OPEN MODAL ====================
 function openProductModal(mode, productId = null) {
@@ -200,11 +201,17 @@ function openProductModal(mode, productId = null) {
     const imagePlaceholder = document.getElementById('productImagePlaceholder');
     const imageHint = document.getElementById('productImageHint');
     const fileInput = document.getElementById('productGambar');
+    const submitBtn = document.getElementById('productSubmitBtn'); // ✅ Ambil elemen tombol submit
 
+    // Reset Form
     form.reset();
     errors.classList.add('hidden');
     fileInput.value = '';
+    
+    // ✅ Pastikan tombol submit selalu aktif saat modal dibuka
+    submitBtn.disabled = false; 
 
+    // Reset semua field ke nilai default
     document.getElementById('productSku').value = '';
     document.getElementById('productNama').value = '';
     document.getElementById('productStok').value = '0';
@@ -225,8 +232,12 @@ function openProductModal(mode, productId = null) {
         form.dataset.mode = 'create';
         form.dataset.productId = '';
     } else {
+        // Mode Edit
         const product = PRODUCT_DATA.find(p => p.id === productId);
-        if (!product) return;
+        if (!product) {
+            alert('Data produk tidak ditemukan, silakan refresh halaman.');
+            return;
+        }
 
         document.getElementById('productModalTitle').textContent = 'Edit Produk';
         document.getElementById('productModalIcon').setAttribute('icon', 'mdi:pencil');
@@ -254,12 +265,14 @@ function openProductModal(mode, productId = null) {
         form.dataset.productId = product.id;
     }
 
+    // Buka modal dengan animasi
     modal.classList.remove('hidden');
     modal.classList.add('flex');
     modal.classList.remove('modal-closing');
     document.body.style.overflow = 'hidden';
 }
 
+// ==================== CLOSE MODAL ====================
 function closeProductModal() {
     const modal = document.getElementById('productModal');
     if (!modal || modal.classList.contains('hidden')) return;
@@ -272,6 +285,7 @@ function closeProductModal() {
     }, 200);
 }
 
+// ==================== PREVIEW GAMBAR ====================
 document.getElementById('productGambar').addEventListener('change', function (e) {
     const file = e.target.files[0];
     if (!file) return;
@@ -287,6 +301,7 @@ document.getElementById('productGambar').addEventListener('change', function (e)
     reader.readAsDataURL(file);
 });
 
+// ==================== SUBMIT FORM ====================
 async function submitProductForm(event) {
     event.preventDefault();
     const form = event.target;
@@ -297,10 +312,16 @@ async function submitProductForm(event) {
 
     submitBtn.disabled = true;
     submitText.textContent = 'Menyimpan...';
+    errors.classList.add('hidden');
 
     const formData = new FormData(form);
-    if (!formData.has('is_active')) formData.set('is_active', '0');
-    else formData.set('is_active', '1');
+    
+    // Pastikan checkbox is_active mengirim nilai 1 atau 0
+    if (!formData.has('is_active')) {
+        formData.set('is_active', '0');
+    } else {
+        formData.set('is_active', '1');
+    }
 
     const mode = form.dataset.mode;
     const productId = form.dataset.productId;
@@ -316,7 +337,10 @@ async function submitProductForm(event) {
     try {
         const response = await fetch(url, {
             method: 'POST',
-            headers: { 'X-CSRF-TOKEN': PRODUCT_CSRF, 'Accept': 'application/json' },
+            headers: { 
+                'X-CSRF-TOKEN': PRODUCT_CSRF, 
+                'Accept': 'application/json' 
+            },
             body: formData,
         });
 
@@ -331,61 +355,81 @@ async function submitProductForm(event) {
             } else if (data.message) {
                 ul.innerHTML = `<li>${data.message}</li>`;
             } else {
-                ul.innerHTML = '<li>Terjadi kesalahan.</li>';
+                ul.innerHTML = '<li>Terjadi kesalahan saat menyimpan.</li>';
             }
+            
+            // ✅ Kembalikan tombol ke keadaan semula jika error
             submitBtn.disabled = false;
             submitText.textContent = originalText;
             return;
         }
 
-        closeProductModal();
+        // Jika Sukses
+        submitText.textContent = 'Berhasil!';
         showProductNotification(data.message, 'success');
-        await refreshProductTable();
+        
+        // Tutup modal dan reload halaman agar data tabel & JSON sinkron
+        closeProductModal();
+        await refreshProductTable(); 
 
     } catch (err) {
         errors.classList.remove('hidden');
         errors.querySelector('ul').innerHTML = `<li>Gagal menyimpan: ${err.message}</li>`;
+        
+        // ✅ Kembalikan tombol ke keadaan semula jika error
         submitBtn.disabled = false;
         submitText.textContent = originalText;
     }
 }
 
+// ==================== DELETE PRODUCT ====================
 async function deleteProduct(productId, namaProduk) {
     if (!confirm(`Yakin hapus produk "${namaProduk}"?`)) return;
+    
     try {
         const response = await fetch(`/products/${productId}/ajax`, {
             method: 'DELETE',
-            headers: { 'X-CSRF-TOKEN': PRODUCT_CSRF, 'Accept': 'application/json' },
+            headers: { 
+                'X-CSRF-TOKEN': PRODUCT_CSRF, 
+                'Accept': 'application/json' 
+            },
         });
+        
         const data = await response.json();
+        
         if (!response.ok) {
             showProductNotification(data.message || 'Gagal menghapus.', 'error');
             return;
         }
+        
         showProductNotification(data.message, 'success');
         await refreshProductTable();
+        
     } catch (err) {
         showProductNotification('Gagal menghapus: ' + err.message, 'error');
     }
 }
 
+// ==================== REFRESH TABLE ====================
 async function refreshProductTable() {
-    try {
-        const response = await fetch("{{ route('products.table.html') }}", { headers: { 'Accept': 'text/html' } });
-        const html = await response.text();
-        document.getElementById('productsTableContainer').innerHTML = html;
-    } catch (err) {
-        console.error('Gagal refresh tabel:', err);
-    }
+    // ✅ Menggunakan reload halaman untuk memastikan HTML dan JSON selalu sinkron.
+    // Ini adalah cara paling aman untuk mencegah bug "data tidak ditemukan" saat Edit.
+    window.location.reload(); 
 }
 
+// ==================== NOTIFICATION ====================
 function showProductNotification(message, type = 'success') {
-    const color = type === 'success' ? 'bg-green-50 border-green-200 text-green-800' : 'bg-red-50 border-red-200 text-red-800';
+    const color = type === 'success' 
+        ? 'bg-green-50 border-green-200 text-green-800' 
+        : 'bg-red-50 border-red-200 text-red-800';
     const icon = type === 'success' ? 'mdi:check-circle' : 'mdi:alert-circle';
+    
     const notif = document.createElement('div');
     notif.className = `fixed top-4 right-4 z-[100] ${color} border px-4 py-3 rounded-lg shadow-lg flex items-start gap-2 max-w-md animate-slide-in`;
     notif.innerHTML = `<iconify-icon icon="${icon}" class="text-lg mt-0.5"></iconify-icon><div class="text-sm">${message}</div>`;
+    
     document.body.appendChild(notif);
+    
     setTimeout(() => {
         notif.style.transition = 'opacity 0.3s, transform 0.3s';
         notif.style.opacity = '0';
@@ -394,6 +438,9 @@ function showProductNotification(message, type = 'success') {
     }, 3000);
 }
 
-document.addEventListener('keydown', function (e) { if (e.key === 'Escape') closeProductModal(); });
+// ==================== ESC KEY ====================
+document.addEventListener('keydown', function (e) { 
+    if (e.key === 'Escape') closeProductModal(); 
+});
 </script>
 @endsection

@@ -82,6 +82,73 @@
     </div>
     @endif
 
+    {{-- ======================================================= --}}
+    {{-- TABEL HARIAN (BARU) --}}
+    {{-- ======================================================= --}}
+    <div class="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden mb-6">
+        <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gray-50">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:calendar-month" class="text-indigo-600 text-lg"></iconify-icon>
+                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Harian (Bulan {{ \Carbon\Carbon::parse($from)->translatedFormat('F Y') }})</h3>
+            </div>
+            <span class="text-[10px] sm:text-xs text-gray-500 bg-white px-2 py-1 rounded border w-max">Harian</span>
+        </div>
+
+        <div class="overflow-x-auto overflow-y-auto max-h-[500px] relative">
+            <table class="w-full text-sm border-collapse min-w-max">
+                <thead class="sticky top-0 z-20 bg-gray-100 shadow-sm">
+                    <tr>
+                        <th class="border border-gray-200 p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100 w-32">Tanggal</th>
+                        <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Saldo Awal</th>
+                        <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Saldo Akhir</th>
+                        <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Penambahan</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100">
+                    @foreach($dailyBalance as $daily)
+                        @php
+                            $isEmpty = ($daily['saldo_awal'] == 0 && $daily['saldo_akhir'] == 0);
+                        @endphp
+                        <tr class="hover:bg-gray-50 transition {{ $isEmpty ? 'opacity-50' : '' }}">
+                            <td class="p-2 sm:p-3 text-center text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
+                                {{ $daily['tanggal_label'] }}
+                            </td>
+                            <td class="p-2 sm:p-3 text-right text-gray-700 text-xs sm:text-sm whitespace-nowrap">
+                                {{ $daily['saldo_awal'] != 0 ? 'Rp ' . number_format($daily['saldo_awal'], 0, ',', '.') : '-' }}
+                            </td>
+                            <td class="p-2 sm:p-3 text-right text-gray-800 font-semibold text-xs sm:text-sm whitespace-nowrap">
+                                {{ $daily['saldo_akhir'] != 0 ? 'Rp ' . number_format($daily['saldo_akhir'], 0, ',', '.') : '-' }}
+                            </td>
+                            <td class="p-2 sm:p-3 text-right font-bold text-xs sm:text-sm whitespace-nowrap {{ $daily['penambahan'] > 0 ? 'text-emerald-600' : ($daily['penambahan'] < 0 ? 'text-red-600' : 'text-gray-400') }}">
+                                @if($daily['penambahan'] > 0)
+                                    + Rp {{ number_format($daily['penambahan'], 0, ',', '.') }}
+                                @elseif($daily['penambahan'] < 0)
+                                    - Rp {{ number_format(abs($daily['penambahan']), 0, ',', '.') }}
+                                @else
+                                    -
+                                @endif
+                            </td>
+                        </tr>
+                    @endforeach
+                </tbody>
+                <tfoot class="bg-gray-50 border-t-2 border-gray-300 sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
+                    <tr>
+                        <td class="p-3 font-bold text-gray-800 text-xs sm:text-sm text-center whitespace-nowrap">TOTAL</td>
+                        <td class="p-3 text-right font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap">
+                            Rp {{ number_format($totalSaldoAwalHarian, 0, ',', '.') }}
+                        </td>
+                        <td class="p-3 text-right font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap">
+                            Rp {{ number_format($totalSaldoAkhirHarian, 0, ',', '.') }}
+                        </td>
+                        <td class="p-3 text-right font-bold text-xs sm:text-sm whitespace-nowrap {{ $totalPenambahanHarian >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
+                            {{ $totalPenambahanHarian >= 0 ? '+' : '-' }} Rp {{ number_format(abs($totalPenambahanHarian), 0, ',', '.') }}
+                        </td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+
     {{-- TABEL DATA PERTUMBUHAN SALDO --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
         <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -107,10 +174,12 @@
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    @forelse($data as $row)
+                    @forelse($data as $index => $row)
+                        {{-- BARIS UTAMA (BULAN) --}}
                         <tr class="hover:bg-gray-50 transition">
                             <td class="p-3 sm:p-4 font-medium text-gray-800 text-xs sm:text-sm whitespace-nowrap">
                                 {{ $row['label'] }}
+                                <span class="text-[10px] text-gray-400 block font-normal">{{ $row['jumlah_report'] }} Report</span>
                             </td>
                             <td class="p-3 sm:p-4 text-right text-gray-700 text-xs sm:text-sm whitespace-nowrap">
                                 Rp {{ number_format($row['saldo_awal'], 0, ',', '.') }}
@@ -122,9 +191,48 @@
                                 {{ $row['penambahan'] >= 0 ? '+' : '' }} Rp {{ number_format($row['penambahan'], 0, ',', '.') }}
                             </td>
                         </tr>
+
+                        {{-- BARIS TERSEMBUNYI (DROPDOWN HARIAN) --}}
+                        <tr id="daily-{{ $index }}" class="hidden bg-gray-50/50">
+                            <td colspan="5" class="p-0 border-b border-gray-200">
+                                <div class="p-4 sm:p-6 bg-indigo-50/30">
+                                    <h4 class="text-xs font-bold text-indigo-800 mb-3 uppercase tracking-wide">Rincian Harian</h4>
+                                    <div class="overflow-x-auto bg-white rounded-lg border border-indigo-100 shadow-sm">
+                                        <table class="w-full text-xs text-left">
+                                            <thead class="bg-indigo-50 text-indigo-800 font-semibold">
+                                                <tr>
+                                                    <th class="px-4 py-2">Tanggal</th>
+                                                    @if($storeId === 'all')
+                                                    <th class="px-4 py-2">Toko</th>
+                                                    @endif
+                                                    <th class="px-4 py-2 text-right">Saldo Awal</th>
+                                                    <th class="px-4 py-2 text-right">Saldo Akhir</th>
+                                                    <th class="px-4 py-2 text-right">Penambahan</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody class="divide-y divide-gray-100">
+                                                @foreach($row['daily_data'] as $daily)
+                                                    <tr class="hover:bg-gray-50">
+                                                        <td class="px-4 py-2 font-medium text-gray-700">{{ $daily['tanggal_label'] }}</td>
+                                                        @if($storeId === 'all')
+                                                        <td class="px-4 py-2 text-gray-600">{{ $daily['store_name'] }}</td>
+                                                        @endif
+                                                        <td class="px-4 py-2 text-right text-gray-600">Rp {{ number_format($daily['saldo_awal'], 0, ',', '.') }}</td>
+                                                        <td class="px-4 py-2 text-right font-semibold text-gray-800">Rp {{ number_format($daily['saldo_akhir'], 0, ',', '.') }}</td>
+                                                        <td class="px-4 py-2 text-right font-bold {{ $daily['penambahan'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">
+                                                            {{ $daily['penambahan'] >= 0 ? '+' : '' }} Rp {{ number_format($daily['penambahan'], 0, ',', '.') }}
+                                                        </td>
+                                                    </tr>
+                                                @endforeach
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </td>
+                        </tr>
                     @empty
                         <tr>
-                            <td colspan="4" class="p-8 text-center text-gray-500">
+                            <td colspan="5" class="p-8 text-center text-gray-500">
                                 <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                                 Belum ada data report untuk filter ini.
                             </td>
@@ -260,4 +368,19 @@ document.addEventListener('DOMContentLoaded', function () {
 });
 </script>
 @endif
+
+<script>
+    function toggleRow(id) {
+        const row = document.getElementById(id);
+        const icon = document.getElementById(id.replace('daily-', 'icon-'));
+        
+        if (row.classList.contains('hidden')) {
+            row.classList.remove('hidden');
+            icon.style.transform = 'rotate(180deg)';
+        } else {
+            row.classList.add('hidden');
+            icon.style.transform = 'rotate(0deg)';
+        }
+    }
+</script>
 @endsection

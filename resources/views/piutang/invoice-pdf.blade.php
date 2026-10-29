@@ -164,7 +164,11 @@
                 <div class="info-card">
                     <div class="info-label">Periode Filter</div>
                     <div class="info-value">
-                        {{ \Carbon\Carbon::parse($filterFrom)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($filterTo)->format('d/m/Y') }}
+                        @if(empty($filterFrom) || empty($filterTo) || $filterFrom === 'all' || $filterTo === 'all')
+                            Semua Waktu
+                        @else
+                            {{ \Carbon\Carbon::parse($filterFrom)->format('d/m/Y') }} - {{ \Carbon\Carbon::parse($filterTo)->format('d/m/Y') }}
+                        @endif
                     </div>
                 </div>
             </td>
