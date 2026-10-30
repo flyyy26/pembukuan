@@ -1,25 +1,27 @@
 @extends('layouts.app')
 
-@section('title', 'Perbandingan Periode Shopee')
+@section('title', 'Perbandingan Periode')
 
 @section('content')
 <div class="w-full">
 
     {{-- ============ HEADER ============ --}}
-    <div class="flex justify-between items-start mb-6">
-        <div class="flex items-center gap-3">
-            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
+        {{-- Title --}}
+        <div class="flex items-center gap-3 min-w-0">
+            <div class="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center shrink-0">
                 <iconify-icon icon="mdi:compare" class="text-purple-600 text-xl"></iconify-icon>
             </div>
-            <div>
-                <h2 class="text-xl font-bold text-gray-800">Perbandingan Periode</h2>
-                <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
+            <div class="min-w-0">
+                <h2 class="text-lg sm:text-xl font-bold text-gray-800 truncate">Perbandingan Periode</h2>
+                <p class="text-sm text-gray-500 truncate">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
             </div>
         </div>
-
+    
+        {{-- Tombol Kembali --}}
         <a href="{{ route('shopee.index', ['store' => $storeId]) }}"
-           class="inline-flex items-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium">
-            <iconify-icon icon="mdi:arrow-left" class="text-lg"></iconify-icon>
+           class="inline-flex items-center justify-center gap-2 bg-white border border-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-50 transition text-sm font-medium w-full sm:w-auto shrink-0">
+            <iconify-icon icon="mdi:arrow-left" class="text-lg shrink-0"></iconify-icon>
             Kembali ke Laporan
         </a>
     </div>

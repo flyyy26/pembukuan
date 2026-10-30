@@ -19,7 +19,6 @@
         <col style="width: 110px;">  {{-- Net Revenue --}}
         <col style="width: 100px;">  {{-- HPP --}}
         <col style="width: 110px;">  {{-- Profit --}}
-        <col style="width: 100px;">  {{-- Status --}}
     </colgroup>
             <thead class="bg-gray-50 border-b border-gray-100">
                 <tr>
@@ -30,7 +29,6 @@
                     <th class="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Revenue</th>
                     <th class="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">HPP</th>
                     <th class="text-right py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Profit</th>
-                    <th class="text-center py-3 px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -55,19 +53,6 @@
                     <td class="py-3 px-3 text-right text-orange-600">{{ number_format($p['hpp_total'], 0, ',', '.') }}</td>
                     <td class="py-3 px-3 text-right font-bold {{ $p['profit'] > 0 ? 'text-green-600' : 'text-red-600' }}">
                         {{ number_format($p['profit'], 0, ',', '.') }}
-                    </td>
-                    <td class="py-3 px-3 text-center">
-                        @if($p['mapped'])
-                            <span class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium" title="SKU match dengan prefix kategori">
-                                <iconify-icon icon="mdi:tag-check" class="text-xs"></iconify-icon>
-                                Match
-                            </span>
-                        @else
-                            <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded-full text-xs font-medium" title="Tidak ada kategori dengan prefix SKU ini">
-                                <iconify-icon icon="mdi:tag-off" class="text-xs"></iconify-icon>
-                                Orphan
-                            </span>
-                        @endif
                     </td>
                 </tr>
                 @empty

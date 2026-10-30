@@ -6,21 +6,22 @@
 <div class="w-full">
 
     {{-- ============ HEADER ============ --}}
-    <div class="flex justify-between items-start mb-6">
+    <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
+        {{-- Title --}}
         <div>
             <div class="flex items-center gap-3 mb-1">
-                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center shrink-0">
                     <iconify-icon icon="mdi:shopping" class="text-orange-600 text-xl"></iconify-icon>
                 </div>
-                <div>
-                    <h2 class="text-xl font-bold text-gray-800">Laporan Shopee</h2>
-                    <p class="text-sm text-gray-500">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
+                <div class="min-w-0">
+                    <h2 class="text-lg sm:text-xl font-bold text-gray-800 truncate">Laporan Shopee</h2>
+                    <p class="text-sm text-gray-500 truncate">{{ $store?->nama_toko ?? 'Belum pilih toko' }}</p>
                 </div>
             </div>
         </div>
-
+    
         @if($storeId)
-        <div class="flex gap-2">
+        <div class="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 w-full md:w-auto">
             <a href="{{ route('shopee.export.pdf', array_filter([
                 'store'  => $storeId,
                 'from'   => $from,
@@ -28,20 +29,20 @@
                 'search' => $search,
             ])) }}"
             target="_blank"
-            class="inline-flex items-center gap-2 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
-                <iconify-icon icon="mdi:file-pdf-box" class="text-lg"></iconify-icon>
-                Export PDF
+            class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium shadow-sm">
+                <iconify-icon icon="mdi:file-pdf-box" class="text-lg shrink-0"></iconify-icon>
+                <span>Export PDF</span>
             </a>
             <a href="{{ route('shopee.compare', ['store' => $storeId]) }}"
-            class="inline-flex items-center gap-2 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-sm">
-                <iconify-icon icon="mdi:compare-horizontal" class="text-lg"></iconify-icon>
-                Perbandingan
+            class="inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium shadow-sm">
+                <iconify-icon icon="mdi:compare-horizontal" class="text-lg shrink-0"></iconify-icon>
+                <span>Perbandingan</span>
             </a>
             <a href="{{ route('products.index') }}"
-            class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
+            class="col-span-2 sm:col-span-1 inline-flex items-center justify-center gap-2 bg-blue-600 text-white px-3 sm:px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
             title="Atur kategori & prefix SKU untuk mapping otomatis">
-                <iconify-icon icon="mdi:tag-multiple" class="text-lg"></iconify-icon>
-                Kategori & Prefix
+                <iconify-icon icon="mdi:tag-multiple" class="text-lg shrink-0"></iconify-icon>
+                <span>Kategori & Prefix</span>
             </a>
         </div>
         @endif
@@ -158,7 +159,7 @@
         {{-- ============ TAB: RINGKASAN ============ --}}
         @if($activeTab === 'ringkasan')
             {{-- RINGKASAN KEUANGAN --}}
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div class="flex items-center justify-between mb-3">
                         <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
@@ -166,7 +167,7 @@
                         </div>
                     </div>
                     <div class="text-xs text-gray-500 mb-1">Total Transaksi</div>
-                    <div class="text-2xl font-bold text-gray-800">{{ number_format($summary['total_rows']) }}</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-gray-800">{{ number_format($summary['total_rows']) }}</div>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -176,7 +177,7 @@
                         </div>
                     </div>
                     <div class="text-xs text-gray-500 mb-1">Net Revenue</div>
-                    <div class="text-2xl font-bold text-blue-600">
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-blue-600">
                         <span class="text-sm text-gray-400 font-normal">Rp</span>
                         {{ number_format($summary['net_revenue'], 0, ',', '.') }}
                     </div>
@@ -189,7 +190,7 @@
                         </div>
                     </div>
                     <div class="text-xs text-gray-500 mb-1">Total HPP</div>
-                    <div class="text-2xl font-bold text-orange-600">
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-orange-600">
                         <span class="text-sm text-gray-400 font-normal">Rp</span>
                         {{ number_format($summary['total_hpp'], 0, ',', '.') }}
                     </div>
@@ -202,7 +203,7 @@
                         </div>
                     </div>
                     <div class="text-xs text-white/80 mb-1">Profit</div>
-                    <div class="text-2xl font-bold">
+                    <div class="text-md md:text-xl lg:text-2xl font-bold">
                         <span class="text-sm text-white/70 font-normal">Rp</span>
                         {{ number_format($summary['profit'], 0, ',', '.') }}
                     </div>

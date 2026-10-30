@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Brangkas BRILink')
+@section('title', 'Laporan Brangkas')
 
 @section('content')
 {{-- KUNCI 1: Tambahkan w-full dan min-w-0 agar halaman tidak melebar --}}

@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Pengeluaran BRILink')
+@section('title', 'Laporan Pengeluaran')
 
 @section('content')
 @php

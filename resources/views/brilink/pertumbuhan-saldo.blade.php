@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Pertumbuhan Saldo')
+@section('title', 'Pertumbuhan Saldo')
 
 @section('content')
 <div class="w-full">
@@ -426,7 +426,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     <td class="p-3 text-gray-800 font-medium text-xs">${item.nama}</td>
                     <td class="p-3 text-xs"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${item.keterangan || '-'}</span></td>
                     <td class="p-3 text-right text-gray-700 text-xs">Rp ${new Intl.NumberFormat('id-ID').format(item.saldo_awal)}</td>
-                    <td class="p-3 text-right text-gray-900 font-semibold text-xs">Rp ${new Intl.NumberFormat('id-ID').format(item.saldo_akhir)}</td>
+                    <td class="p-3 text-right font-semibold text-xs ${item.saldo_akhir < 0 ? 'text-red-600' : 'text-green-600'}">
+                        Rp ${new Intl.NumberFormat('id-ID').format(item.saldo_akhir)}
+                    </td>
                 `;
                 tbody.appendChild(tr);
             });

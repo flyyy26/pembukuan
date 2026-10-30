@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Laporan Profit BRILink')
+@section('title', 'Laporan Profit')
 
 @section('content')
 <div class="w-full">

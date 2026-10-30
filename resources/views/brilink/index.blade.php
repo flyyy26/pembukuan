@@ -464,26 +464,41 @@
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
-                        @foreach($saldoPerRekening as $r)
-                        <tr class="hover:bg-gray-50 transition">
-                            <td class="py-2.5 px-4 font-medium text-gray-800 whitespace-nowrap">{{ $r['nama'] }}</td>
-                            <td class="py-2.5 px-4 whitespace-nowrap">
-                                @if($r['keterangan'])
-                                    <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{{ $r['keterangan'] }}</span>
-                                @else
-                                    <span class="text-xs text-gray-400">-</span>
-                                @endif
-                            </td>
-                            <td class="py-2.5 px-4 text-right text-gray-600 whitespace-nowrap">
-                                {{ number_format($r['saldo_awal'], 0, ',', '.') }}
-                            </td>
-                            <td class="py-2.5 px-4 text-right font-semibold text-gray-800 whitespace-nowrap">
-                                {{ number_format($r['saldo'], 0, ',', '.') }}
-                            </td>
-                            <td class="py-2.5 px-4 text-right text-xs whitespace-nowrap {{ $r['selisih'] > 0 ? 'text-green-600' : ($r['selisih'] < 0 ? 'text-red-600' : 'text-gray-400') }}">
-                                {{ $r['selisih'] > 0 ? '+' : '' }}{{ number_format($r['selisih'], 0, ',', '.') }}
-                            </td>
-                        </tr>
+                        @php
+                            // Kelompokkan array berdasarkan kategori
+                            $groupedByCategory = collect($saldoPerRekening)->groupBy('kategori');
+                        @endphp
+
+                        @foreach($groupedByCategory as $kategori => $items)
+                            {{-- HEADER KATEGORI --}}
+                            <tr class="bg-gray-50/80 border-y border-gray-200">
+                                <td colspan="5" class="py-2 px-4 font-bold text-xs text-indigo-700 uppercase tracking-wider">
+                                    <iconify-icon icon="mdi:folder-outline" class="mr-1 text-sm"></iconify-icon> {{ $kategori }}
+                                </td>
+                            </tr>
+
+                            {{-- LIST REKENING DI DALAM KATEGORI --}}
+                            @foreach($items as $r)
+                            <tr class="hover:bg-gray-50 transition border-b border-gray-50">
+                                <td class="py-2.5 px-4 pl-8 font-medium text-gray-800 whitespace-nowrap">{{ $r['nama'] }}</td>
+                                <td class="py-2.5 px-4 whitespace-nowrap">
+                                    @if($r['keterangan'])
+                                        <span class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{{ $r['keterangan'] }}</span>
+                                    @else
+                                        <span class="text-xs text-gray-400">-</span>
+                                    @endif
+                                </td>
+                                <td class="py-2.5 px-4 text-right text-gray-600 whitespace-nowrap">
+                                    {{ number_format($r['saldo_awal'], 0, ',', '.') }}
+                                </td>
+                                <td class="py-2.5 px-4 text-right font-semibold text-gray-800 whitespace-nowrap">
+                                    {{ number_format($r['saldo'], 0, ',', '.') }}
+                                </td>
+                                <td class="py-2.5 px-4 text-right text-xs whitespace-nowrap {{ $r['selisih'] > 0 ? 'text-green-600' : ($r['selisih'] < 0 ? 'text-red-600' : 'text-gray-400') }}">
+                                    {{ $r['selisih'] > 0 ? '+' : '' }}{{ number_format($r['selisih'], 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @endforeach
                         @endforeach
                     </tbody>
                     <tfoot class="bg-emerald-50 border-t-2 border-emerald-200">

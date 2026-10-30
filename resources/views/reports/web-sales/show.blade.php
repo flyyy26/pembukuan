@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Detail Pesanan ' . $order->order_number)
+@section('title', 'Detail Pesanan')
 
 @section('content')
 <div class="space-y-6">

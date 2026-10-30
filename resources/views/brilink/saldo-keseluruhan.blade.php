@@ -1,6 +1,6 @@
 @extends('layouts.app')
 
-@section('title', 'Data Saldo Keseluruhan')
+@section('title', 'Data Saldo')
 
 @section('content')
 <div class="w-full">

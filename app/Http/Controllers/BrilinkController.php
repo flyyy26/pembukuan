@@ -194,28 +194,56 @@ class BrilinkController extends Controller
 
         $saldoPerRekening = [];
         if ($latestReport) {
-            $prioritasUrutan = ['brangkas' => 1, 'kas' => 2, 'mbanking' => 3, 'ppob' => 4, 'pulsa' => 5];
-            $allAccounts = $reports->flatMap->accounts;
-            $groupedAccounts = $allAccounts->groupBy('nama_rekening');
+            // ✅ URUTAN PRIORITAS KATEGORI (Urutkan sesuai keinginanmu di sini)
+            $prioritasUrutan = [
+                'kas'          => 1,
+                'brangkas'     => 2, // atau 'brangkas' dulu baru 'kas'
+                'mbanking'     => 3,
+                'brilink'      => 4, // tambahan
+                'ppob'         => 5,
+                'pulsa'        => 6,
+                'pos'          => 7,
+                'saldo barang' => 8,
+            ];
 
-            $saldoPerRekening = $groupedAccounts->map(function ($items, $nama) {
-                return [
-                    'nama'      => $nama,
-                    'keterangan'=> $items->first()->keterangan,
-                    'saldo_awal'=> $items->sum('saldo_awal'),
-                    'saldo'     => $items->sum('saldo_akhir'),
-                    'selisih'   => $items->sum('selisih'),
-                ];
-            })
-            ->sortBy(function ($item) use ($prioritasUrutan) {
-                $namaBawah = strtolower($item['nama']);
+            // Ambil semua accounts
+            $allAccounts = $reports->flatMap->accounts;
+
+            // Group by 'keterangan' (Kategori), lalu by 'nama_rekening'
+            $groupedByKategori = $allAccounts->groupBy(function($item) {
+                // Jika keterangan kosong, jadikan 'LAINNYA'
+                return strtoupper(trim($item->keterangan)) ?: 'LAINNYA';
+            });
+
+            // Urutkan Kategori berdasarkan $prioritasUrutan
+            $sortedByKategori = $groupedByKategori->sortBy(function ($items, $kategori) use ($prioritasUrutan) {
+                $kategoriBawah = strtolower($kategori);
                 foreach ($prioritasUrutan as $keyword => $bobot) {
-                    if (str_contains($namaBawah, $keyword)) return $bobot;
+                    if (str_contains($kategoriBawah, $keyword)) return $bobot;
                 }
-                return 99;
-            })
-            ->values()
-            ->toArray();
+                return 99; // Kategori yang tidak terdaftar masuk paling bawah
+            });
+
+            // Kumpulkan datanya
+            $saldoPerRekening = [];
+            foreach ($sortedByKategori as $kategori => $accounts) {
+                // Di dalam kategori, group lagi per nama_rekening
+                $groupedAccounts = $accounts->groupBy('nama_rekening');
+                
+                // Urutkan nama rekening A-Z di dalam kategori
+                $sortedAccounts = $groupedAccounts->sortKeys();
+
+                foreach ($sortedAccounts as $nama => $items) {
+                    $saldoPerRekening[] = [
+                        'kategori'  => $kategori,
+                        'nama'      => $nama,
+                        'keterangan'=> $items->first()->keterangan ?? '-',
+                        'saldo_awal'=> (int) $items->sum('saldo_awal'),
+                        'saldo'     => (int) $items->sum('saldo_akhir'),
+                        'selisih'   => (int) $items->sum('selisih'),
+                    ];
+                }
+            }
         }
 
         $saldoPerKategori = collect($saldoPerRekening)

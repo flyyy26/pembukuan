@@ -152,57 +152,59 @@
             </form>
         </div>
 
-                <table class="w-full text-sm">
-            <thead class="bg-gray-50 border-b">
-                <tr>
-                    <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">File</th>
-                    <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Toko</th>
-                    <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
-                    <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Baris</th>
-                    <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
-                    <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-24">Aksi</th> {{-- BARU --}}
-                </tr>
-            </thead>
-            <tbody class="divide-y">
-                @forelse($imports as $imp)
-                <tr class="hover:bg-gray-50 transition" id="import-row-{{ $imp->id }}">
-                    <td class="py-3 px-4 text-xs text-gray-700">{{ $imp->file_name }}</td>
-                    <td class="py-3 px-4 text-gray-700">{{ $imp->store?->nama_toko ?? '-' }}</td>
-                    <td class="py-3 px-4 text-xs">
-                        @if($imp->periode_start)
-                            {{ $imp->periode_start->format('d/m/Y') }}
-                        @else
-                            <span class="text-gray-400 italic">-</span>
-                        @endif
-                    </td>
-                    <td class="py-3 px-4 text-center text-gray-700">{{ $imp->total_rows }}</td>
-                    <td class="py-3 px-4 text-center">
-                        <span class="inline-block px-2 py-1 rounded-full text-xs
-                            {{ $imp->status === 'imported' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700' }}">
-                            {{ $imp->status }}
-                        </span>
-                    </td>
-                    {{-- TOMBOL HAPUS BARU --}}
-                    <td class="py-3 px-4 text-center">
-                        <button type="button" onclick="deleteImport({{ $imp->id }}, '{{ addslashes($imp->file_name) }}')"
-                            class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
-                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
-                        </button>
-                    </td>
-                </tr>
-                @empty
-                <tr>
-                    <td colspan="6" class="py-12 text-center text-gray-400">
-                        <iconify-icon icon="mdi:inbox-outline" class="text-4xl block mb-2 w-max mx-auto"></iconify-icon>
-                        <div class="text-sm">Belum ada riwayat import pada rentang tanggal ini.</div>
-                        <div class="text-xs mt-1 text-gray-400">
-                            Coba ubah filter tanggal atau klik "Hari Ini".
-                        </div>
-                    </td>
-                </tr>
-                @endforelse
-            </tbody>
-        </table>
+        <div class="overflow-x-auto">
+            <table class="w-full min-w-[720px] text-sm">
+                <thead class="bg-gray-50 border-b">
+                    <tr>
+                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">File</th>
+                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Toko</th>
+                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Tanggal</th>
+                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Baris</th>
+                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                        <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-24">Aksi</th> {{-- BARU --}}
+                    </tr>
+                </thead>
+                <tbody class="divide-y">
+                    @forelse($imports as $imp)
+                    <tr class="hover:bg-gray-50 transition" id="import-row-{{ $imp->id }}">
+                        <td class="py-3 px-4 text-xs text-gray-700">{{ $imp->file_name }}</td>
+                        <td class="py-3 px-4 text-gray-700">{{ $imp->store?->nama_toko ?? '-' }}</td>
+                        <td class="py-3 px-4 text-xs">
+                            @if($imp->periode_start)
+                                {{ $imp->periode_start->format('d/m/Y') }}
+                            @else
+                                <span class="text-gray-400 italic">-</span>
+                            @endif
+                        </td>
+                        <td class="py-3 px-4 text-center text-gray-700">{{ $imp->total_rows }}</td>
+                        <td class="py-3 px-4 text-center">
+                            <span class="inline-block px-2 py-1 rounded-full text-xs
+                                {{ $imp->status === 'imported' ? 'bg-green-50 text-green-700' : 'bg-gray-50 text-gray-700' }}">
+                                {{ $imp->status }}
+                            </span>
+                        </td>
+                        {{-- TOMBOL HAPUS BARU --}}
+                        <td class="py-3 px-4 text-center">
+                            <button type="button" onclick="deleteImport({{ $imp->id }}, '{{ addslashes($imp->file_name) }}')"
+                                class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
+                                <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
+                            </button>
+                        </td>
+                    </tr>
+                    @empty
+                    <tr>
+                        <td colspan="6" class="py-12 text-center text-gray-400">
+                            <iconify-icon icon="mdi:inbox-outline" class="text-4xl block mb-2 w-max mx-auto"></iconify-icon>
+                            <div class="text-sm">Belum ada riwayat import pada rentang tanggal ini.</div>
+                            <div class="text-xs mt-1 text-gray-400">
+                                Coba ubah filter tanggal atau klik "Hari Ini".
+                            </div>
+                        </td>
+                    </tr>
+                    @endforelse
+                </tbody>
+            </table>
+        </div>
         @if($imports->hasPages())
             <div class="px-5 py-4 border-t">{{ $imports->links() }}</div>
         @endif
