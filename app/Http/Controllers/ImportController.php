@@ -493,6 +493,62 @@ class ImportController extends Controller
         ];
     }
 
+    public function destroy($id)
+    {
+        // Cari berdasarkan ID saja, tanpa filter tipe dulu
+        $import = Import::find($id);
+
+        // Jika data tidak ditemukan sama sekali
+        if (!$import) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data import tidak ditemukan. Mungkin sudah dihapus sebelumnya.'
+            ], 404);
+        }
+
+        // Cek apakah ini benar-benar import Shopee
+        if (!in_array($import->tipe, ['shopee_order', 'shopee_income'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Data ini bukan bagian dari import Shopee.'
+            ], 400);
+        }
+
+        $storeId = $import->store_id;
+
+        DB::beginTransaction();
+        try {
+            // Hapus data turunan berdasarkan tipe import
+            if ($import->tipe === 'shopee_order') {
+                ShopeeOrderItem::where('import_id', $import->id)->delete();
+            } elseif ($import->tipe === 'shopee_income') {
+                ShopeeIncomeRow::where('import_id', $import->id)->delete();
+            }
+
+            // Hapus record import utama
+            $import->delete();
+
+            // Rekonsiliasi ulang untuk memperbarui tabel Sales
+            if ($storeId) {
+                \Artisan::call('shopee:reconcile', ['store_id' => $storeId]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Data import beserta transaksi terkait berhasil dihapus.'
+            ]);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Gagal menghapus: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
     // ============================================
     //  Helpers
     // ============================================

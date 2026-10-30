@@ -3,7 +3,6 @@
 namespace App\Console\Commands;
 
 use App\Models\Product;
-use App\Models\ProductMapping;
 use App\Models\Sale;
 use App\Models\Store;
 use App\Models\TiktokIncome;
@@ -11,6 +10,7 @@ use App\Models\TiktokOrderItem;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use App\Models\Import;
+use App\Services\SkuResolver;
 
 class TiktokReconcile extends Command
 {
@@ -94,10 +94,7 @@ class TiktokReconcile extends Command
             'Completed',
         ])->get()->groupBy('order_id');
 
-        $mappings = ProductMapping::where('store_id', $storeId)
-            ->pluck('product_id', 'marketplace_sku')
-            ->toArray();
-
+        $resolver = new SkuResolver();
         $products = Product::pluck('hpp', 'id')->toArray();
 
         $this->info('Income orders : ' . $income->count());
@@ -205,7 +202,7 @@ class TiktokReconcile extends Command
                     $netRevenue = $nilaiItem - $totalBiaya;
 
                     $sku = trim($item->seller_sku ?? '');
-                    $productId = $mappings[$sku] ?? null;
+                    $productId = $resolver->resolveProductId($sku);
 
                     $hppTotal = null;
                     $profit = null;

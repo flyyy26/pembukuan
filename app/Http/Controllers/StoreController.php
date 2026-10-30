@@ -67,15 +67,10 @@ class StoreController extends Controller
 
     public function destroy(Store $store)
     {
-        // Cek apakah masih ada import / mapping
+        // Cek apakah masih ada import
         if ($store->imports()->count() > 0) {
             return redirect()->route('stores.index')
                 ->with('error', 'Toko tidak bisa dihapus karena masih ada data import. Hapus import-nya dulu.');
-        }
-
-        if ($store->mappings()->count() > 0) {
-            return redirect()->route('stores.index')
-                ->with('error', 'Toko tidak bisa dihapus karena masih ada mapping produk.');
         }
 
         $nama = $store->nama_toko;
@@ -127,13 +122,6 @@ class StoreController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'Toko tidak bisa dihapus karena masih ada data import.',
-            ], 422);
-        }
-
-        if ($store->mappings()->count() > 0) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Toko tidak bisa dihapus karena masih ada mapping produk.',
             ], 422);
         }
 

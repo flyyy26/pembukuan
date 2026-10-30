@@ -41,7 +41,7 @@ class TiktokController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                   ->orWhereHas('product', function ($pq) use ($search) {
                       $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                         ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                         ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                   });
             });
         }
@@ -142,7 +142,7 @@ class TiktokController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                   ->orWhereHas('product', function ($pq) use ($search) {
                       $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                         ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                         ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                   });
             });
         }
@@ -198,7 +198,7 @@ class TiktokController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                   ->orWhereHas('product', function ($pq) use ($search) {
                       $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                         ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                         ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                   });
             });
         }
@@ -350,10 +350,10 @@ class TiktokController extends Controller
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
-                ->orWhereHas('product', function ($pq) use ($search) {
-                    $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                        ->orWhere('sku_internal', 'LIKE', "%{$search}%");
-                });
+                  ->orWhereHas('product', function ($pq) use ($search) {
+                      $pq->where('nama_produk', 'LIKE', "%{$search}%")
+                         ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
+                  });
             });
         }
 

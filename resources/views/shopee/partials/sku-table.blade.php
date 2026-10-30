@@ -58,14 +58,14 @@
                     </td>
                     <td class="py-3 px-3 text-center">
                         @if($p['mapped'])
-                            <span class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
-                                <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon>
-                                Mapped
+                            <span class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium" title="SKU match dengan prefix kategori">
+                                <iconify-icon icon="mdi:tag-check" class="text-xs"></iconify-icon>
+                                Match
                             </span>
                         @else
-                            <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                                <iconify-icon icon="mdi:alert-circle" class="text-xs"></iconify-icon>
-                                Belum
+                            <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded-full text-xs font-medium" title="Tidak ada kategori dengan prefix SKU ini">
+                                <iconify-icon icon="mdi:tag-off" class="text-xs"></iconify-icon>
+                                Orphan
                             </span>
                         @endif
                     </td>
@@ -74,7 +74,12 @@
                 <tr>
                     <td colspan="8" class="py-12 text-center text-gray-500">
                         <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
-                        Belum ada data. Import file dan jalankan rekonsiliasi.
+                        <div class="text-sm mb-3">Belum ada data. Import file dan jalankan rekonsiliasi.</div>
+                        <a href="{{ route('products.index') }}"
+                           class="inline-flex items-center gap-1 bg-orange-600 text-white px-3 py-1.5 rounded-lg hover:bg-orange-700 transition text-xs font-medium">
+                            <iconify-icon icon="mdi:tag-multiple" class="text-sm"></iconify-icon>
+                            Atur Kategori & Prefix
+                        </a>
                     </td>
                 </tr>
                 @endforelse

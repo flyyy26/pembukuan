@@ -89,9 +89,15 @@
         <div class="px-4 sm:px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-gray-50">
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:calendar-month" class="text-indigo-600 text-lg"></iconify-icon>
-                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Harian (Bulan {{ \Carbon\Carbon::parse($from)->translatedFormat('F Y') }})</h3>
+                <h3 class="font-semibold text-gray-800 text-sm sm:text-base">
+                    Rincian Harian (Bulan {{ \Carbon\Carbon::parse($from)->locale('id')->translatedFormat('F Y') }})
+                </h3>
             </div>
-            <span class="text-[10px] sm:text-xs text-gray-500 bg-white px-2 py-1 rounded border w-max">Harian</span>
+            
+            <span class="text-[10px] sm:text-xs text-gray-500 bg-white px-2 py-1 rounded border w-max flex items-center gap-1">
+                <iconify-icon icon="mdi:store" class="text-xs"></iconify-icon>
+                {{ $store?->nama_toko ?? 'Semua Toko' }}
+            </span>
         </div>
 
         <div class="overflow-x-auto overflow-y-auto max-h-[500px] relative">
@@ -102,10 +108,11 @@
                         <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Saldo Awal</th>
                         <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Saldo Akhir</th>
                         <th class="border border-gray-200 p-3 text-right text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100">Penambahan</th>
+                        <th class="border border-gray-200 p-3 text-center text-[10px] sm:text-xs font-semibold text-gray-600 uppercase whitespace-nowrap bg-gray-100 w-16">Aksi</th> {{-- ✅ Kolom Baru --}}
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
-                    @foreach($dailyBalance as $daily)
+                    @foreach($dailyBalance as $index => $daily)
                         @php
                             $isEmpty = ($daily['saldo_awal'] == 0 && $daily['saldo_akhir'] == 0);
                         @endphp
@@ -128,23 +135,22 @@
                                     -
                                 @endif
                             </td>
+                            {{-- ✅ TOMBOL MATA UNTUK DETAIL --}}
+                            <td class="p-2 sm:p-3 text-center">
+                                @if(!$isEmpty && count($daily['rincian_rekening']) > 0)
+                                    <button type="button" 
+                                            onclick='showDetailRekening(@json($daily["tanggal_label"]), @json($daily["rincian_rekening"]))'
+                                            class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition border border-indigo-200 bg-white" 
+                                            title="Lihat Rincian Rekening">
+                                        <iconify-icon icon="mdi:eye-outline" class="text-sm"></iconify-icon>
+                                    </button>
+                                @else
+                                    <span class="text-gray-300">-</span>
+                                @endif
+                            </td>
                         </tr>
                     @endforeach
                 </tbody>
-                <tfoot class="bg-gray-50 border-t-2 border-gray-300 sticky bottom-0 z-20 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.1)]">
-                    <tr>
-                        <td class="p-3 font-bold text-gray-800 text-xs sm:text-sm text-center whitespace-nowrap">TOTAL</td>
-                        <td class="p-3 text-right font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap">
-                            Rp {{ number_format($totalSaldoAwalHarian, 0, ',', '.') }}
-                        </td>
-                        <td class="p-3 text-right font-bold text-gray-800 text-xs sm:text-sm whitespace-nowrap">
-                            Rp {{ number_format($totalSaldoAkhirHarian, 0, ',', '.') }}
-                        </td>
-                        <td class="p-3 text-right font-bold text-xs sm:text-sm whitespace-nowrap {{ $totalPenambahanHarian >= 0 ? 'text-emerald-700' : 'text-red-700' }}">
-                            {{ $totalPenambahanHarian >= 0 ? '+' : '-' }} Rp {{ number_format(abs($totalPenambahanHarian), 0, ',', '.') }}
-                        </td>
-                    </tr>
-                </tfoot>
             </table>
         </div>
     </div>
@@ -157,7 +163,7 @@
                 <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Rincian Pertumbuhan Saldo</h3>
             </div>
             <div class="text-[10px] sm:text-xs text-gray-500 bg-gray-50 px-2 py-1 rounded border w-max">
-                {{ $summary['total_periode'] }} Periode
+                {{ $store?->nama_toko ?? 'Semua Toko' }}
             </div>
         </div>
 
@@ -175,10 +181,27 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($data as $index => $row)
+                        @php
+                            // Konversi format label dari controller menjadi Bahasa Indonesia
+                            $labelBulan = $row['label'];
+                            if ($mode === 'bulanan') {
+                                try {
+                                    // Coba parsing "October 2026" ke Carbon, lalu format ke bahasa Indonesia
+                                    $labelBulan = \Carbon\Carbon::parse($row['label'])->locale('id')->translatedFormat('F Y');
+                                } catch (\Exception $e) {
+                                    // Fallback jika parsing gagal
+                                    $labelBulan = $row['label'];
+                                }
+                            } elseif ($mode === 'tahunan') {
+                                // Jika tahunan, pastikan formatnya "Tahun 2026"
+                                $labelBulan = 'Tahun ' . $row['periode'];
+                            }
+                        @endphp
+
                         {{-- BARIS UTAMA (BULAN) --}}
                         <tr class="hover:bg-gray-50 transition">
                             <td class="p-3 sm:p-4 font-medium text-gray-800 text-xs sm:text-sm whitespace-nowrap">
-                                {{ $row['label'] }}
+                                {{ $labelBulan }} {{-- ✅ Ditampilkan dalam Bahasa Indonesia --}}
                                 <span class="text-[10px] text-gray-400 block font-normal">{{ $row['jumlah_report'] }} Report</span>
                             </td>
                             <td class="p-3 sm:p-4 text-right text-gray-700 text-xs sm:text-sm whitespace-nowrap">
@@ -191,48 +214,9 @@
                                 {{ $row['penambahan'] >= 0 ? '+' : '' }} Rp {{ number_format($row['penambahan'], 0, ',', '.') }}
                             </td>
                         </tr>
-
-                        {{-- BARIS TERSEMBUNYI (DROPDOWN HARIAN) --}}
-                        <tr id="daily-{{ $index }}" class="hidden bg-gray-50/50">
-                            <td colspan="5" class="p-0 border-b border-gray-200">
-                                <div class="p-4 sm:p-6 bg-indigo-50/30">
-                                    <h4 class="text-xs font-bold text-indigo-800 mb-3 uppercase tracking-wide">Rincian Harian</h4>
-                                    <div class="overflow-x-auto bg-white rounded-lg border border-indigo-100 shadow-sm">
-                                        <table class="w-full text-xs text-left">
-                                            <thead class="bg-indigo-50 text-indigo-800 font-semibold">
-                                                <tr>
-                                                    <th class="px-4 py-2">Tanggal</th>
-                                                    @if($storeId === 'all')
-                                                    <th class="px-4 py-2">Toko</th>
-                                                    @endif
-                                                    <th class="px-4 py-2 text-right">Saldo Awal</th>
-                                                    <th class="px-4 py-2 text-right">Saldo Akhir</th>
-                                                    <th class="px-4 py-2 text-right">Penambahan</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody class="divide-y divide-gray-100">
-                                                @foreach($row['daily_data'] as $daily)
-                                                    <tr class="hover:bg-gray-50">
-                                                        <td class="px-4 py-2 font-medium text-gray-700">{{ $daily['tanggal_label'] }}</td>
-                                                        @if($storeId === 'all')
-                                                        <td class="px-4 py-2 text-gray-600">{{ $daily['store_name'] }}</td>
-                                                        @endif
-                                                        <td class="px-4 py-2 text-right text-gray-600">Rp {{ number_format($daily['saldo_awal'], 0, ',', '.') }}</td>
-                                                        <td class="px-4 py-2 text-right font-semibold text-gray-800">Rp {{ number_format($daily['saldo_akhir'], 0, ',', '.') }}</td>
-                                                        <td class="px-4 py-2 text-right font-bold {{ $daily['penambahan'] >= 0 ? 'text-emerald-600' : 'text-red-600' }}">
-                                                            {{ $daily['penambahan'] >= 0 ? '+' : '' }} Rp {{ number_format($daily['penambahan'], 0, ',', '.') }}
-                                                        </td>
-                                                    </tr>
-                                                @endforeach
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            </td>
-                        </tr>
                     @empty
                         <tr>
-                            <td colspan="5" class="p-8 text-center text-gray-500">
+                            <td colspan="4" class="p-8 text-center text-gray-500">
                                 <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                                 Belum ada data report untuk filter ini.
                             </td>
@@ -259,6 +243,46 @@
         </div>
     </div>
 
+</div>
+
+<div id="modalRincianRekening" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeDetailRekening()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden">
+        
+        {{-- Header Modal --}}
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:wallet" class="text-indigo-600 text-lg"></iconify-icon>
+                <h3 class="font-bold text-gray-800">Rincian Rekening</h3>
+                <span id="modalTanggalRekening" class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded font-medium"></span>
+            </div>
+            <button type="button" onclick="closeDetailRekening()" class="text-gray-400 hover:text-gray-600 transition">
+                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+
+        {{-- Body Modal --}}
+        <div class="overflow-y-auto flex-1 p-0">
+            <table class="w-full text-sm text-left">
+                <thead class="bg-gray-50 border-b border-gray-100 sticky top-0 z-10">
+                    <tr>
+                        <th class="p-3 text-xs font-semibold text-gray-500 uppercase">Nama Rekening</th>
+                        <th class="p-3 text-xs font-semibold text-gray-500 uppercase">Kategori</th>
+                        <th class="p-3 text-xs font-semibold text-gray-500 uppercase text-right">Saldo Awal</th>
+                        <th class="p-3 text-xs font-semibold text-gray-500 uppercase text-right">Saldo Akhir</th>
+                    </tr>
+                </thead>
+                <tbody id="modalRekeningBody" class="divide-y divide-gray-100">
+                    {{-- Diisi via JS --}}
+                </tbody>
+            </table>
+        </div>
+
+        {{-- Footer Modal --}}
+        <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end flex-shrink-0">
+            <button type="button" onclick="closeDetailRekening()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg transition">Tutup</button>
+        </div>
+    </div>
 </div>
 
 {{-- Panggil Chart.js via CDN --}}
@@ -382,5 +406,47 @@ document.addEventListener('DOMContentLoaded', function () {
             icon.style.transform = 'rotate(0deg)';
         }
     }
+</script>
+
+<script>
+    function showDetailRekening(tanggal, rekeningData) {
+        // Set Tanggal di Header
+        document.getElementById('modalTanggalRekening').textContent = tanggal;
+
+        const tbody = document.getElementById('modalRekeningBody');
+        tbody.innerHTML = '';
+
+        if (!rekeningData || rekeningData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="p-4 text-center text-gray-500">Tidak ada data rekening.</td></tr>';
+        } else {
+            rekeningData.forEach(item => {
+                const tr = document.createElement('tr');
+                tr.className = 'hover:bg-gray-50 transition';
+                tr.innerHTML = `
+                    <td class="p-3 text-gray-800 font-medium text-xs">${item.nama}</td>
+                    <td class="p-3 text-xs"><span class="bg-gray-100 text-gray-600 px-2 py-0.5 rounded">${item.keterangan || '-'}</span></td>
+                    <td class="p-3 text-right text-gray-700 text-xs">Rp ${new Intl.NumberFormat('id-ID').format(item.saldo_awal)}</td>
+                    <td class="p-3 text-right text-gray-900 font-semibold text-xs">Rp ${new Intl.NumberFormat('id-ID').format(item.saldo_akhir)}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // Buka Modal
+        const modal = document.getElementById('modalRincianRekening');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+    }
+
+    function closeDetailRekening() {
+        const modal = document.getElementById('modalRincianRekening');
+        modal.classList.add('hidden');
+        modal.classList.remove('flex');
+    }
+
+    // Tutup modal jika tekan ESC
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeDetailRekening();
+    });
 </script>
 @endsection

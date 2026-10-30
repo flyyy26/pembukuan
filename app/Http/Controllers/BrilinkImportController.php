@@ -174,7 +174,8 @@ class BrilinkImportController extends Controller
             + count($parsed['ppob'])
             + count($parsed['setoran'])
             + count($parsed['tarik_tunai'])
-            + count($parsed['pengeluaran']);
+            + count($parsed['pengeluaran'])
+            + count($parsed['saldo_pindah']);
 
         if ($totalData === 0) {
             Storage::disk('local')->delete($storedPath);
@@ -225,6 +226,10 @@ class BrilinkImportController extends Controller
             $report->setoranItems()->createMany($parsed['setoran']);
             $report->tarikTunaiItems()->createMany($parsed['tarik_tunai']);
             $report->pengeluaranItems()->createMany($parsed['pengeluaran']);
+
+            if (!empty($parsed['saldo_pindah'])) {
+                $report->saldoPindahItems()->createMany($parsed['saldo_pindah']);
+            }
 
             $import->update(['status' => 'imported']);
 
@@ -301,6 +306,7 @@ class BrilinkImportController extends Controller
                 "• PPOB: " . count($parsed['ppob']) . "\n" .
                 "• Setoran: " . count($parsed['setoran']) . "\n" .
                 "• Tarik Tunai: " . count($parsed['tarik_tunai']) . "\n" .
+                "• Saldo Pindah: " . count($parsed['saldo_pindah']) . "\n" .
                 "• Pengeluaran: " . count($parsed['pengeluaran'])
             );
     }
@@ -327,11 +333,16 @@ class BrilinkImportController extends Controller
         $accounts    = $this->parseAccounts($sheetDashboard);
         $ppob        = $sheetPpob        ? $this->parsePpob($sheetPpob)              : [];
         $setoran     = $sheetSetoran     ? $this->parseSetoran($sheetSetoran)        : [];
-        $tarikTunai  = $sheetTarik       ? $this->parseTarikTunai($sheetTarik)       : [];
+        
+        // ✅ Ambil data Tarik Tunai dan Saldo Pindah (Hasil pemisahan)
+        $tarikTunaiData  = $sheetTarik ? $this->parseTarikTunai($sheetTarik)       : ['tarik_tunai' => [], 'saldo_pindah' => []];
+        $tarikTunai      = $tarikTunaiData['tarik_tunai'];
+        $saldoPindah     = $tarikTunaiData['saldo_pindah'];
+
         $pengeluaran = $sheetPengeluaran ? $this->parsePengeluaran($sheetPengeluaran) : [];
 
         $totalRows = count($accounts) + count($ppob) + count($setoran)
-                + count($tarikTunai) + count($pengeluaran);
+                + count($tarikTunai) + count($pengeluaran) + count($saldoPindah);
 
         return [
             'report'        => $report,
@@ -339,6 +350,7 @@ class BrilinkImportController extends Controller
             'ppob'          => $ppob,
             'setoran'       => $setoran,
             'tarik_tunai'   => $tarikTunai,
+            'saldo_pindah'  => $saldoPindah,
             'pengeluaran'   => $pengeluaran,
             'total_rows'    => $totalRows,
             'periode_start' => $report['periode_start'] ?? null,
@@ -379,8 +391,8 @@ class BrilinkImportController extends Controller
             'total_pindah_saldo'         => 0,
             
             'volume_transaksi_agen'      => $safeInt('B19'),
-            'saldo_awal_total'           => $safeInt('B45'),
-            'saldo_akhir_total'          => $safeInt('B69'),
+            'saldo_awal_total'           => $safeInt('B49'),
+            'saldo_akhir_total'          => $safeInt('B71'),
             'manual_validasi_kas_uang'   => $safeInt('B24'),
             
             'laba_kasir_pintar'          => $safeInt('B73'),
@@ -393,7 +405,6 @@ class BrilinkImportController extends Controller
         $accounts = [];
         $awalMap = [];
 
-        // ✅ SALDO AWAL: Dari baris 32 sampai 48 (sebelumnya 27-47)
         for ($r = 32; $r <= 48; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
@@ -414,8 +425,7 @@ class BrilinkImportController extends Controller
             ];
         }
 
-        // ✅ SALDO AKHIR: Dari baris 55 sampai 71 (sebelumnya 51-72)
-        for ($r = 55; $r <= 71; $r++) {
+        for ($r = 54; $r <= 70; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
             if (!$nama) continue;
 
@@ -458,14 +468,14 @@ class BrilinkImportController extends Controller
         return $accounts;
     }
 
-    private function parsePpob($sheet): array
+        private function parsePpob($sheet): array
     {
         $rows = [];
         $maxRow = $sheet->getHighestRow();
 
         for ($r = 4; $r <= $maxRow; $r++) {
             $keteranganTitipJual = trim((string) $sheet->getCell("D{$r}")->getValue());
-            $keteranganPenambahanKas = trim((string) $sheet->getCell("I{$r}")->getValue());
+            $keteranganPenambahanKas = trim((string) $sheet->getCell("I{$r}")->getValue()); // Ini KET SUMBER KAS
 
             $mapping = [
                 'A' => 'Pulsa & Deposit',
@@ -487,7 +497,7 @@ class BrilinkImportController extends Controller
                     if ($kategoriName === 'Barang Titip Jual' && $keteranganTitipJual !== '') {
                         $keterangan = $keteranganTitipJual;
                     } elseif ($kategoriName === 'Penambahan Kas' && $keteranganPenambahanKas !== '') {
-                        $keterangan = $keteranganPenambahanKas;
+                        $keterangan = "[SUMBER: {$keteranganPenambahanKas}]";
                     }
 
                     $rows[] = [
@@ -529,18 +539,32 @@ class BrilinkImportController extends Controller
     private function parseTarikTunai($sheet): array
     {
         $rows = [];
+        $saldoPindahRows = []; 
         $maxRow = $sheet->getHighestRow();
+        
         for ($r = 4; $r <= $maxRow; $r++) {
+            // 1. Ambil semua nilai dari kolom
             $edcNominal = $this->cellValue($sheet, "A{$r}");
             $edcAdmin   = $this->cellValue($sheet, "B{$r}");
             $edcKetMesin= $sheet->getCell("C{$r}")->getValue();
             $edcKmc     = $this->cellValue($sheet, "D{$r}");
-            $saldoMasuk = $this->cellValue($sheet, "E{$r}");
+            
+            $saldoPindah = $this->cellValue($sheet, "E{$r}"); 
+            
             $mbNominal  = $this->cellValue($sheet, "F{$r}");
             $mbAdmin    = $this->cellValue($sheet, "G{$r}");
             $mbBank     = $sheet->getCell("H{$r}")->getValue();
-            $keterangan = $sheet->getCell("I{$r}")->getValue();
+            $keterangan = $sheet->getCell("I{$r}")->getValue(); // ✅ Ambil keterangan lebih awal
 
+            // 2. Simpan ke array Saldo Pindah (jika ada nominalnya)
+            if ($saldoPindah > 0) {
+                $saldoPindahRows[] = [
+                    'nominal'    => (int) $saldoPindah,
+                    'keterangan' => $keterangan ? (string)$keterangan : 'Import Excel',
+                ];
+            }
+
+            // 3. Simpan EDC (Tanpa Saldo Masuk)
             if ($edcNominal || $edcAdmin) {
                 $rows[] = [
                     'tipe'           => 'edc_bri',
@@ -548,12 +572,13 @@ class BrilinkImportController extends Controller
                     'admin_toko'     => (int)($edcAdmin ?: 0),
                     'ket_mesin_edc'  => $edcKetMesin ? (string)$edcKetMesin : null,
                     'kmc'            => (int)($edcKmc ?: 0),
-                    'saldo_masuk'    => (int)($saldoMasuk ?: 0),
+                    'saldo_masuk'    => 0,
                     'keterangan_rek' => null,
                     'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
             }
 
+            // 4. Simpan MBanking (Tanpa Saldo Masuk)
             if ($mbNominal || $mbAdmin) {
                 $rows[] = [
                     'tipe'           => 'mbanking',
@@ -561,13 +586,17 @@ class BrilinkImportController extends Controller
                     'admin_toko'     => (int)($mbAdmin ?: 0),
                     'ket_mesin_edc'  => null,
                     'kmc'            => 0,
-                    'saldo_masuk'    => (int)($saldoMasuk ?: 0),
+                    'saldo_masuk'    => 0,
                     'keterangan_rek' => $mbBank ? (string)$mbBank : null,
                     'keterangan'     => $keterangan ? (string)$keterangan : null,
                 ];
             }
         }
-        return $rows;
+        
+        return [
+            'tarik_tunai' => $rows,
+            'saldo_pindah' => $saldoPindahRows
+        ];
     }
 
     private function parsePengeluaran($sheet): array

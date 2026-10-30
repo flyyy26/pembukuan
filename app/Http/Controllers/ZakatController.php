@@ -6,7 +6,7 @@ use App\Models\BrilinkAccount;
 use App\Models\BrilinkPengeluaran;
 use App\Models\BrilinkReport;
 use App\Models\Store;
-use App\Models\ZakatBarangMandiri;
+use App\Models\Product;
 use App\Models\ZakatSaldoOnline;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
@@ -136,18 +136,18 @@ class ZakatController extends Controller
         // ============================================
         // 3) BARANG ONLINE
         // ============================================
-        $barangList = ZakatBarangMandiri::query()
-            ->when($from, fn($q) => $q->whereDate('created_at', '>=', $from))
-            ->when($to, fn($q) => $q->whereDate('created_at', '<=', $to))
-            ->orderByDesc('id')
+        $barangList = Product::query()
+            ->where('stok', '>', 0)
+            ->orderBy('nama_produk')
             ->get()
-            ->map(function ($b) {
-                $total = $b->qty * $b->harga_satuan;
+            ->map(function ($p) {
+                $total = (int) $p->stok * (int) $p->hpp;
                 return [
-                    'id'           => $b->id,
-                    'nama_barang'  => $b->nama_barang,
-                    'qty'          => (int) $b->qty,
-                    'harga_satuan' => (int) $b->harga_satuan,
+                    'id'           => $p->id,
+                    'nama_barang'  => $p->nama_produk,
+                    'sku_prefix'   => $p->sku_prefix,
+                    'qty'          => (int) $p->stok,
+                    'harga_satuan' => (int) $p->hpp,
                     'total'        => $total,
                     'zakat'        => (int) round($total * self::RATE),
                 ];
@@ -231,64 +231,6 @@ class ZakatController extends Controller
             // ✅ Kirim balik nilai from & to ke view
             'from'           => $from,
             'to'             => $to,
-        ]);
-    }
-
-    // ============================================
-    // CRUD ZAKAT BARANG MANDIRI
-    // ============================================
-    public function storeBarangAjax(Request $request)
-    {
-        $validated = $request->validate([
-            'nama_barang'       => 'required|string|max:255',
-            'qty'               => 'required|integer|min:1',
-            'harga_satuan'      => 'required',
-        ]);
-
-        $harga = (int) preg_replace('/[^0-9]/', '', (string) $request->harga_satuan);
-        if ($harga <= 0) {
-            return response()->json(['message' => 'Harga satuan tidak valid.'], 422);
-        }
-        $validated['harga_satuan'] = $harga;
-
-        $barang = ZakatBarangMandiri::create($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Barang '{$barang->nama_barang}' berhasil ditambahkan.",
-        ]);
-    }
-
-    public function updateBarangAjax(Request $request, ZakatBarangMandiri $barang)
-    {
-        $validated = $request->validate([
-            'nama_barang'       => 'required|string|max:255',
-            'qty'               => 'required|integer|min:1',
-            'harga_satuan'      => 'required',
-        ]);
-
-        $harga = (int) preg_replace('/[^0-9]/', '', (string) $request->harga_satuan);
-        if ($harga <= 0) {
-            return response()->json(['message' => 'Harga satuan tidak valid.'], 422);
-        }
-        $validated['harga_satuan'] = $harga;
-
-        $barang->update($validated);
-
-        return response()->json([
-            'success' => true,
-            'message' => "Barang '{$barang->nama_barang}' berhasil diperbarui.",
-        ]);
-    }
-
-    public function destroyBarangAjax(ZakatBarangMandiri $barang)
-    {
-        $nama = $barang->nama_barang;
-        $barang->delete();
-
-        return response()->json([
-            'success' => true,
-            'message' => "Barang '{$nama}' berhasil dihapus.",
         ]);
     }
 
@@ -390,16 +332,21 @@ class ZakatController extends Controller
         // ============================================
         // 3) BARANG
         // ============================================
-        $barangList = ZakatBarangMandiri::orderByDesc('id')->get()->map(function ($b) {
-            $total = $b->qty * $b->harga_satuan;
-            return [
-                'nama_barang'  => $b->nama_barang,
-                'qty'          => (int) $b->qty,
-                'harga_satuan' => (int) $b->harga_satuan,
-                'total'        => $total,
-                'zakat'        => (int) round($total * self::RATE),
-            ];
-        });
+        $barangList = Product::query()
+            ->where('stok', '>', 0)
+            ->orderBy('nama_produk')
+            ->get()
+            ->map(function ($p) {
+                $total = (int) $p->stok * (int) $p->hpp;
+                return [
+                    'nama_barang'  => $p->nama_produk,
+                    'sku_prefix'   => $p->sku_prefix,
+                    'qty'          => (int) $p->stok,
+                    'harga_satuan' => (int) $p->hpp,
+                    'total'        => $total,
+                    'zakat'        => (int) round($total * self::RATE),
+                ];
+            });
 
         $totalBarang = (int) $barangList->sum('total');
         $zakatBarang = (int) round($totalBarang * self::RATE);

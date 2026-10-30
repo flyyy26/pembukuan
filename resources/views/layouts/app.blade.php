@@ -36,72 +36,92 @@
 <body class="bg-gray-100 min-h-screen">
 
 @php
+    $user = Auth::user();
+    $isAdmin = $user && $user->isAdmin();
+
+    // DEBUG: aktifkan sementara untuk melihat permission user di browser console
+    if ($user && !$isAdmin) {
+        $userPerms = $user->getAllPermissions()->pluck('name')->toArray();
+        // Log ke console browser
+        echo "<script>console.log('USER PERMISSIONS:', " . json_encode($userPerms) . ");</script>";
+    }
+
+    // Helper: cek permission dengan aman (case-sensitive, tapi trim spasi)
+    $canView = function ($permission) use ($user, $isAdmin) {
+        if (!$user) return false;
+        if ($isAdmin) return true;
+        return $user->can(trim($permission));
+    };
+
     $navItems = [
         [
             'section' => 'Utama',
-            'items' => [
-                ['route' => 'shopee.index',  'label' => 'Laporan Shopee',  'icon' => 'mdi:shopping-outline'],
-                [
-                    'route' => 'tiktok.index',
+            'items' => array_values(array_filter([
+                $canView('view shopee') ? ['route' => 'shopee.index', 'label' => 'Laporan Shopee', 'icon' => 'mdi:shopping-outline'] : null,
+                ($canView('view tiktok') || $canView('view tiktok live')) ? [
+                    'route' => $canView('view tiktok') ? 'tiktok.index' : 'tiktok.live.index',
                     'label' => 'Laporan TikTok',
                     'icon' => 'mdi:music-note-outline',
-                    'submenu' => [
-                        ['route' => 'tiktok.index', 'label' => 'Ringkasan & Transaksi'],
-                        ['route' => 'tiktok.live.index', 'label' => 'Laporan Live'], // ✅ Menu Baru
-                    ]
-                ],
-                ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'],
-            ],
+                    'submenu' => array_values(array_filter([
+                        $canView('view tiktok') ? ['route' => 'tiktok.index', 'label' => 'Ringkasan & Transaksi'] : null,
+                        $canView('view tiktok live') ? ['route' => 'tiktok.live.index', 'label' => 'Laporan Live'] : null,
+                    ])),
+                ] : null,
+                $canView('view web-sales') ? ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'] : null,
+            ])),
         ],
         [
             'section' => 'BRILink',
-            'items' => [
-                [
+            'items' => array_values(array_filter([
+                ($canView('view brilink') || $canView('view brilink saldo') || $canView('view brilink pertumbuhan') || $canView('view brilink pengeluaran') || $canView('view brilink ppob') || $canView('view brilink setoran') || $canView('view brilink tarik-tunai') || $canView('view brilink profit') || $canView('view brilink brangkas')) ? [
                     'route' => 'brilink.index',
                     'label' => 'Laporan BRILink',
                     'icon' => 'mdi:bank-outline',
-                    'submenu' => [
-                        ['route' => 'brilink.index', 'label' => 'Ringkasan & Saldo'],
-                        ['route' => 'brilink.saldo-keseluruhan', 'label' => 'Data Saldo Keseluruhan'],
-                        ['route' => 'brilink.pertumbuhan-saldo', 'label' => 'Pertumbuhan Saldo'],
-                        ['route' => 'brilink.pengeluaran', 'label' => 'Laporan Pengeluaran'],
-                        ['route' => 'brilink.log-ppob', 'label' => 'Log Pulsa & PPOB'],
-                        ['route' => 'brilink.log-setoran', 'label' => 'Log Setoran BRILink'],
-                        ['route' => 'brilink.log-tarik-tunai', 'label' => 'Log Tarik Tunai'],
-                        ['route' => 'brilink.profit', 'label' => 'Laporan Profit'],
-                        ['route' => 'brilink.laporan-brangkas', 'label' => 'Laporan Brangkas'],
-                    ]
-                ]
-            ],
+                    'submenu' => array_values(array_filter([
+                        $canView('view brilink') ? ['route' => 'brilink.index', 'label' => 'Ringkasan & Saldo'] : null,
+                        $canView('view brilink saldo') ? ['route' => 'brilink.saldo-keseluruhan', 'label' => 'Data Saldo Keseluruhan'] : null,
+                        $canView('view brilink pertumbuhan') ? ['route' => 'brilink.pertumbuhan-saldo', 'label' => 'Pertumbuhan Saldo'] : null,
+                        $canView('view brilink pengeluaran') ? ['route' => 'brilink.pengeluaran', 'label' => 'Laporan Pengeluaran'] : null,
+                        $canView('view brilink ppob') ? ['route' => 'brilink.log-ppob', 'label' => 'Log Pulsa & PPOB'] : null,
+                        $canView('view brilink setoran') ? ['route' => 'brilink.log-setoran', 'label' => 'Log Setoran BRILink'] : null,
+                        $canView('view brilink tarik-tunai') ? ['route' => 'brilink.log-tarik-tunai', 'label' => 'Log Tarik Tunai'] : null,
+                        $canView('view brilink profit') ? ['route' => 'brilink.profit', 'label' => 'Laporan Profit'] : null,
+                        $canView('view brilink brangkas') ? ['route' => 'brilink.laporan-brangkas', 'label' => 'Laporan Brangkas'] : null,
+                    ])),
+                ] : null,
+            ])),
         ],
         [
             'section' => 'Aset & Kewajiban',
-            'items' => [
-                ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan', 'icon' => 'mdi:piggy-bank'],
-                ['route' => 'hutang.index',   'label' => 'Laporan Hutang',   'icon' => 'mdi:file-document-outline'],
-                ['route' => 'piutang.index',  'label' => 'Laporan Piutang',  'icon' => 'mdi:account-cash'],
-                ['route' => 'zakat.index', 'label' => 'Laporan Zakat', 'icon' => 'mdi:hand-heart'],
-            ],
+            'items' => array_values(array_filter([
+                $canView('view tabungan') ? ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan', 'icon' => 'mdi:piggy-bank'] : null,
+                $canView('view hutang') ? ['route' => 'hutang.index', 'label' => 'Laporan Hutang', 'icon' => 'mdi:file-document-outline'] : null,
+                $canView('view piutang') ? ['route' => 'piutang.index', 'label' => 'Laporan Piutang', 'icon' => 'mdi:account-cash'] : null,
+                $canView('view zakat') ? ['route' => 'zakat.index', 'label' => 'Laporan Zakat', 'icon' => 'mdi:hand-heart'] : null,
+            ])),
         ],
         [
             'section' => 'Gaji Karyawan',
-            'items' => [
-                ['route' => 'karyawan.index', 'label' => 'Data Karyawan',  'icon' => 'mdi:account-group'],
-                ['route' => 'gaji.index',     'label' => 'Transaksi Gaji', 'icon' => 'mdi:cash-multiple'],
-                ['route' => 'minus.index',    'label' => 'Laporan Minus',  'icon' => 'mdi:alert-circle-outline'],
-            ],
+            'items' => array_values(array_filter([
+                $canView('view karyawan') ? ['route' => 'karyawan.index', 'label' => 'Data Karyawan', 'icon' => 'mdi:account-group'] : null,
+                $canView('view gaji') ? ['route' => 'gaji.index', 'label' => 'Transaksi Gaji', 'icon' => 'mdi:cash-multiple'] : null,
+                $canView('view minus') ? ['route' => 'minus.index', 'label' => 'Laporan Minus', 'icon' => 'mdi:alert-circle-outline'] : null,
+            ])),
         ],
         [
             'section' => 'Data Master',
-            'items' => [
-                ['route' => 'import.index',        'label' => 'Import Shopee',  'icon' => 'mdi:import'],
-                ['route' => 'tiktok.import',       'label' => 'Import TikTok',  'icon' => 'mdi:music-note'],
-                ['route' => 'brilink.import',      'label' => 'Import BRILink', 'icon' => 'mdi:bank'],
-                ['route' => 'products.index',      'label' => 'Produk',         'icon' => 'mdi:package-variant-closed'],
-                ['route' => 'stores.index',        'label' => 'Toko',           'icon' => 'mdi:store-outline'],
-            ],
+            'items' => array_values(array_filter([
+                $canView('view import shopee') ? ['route' => 'import.index', 'label' => 'Import Shopee', 'icon' => 'mdi:import'] : null,
+                $canView('view import tiktok') ? ['route' => 'tiktok.import', 'label' => 'Import TikTok', 'icon' => 'mdi:music-note'] : null,
+                $canView('view import brilink') ? ['route' => 'brilink.import', 'label' => 'Import BRILink', 'icon' => 'mdi:bank'] : null,
+                $canView('view products') ? ['route' => 'products.index', 'label' => 'Produk', 'icon' => 'mdi:package-variant-closed'] : null,
+                $canView('view stores') ? ['route' => 'stores.index', 'label' => 'Toko', 'icon' => 'mdi:store-outline'] : null,
+            ])),
         ],
     ];
+
+    // Hapus group kosong
+    $navItems = array_values(array_filter($navItems, fn($g) => !empty($g['items'])));
 @endphp
 
 <div class="flex min-h-screen relative">
@@ -291,6 +311,11 @@
                             <iconify-icon icon="mdi:calendar" class="text-sm"></iconify-icon>
                             Login sejak: {{ now()->format('d M Y') }}
                         </div>
+                        <button type="button" onclick="openChangePasswordModal()"
+                                class="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition">
+                            <iconify-icon icon="mdi:lock-reset" class="text-base text-gray-500"></iconify-icon>
+                            Ganti Password
+                        </button>
                     </div>
 
                     {{-- Logout --}}
@@ -314,6 +339,54 @@
         <main class="p-4 sm:p-6 lg:p-8 flex-1 w-full overflow-x-hidden">
             @yield('content')
         </main>
+    </div>
+</div>
+
+{{-- MODAL GANTI PASSWORD (untuk semua user) --}}
+<div id="changePasswordModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeChangePasswordModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:lock-reset" class="text-blue-600 text-lg"></iconify-icon>
+                <h3 class="font-bold text-gray-800">Ganti Password</h3>
+            </div>
+            <button type="button" onclick="closeChangePasswordModal()" class="text-gray-400 hover:text-gray-600">
+                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+
+        <form id="changePasswordForm" onsubmit="submitChangePassword(event)" class="overflow-y-auto flex-1 flex flex-col">
+            @csrf
+            <div class="p-5 space-y-4">
+                <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorChangePassword"></div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Password Lama <span class="text-red-500">*</span></label>
+                    <input type="password" name="current_password" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Password Baru <span class="text-red-500">*</span></label>
+                    <input type="password" name="new_password" required minlength="8"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Ulangi Password Baru <span class="text-red-500">*</span></label>
+                    <input type="password" name="new_password_confirmation" required minlength="8"
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-blue-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
+                <button type="button" onclick="closeChangePasswordModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
+                <button type="submit" id="btnSubmitChangePassword" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 text-sm font-medium flex items-center gap-2">
+                    <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> Simpan
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -386,5 +459,55 @@
     });
 </script>
 
+<script>
+        // ==================== CHANGE PASSWORD ====================
+    function openChangePasswordModal() {
+        document.getElementById('changePasswordForm').reset();
+        document.getElementById('modalErrorChangePassword').classList.add('hidden');
+        document.getElementById('userDropdown').classList.add('hidden');
+        document.getElementById('changePasswordModal').classList.remove('hidden');
+        document.getElementById('changePasswordModal').classList.add('flex');
+    }
+
+    function closeChangePasswordModal() {
+        document.getElementById('changePasswordModal').classList.add('hidden');
+        document.getElementById('changePasswordModal').classList.remove('flex');
+    }
+
+    async function submitChangePassword(e) {
+        e.preventDefault();
+        const form = e.target;
+        const btn = document.getElementById('btnSubmitChangePassword');
+        const errDiv = document.getElementById('modalErrorChangePassword');
+        const orig = btn.innerHTML;
+
+        btn.disabled = true;
+        btn.innerHTML = 'Menyimpan...';
+        errDiv.classList.add('hidden');
+
+        const formData = new FormData(form);
+        const csrfToken = document.querySelector('meta[name="csrf-token"]').content;
+
+        try {
+            const res = await fetch("{{ route('profile.change-password') }}", {
+                method: 'POST',
+                headers: { 'X-CSRF-TOKEN': csrfToken, 'Accept': 'application/json' },
+                body: formData,
+            });
+            const data = await res.json();
+            if (!res.ok) {
+                const msg = data.errors ? Object.values(data.errors).flat().join(', ') : (data.message || 'Gagal.');
+                throw new Error(msg);
+            }
+            alert(data.message);
+            closeChangePasswordModal();
+        } catch (err) {
+            errDiv.textContent = err.message;
+            errDiv.classList.remove('hidden');
+            btn.disabled = false;
+            btn.innerHTML = orig;
+        }
+    }
+</script>
 </body>
 </html>

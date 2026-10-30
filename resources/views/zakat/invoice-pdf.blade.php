@@ -160,8 +160,9 @@
         <thead>
             <tr>
                 <th style="width: 5%;" class="text-center">No</th>
-                <th style="width: 45%;">Nama Barang</th>
-                <th style="width: 10%;" class="text-center">Qty</th>
+                <th style="width: 35%;">Nama Kategori</th>
+                <th style="width: 10%;" class="text-left">Prefix</th>
+                <th style="width: 10%;" class="text-center">Stok</th>
                 <th style="width: 20%;" class="text-right">HPP</th>
                 <th style="width: 20%;" class="text-right">Total</th>
             </tr>
@@ -172,17 +173,18 @@
                 <tr>
                     <td class="text-center">{{ $no++ }}</td>
                     <td>{{ $b['nama_barang'] }}</td>
-                    <td class="text-center">{{ $b['qty'] }}</td>
+                    <td>{{ $b['sku_prefix'] ?? '-' }}</td>
+                    <td class="text-center">{{ number_format($b['qty'], 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($b['harga_satuan'], 0, ',', '.') }}</td>
                     <td class="text-right">Rp {{ number_format($b['total'], 0, ',', '.') }}</td>
                 </tr>
             @endforeach
             <tr class="total-row">
-                <td colspan="4" class="text-right">Total Nilai Barang</td>
+                <td colspan="5" class="text-right">Total Nilai Barang</td>
                 <td class="text-right">Rp {{ number_format($totalBarang, 0, ',', '.') }}</td>
             </tr>
             <tr class="total-row">
-                <td colspan="4" class="text-right">Zakat Barang (2,5%)</td>
+                <td colspan="5" class="text-right">Zakat Barang (2,5%)</td>
                 <td class="text-right">Rp {{ number_format($zakatBarang, 0, ',', '.') }}</td>
             </tr>
         </tbody>

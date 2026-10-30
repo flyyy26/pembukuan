@@ -321,23 +321,24 @@
             <div class="flex items-center gap-2">
                 <iconify-icon icon="mdi:package-variant-closed" class="text-purple-600 text-lg"></iconify-icon>
                 <h3 class="font-semibold text-gray-800 text-sm sm:text-base">Zakat dari Barang Online</h3>
+                <span class="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded font-medium">dari Kategori Produk</span>
             </div>
-            <button type="button" onclick="openBarangModal()"
-               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-purple-600 text-white px-3 py-1.5 rounded-lg hover:bg-purple-700 transition text-xs font-medium shadow-sm">
-                <iconify-icon icon="mdi:plus" class="text-sm"></iconify-icon>
-                Tambah Barang
-            </button>
+            <a href="{{ route('products.index') }}"
+               class="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-purple-300 text-purple-700 px-3 py-1.5 rounded-lg hover:bg-purple-50 transition text-xs font-medium shadow-sm">
+                <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon>
+                Kelola Kategori & Stok
+            </a>
         </div>
 
         @if($barangList->isEmpty())
             <div class="py-10 text-center text-gray-500">
-                <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
-                <div class="mb-2 text-sm">Belum ada barang online yang dicatat.</div>
-                <button type="button" onclick="openBarangModal()"
-                   class="inline-flex items-center gap-1 text-purple-600 hover:text-purple-700 text-sm font-medium">
+                <iconify-icon icon="mdi:package-variant" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                <div class="mb-3 text-sm">Belum ada kategori dengan stok &gt; 0.</div>
+                <a href="{{ route('products.index') }}"
+                   class="inline-flex items-center gap-1 bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
                     <iconify-icon icon="mdi:plus" class="text-sm"></iconify-icon>
-                    Tambah Barang Pertama
-                </button>
+                    Atur Stok di Kategori Produk
+                </a>
             </div>
         @else
             {{-- TABEL BARANG (DESKTOP) --}}
@@ -345,12 +346,12 @@
                 <table class="w-full text-sm">
                     <thead class="bg-gray-50 border-b">
                         <tr>
-                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Nama Barang</th>
-                            <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-20">Qty</th>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Nama Kategori</th>
+                            <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-28">Prefix</th>
+                            <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-20">Stok</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">HPP</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Total</th>
                             <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Zakat (2,5%)</th>
-                            <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase w-32">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -359,39 +360,29 @@
                                 <td class="py-3 px-4 font-medium text-gray-800">
                                     {{ $b['nama_barang'] }}
                                 </td>
-                                <td class="py-3 px-4 text-center font-semibold text-gray-800">{{ $b['qty'] }}</td>
+                                <td class="py-3 px-4">
+                                    <span class="inline-block font-mono text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded">
+                                        {{ $b['sku_prefix'] }}
+                                    </span>
+                                </td>
+                                <td class="py-3 px-4 text-center font-semibold text-gray-800">{{ number_format($b['qty'], 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-right text-gray-700">Rp {{ number_format($b['harga_satuan'], 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-right font-bold text-gray-800">Rp {{ number_format($b['total'], 0, ',', '.') }}</td>
                                 <td class="py-3 px-4 text-right font-semibold text-purple-700">
                                     Rp {{ number_format($b['zakat'], 0, ',', '.') }}
-                                </td>
-                                <td class="py-3 px-4 text-center">
-                                    <div class="inline-flex items-center gap-1 justify-center">
-                                        <button type="button"
-                                                onclick="openEditBarangModal({{ $b['id'] }}, '{{ addslashes($b['nama_barang']) }}', {{ $b['qty'] }}, {{ $b['harga_satuan'] }})"
-                                                class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition">
-                                            <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
-                                        </button>
-                                        <button type="button" onclick="deleteBarang({{ $b['id'] }}, '{{ addslashes($b['nama_barang']) }}')"
-                                                class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
-                                            <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
-                                        </button>
-                                    </div>
                                 </td>
                             </tr>
                         @endforeach
                     </tbody>
                     <tfoot class="bg-purple-50 border-t-2 border-purple-200">
                         <tr>
-                            <td colspan="3" class="py-3 px-4 font-bold text-gray-800 text-right">TOTAL NILAI BARANG</td>
+                            <td colspan="4" class="py-3 px-4 font-bold text-gray-800 text-right">TOTAL NILAI BARANG</td>
                             <td class="py-3 px-4 text-right font-bold text-gray-800">Rp {{ number_format($totalBarang, 0, ',', '.') }}</td>
-                            <td></td>
                             <td></td>
                         </tr>
                         <tr class="bg-purple-100">
-                            <td colspan="4" class="py-3 px-4 font-bold text-purple-900 text-right">ZAKAT BARANG (2,5%)</td>
+                            <td colspan="5" class="py-3 px-4 font-bold text-purple-900 text-right">ZAKAT BARANG (2,5%)</td>
                             <td class="py-3 px-4 text-right font-bold text-purple-900 text-base">Rp {{ number_format($zakatBarang, 0, ',', '.') }}</td>
-                            <td></td>
                         </tr>
                     </tfoot>
                 </table>
@@ -401,10 +392,13 @@
             <div class="md:hidden divide-y divide-gray-100">
                 @foreach($barangList as $b)
                     <div class="p-4 space-y-1 text-xs">
-                        <div class="font-bold text-gray-800 text-sm mb-2">{{ $b['nama_barang'] }}</div>
+                        <div class="flex items-center justify-between gap-2 mb-1">
+                            <span class="font-bold text-gray-800 text-sm">{{ $b['nama_barang'] }}</span>
+                            <span class="font-mono text-[10px] font-semibold bg-indigo-50 text-indigo-700 border border-indigo-200 px-1.5 py-0.5 rounded">{{ $b['sku_prefix'] }}</span>
+                        </div>
                         <div class="flex justify-between items-center">
-                            <span class="text-gray-500">Qty:</span>
-                            <span class="font-semibold text-gray-800">{{ $b['qty'] }}</span>
+                            <span class="text-gray-500">Stok:</span>
+                            <span class="font-semibold text-gray-800">{{ number_format($b['qty'], 0, ',', '.') }}</span>
                         </div>
                         <div class="flex justify-between items-center">
                             <span class="text-gray-500">HPP:</span>
@@ -417,16 +411,6 @@
                         <div class="flex justify-between items-center pt-1 border-t border-gray-50 mt-1">
                             <span class="text-gray-500">Zakat (2,5%):</span>
                             <span class="font-bold text-purple-700">Rp {{ number_format($b['zakat'], 0, ',', '.') }}</span>
-                        </div>
-                        <div class="flex gap-2 pt-2">
-                            <button type="button" onclick="openEditBarangModal({{ $b['id'] }}, '{{ addslashes($b['nama_barang']) }}', {{ $b['qty'] }}, {{ $b['harga_satuan'] }})"
-                                    class="flex-1 inline-flex justify-center items-center gap-1 text-blue-600 bg-blue-50 border border-blue-200 px-2 py-1.5 rounded text-xs font-medium transition">
-                                <iconify-icon icon="mdi:pencil" class="text-sm"></iconify-icon> Edit
-                            </button>
-                            <button type="button" onclick="deleteBarang({{ $b['id'] }}, '{{ addslashes($b['nama_barang']) }}')"
-                                    class="flex-1 inline-flex justify-center items-center gap-1 text-red-600 bg-red-50 border border-red-200 px-2 py-1.5 rounded text-xs font-medium transition">
-                                <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
-                            </button>
                         </div>
                     </div>
                 @endforeach
@@ -613,63 +597,6 @@
 
 </div>
 
-{{-- MODAL ZAKAT BARANG MANDIRI --}}
-<div id="barangModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
-    <div class="absolute inset-0 bg-black/50" onclick="closeBarangModal()"></div>
-    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
-        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
-            <div class="flex items-center gap-2">
-                <iconify-icon id="barangModalIcon" icon="mdi:plus-circle" class="text-purple-600 text-lg"></iconify-icon>
-                <h3 id="barangModalTitle" class="font-bold text-gray-800">Tambah Barang Online</h3>
-            </div>
-            <button type="button" onclick="closeBarangModal()" class="text-gray-400 hover:text-gray-600">
-                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
-            </button>
-        </div>
-
-        <form id="barangForm" onsubmit="submitBarangForm(event)" class="overflow-y-auto flex-1 flex flex-col">
-            @csrf
-            <input type="hidden" id="barangId" value="">
-            <input type="hidden" id="barangMode" value="create">
-
-            <div class="p-5 space-y-4">
-                <div class="hidden bg-red-50 text-red-600 p-3 rounded text-sm" id="modalErrorBarang"></div>
-
-                <div>
-                    <label class="block text-xs font-medium text-gray-600 mb-1">Nama Barang <span class="text-red-500">*</span></label>
-                    <input type="text" id="barangNama" name="nama_barang" required placeholder="cth: Oneset"
-                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                </div>
-
-                <div class="grid grid-cols-2 gap-3">
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Qty <span class="text-red-500">*</span></label>
-                        <input type="number" id="barangQty" name="qty" required min="1" value="1"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">HPP <span class="text-red-500">*</span></label>
-                        <div class="relative">
-                            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                                <span class="text-gray-500 text-sm font-medium">Rp</span>
-                            </div>
-                            <input type="text" id="barangHarga" name="harga_satuan" required placeholder="0"
-                                class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm font-bold focus:ring-2 focus:ring-purple-500 focus:outline-none">
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0 mt-auto">
-                <button type="button" onclick="closeBarangModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
-                <button type="submit" id="btnSubmitBarang" class="bg-purple-600 text-white px-4 py-2 rounded-lg hover:bg-purple-700 text-sm font-medium flex items-center gap-2">
-                    <iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> <span id="btnSubmitBarangText">Simpan</span>
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
-
 {{-- MODAL BAYAR ZAKAT --}}
 <div id="bayarZakatModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeBayarZakatModal()"></div>
@@ -729,88 +656,6 @@
 <script>
     const CSRF_ZAKAT = document.querySelector('meta[name="csrf-token"]').content;
 
-    // Format Harga
-    document.getElementById('barangHarga')?.addEventListener('input', function () {
-        const v = this.value.replace(/[^0-9]/g, '');
-        this.value = v ? new Intl.NumberFormat('id-ID').format(v) : '';
-    });
-
-    function openBarangModal() {
-        document.getElementById('barangForm').reset();
-        document.getElementById('modalErrorBarang').classList.add('hidden');
-        document.getElementById('barangMode').value = 'create';
-        document.getElementById('barangId').value = '';
-        document.getElementById('barangModalTitle').textContent = 'Tambah Barang Online';
-        document.getElementById('barangModalIcon').setAttribute('icon', 'mdi:plus-circle');
-        document.getElementById('btnSubmitBarangText').textContent = 'Simpan';
-        document.getElementById('barangQty').value = 1;
-        document.getElementById('barangHarga').value = '';
-        document.getElementById('barangModal').classList.remove('hidden');
-        document.getElementById('barangModal').classList.add('flex');
-    }
-
-    function openEditBarangModal(id, nama, qty, harga) {
-        document.getElementById('barangForm').reset();
-        document.getElementById('modalErrorBarang').classList.add('hidden');
-        document.getElementById('barangMode').value = 'edit';
-        document.getElementById('barangId').value = id;
-        document.getElementById('barangModalTitle').textContent = 'Edit Barang Online';
-        document.getElementById('barangModalIcon').setAttribute('icon', 'mdi:pencil');
-        document.getElementById('btnSubmitBarangText').textContent = 'Simpan Perubahan';
-        document.getElementById('barangNama').value = nama;
-        document.getElementById('barangQty').value = qty;
-        document.getElementById('barangHarga').value = new Intl.NumberFormat('id-ID').format(harga);
-        document.getElementById('barangModal').classList.remove('hidden');
-        document.getElementById('barangModal').classList.add('flex');
-    }
-
-    function closeBarangModal() {
-        document.getElementById('barangModal').classList.add('hidden');
-        document.getElementById('barangModal').classList.remove('flex');
-    }
-
-    async function submitBarangForm(e) {
-        e.preventDefault();
-        const mode = document.getElementById('barangMode').value;
-        const id = document.getElementById('barangId').value;
-        const btn = document.getElementById('btnSubmitBarang');
-        const btnText = document.getElementById('btnSubmitBarangText');
-        const errDiv = document.getElementById('modalErrorBarang');
-        const orig = btnText.textContent;
-        btn.disabled = true; btnText.textContent = 'Menyimpan...';
-        errDiv.classList.add('hidden');
-
-        const formData = new FormData(e.target);
-        formData.set('harga_satuan', document.getElementById('barangHarga').value.replace(/[^0-9]/g, ''));
-
-        let url = "{{ route('zakat.barang.store-ajax') }}";
-        if (mode === 'edit') {
-            url = `/zakat/barang/${id}/ajax`;
-            formData.append('_method', 'PUT');
-        }
-
-        try {
-            const res = await fetch(url, { method: 'POST', headers: { 'X-CSRF-TOKEN': CSRF_ZAKAT, 'Accept': 'application/json' }, body: formData });
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || 'Gagal.');
-            closeBarangModal();
-            window.location.reload();
-        } catch (err) {
-            errDiv.textContent = err.message;
-            errDiv.classList.remove('hidden');
-            btn.disabled = false; btnText.textContent = orig;
-        }
-    }
-
-    async function deleteBarang(id, nama) {
-        if (!confirm(`Yakin hapus barang "${nama}"?`)) return;
-        try {
-            const res = await fetch(`/zakat/barang/${id}/ajax`, { method: 'DELETE', headers: { 'X-CSRF-TOKEN': CSRF_ZAKAT, 'Accept': 'application/json' } });
-            const data = await res.json();
-            if (!res.ok) { alert(data.message); return; }
-            window.location.reload();
-        } catch (err) { alert('Gagal: ' + err.message); }
-    }
 </script>
 
 <script>

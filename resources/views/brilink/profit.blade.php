@@ -129,8 +129,19 @@
                                 </td>
 
                                 {{-- Profit Bersih --}}
-                                <td class="p-2 sm:p-3 text-right {{ $row['profit_bersih'] != 0 ? 'text-blue-600 font-bold' : 'text-gray-400' }} text-xs sm:text-sm whitespace-nowrap">
-                                    {{ $row['profit_bersih'] != 0 ? number_format($row['profit_bersih'], 0, ',', '.') : '-' }}
+                                <td class="p-2 sm:p-3 text-right text-xs sm:text-sm whitespace-nowrap 
+                                    {{ $row['profit_bersih'] > 0 
+                                        ? 'text-emerald-600 font-bold' 
+                                        : ($row['profit_bersih'] < 0 
+                                            ? 'text-red-600 font-bold' 
+                                            : 'text-gray-400') }}">
+                                    
+                                    @if($row['profit_bersih'] != 0)
+                                        {{ $row['profit_bersih'] < 0 ? '- ' : '' }}
+                                        {{ number_format(abs($row['profit_bersih']), 0, ',', '.') }}
+                                    @else
+                                        -
+                                    @endif
                                 </td>
                             </tr>
                         @endforeach

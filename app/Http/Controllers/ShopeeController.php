@@ -40,7 +40,7 @@ class ShopeeController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                 ->orWhereHas('product', function ($pq) use ($search) {
                     $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                        ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                        ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                 });
             });
         }
@@ -162,7 +162,7 @@ class ShopeeController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                 ->orWhereHas('product', function ($pq) use ($search) {
                     $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                        ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                        ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                 });
             });
         }
@@ -392,7 +392,7 @@ class ShopeeController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                 ->orWhereHas('product', function ($pq) use ($search) {
                     $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                        ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                        ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                 });
             });
         }
@@ -446,7 +446,7 @@ class ShopeeController extends Controller
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
                 ->orWhereHas('product', function ($pq) use ($search) {
                     $pq->where('nama_produk', 'LIKE', "%{$search}%")
-                        ->orWhere('sku_internal', 'LIKE', "%{$search}%");
+                        ->orWhere('sku_prefix', 'LIKE', "%{$search}%");
                 });
             });
         }

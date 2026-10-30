@@ -10,6 +10,8 @@ use App\Models\StoreKomisiSetting;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use App\Models\User;
+use Spatie\Permission\Models\Permission;
 
 class GajiKaryawanController extends Controller
 {
@@ -35,7 +37,19 @@ class GajiKaryawanController extends Controller
 
         $karyawan = $query->orderBy('nama')->get();
 
-        return view('gaji.karyawan', compact('karyawan', 'stores', 'storeId', 'search', 'status'));
+        // Ambil semua user yang terhubung ke karyawan (untuk tampilan akun login)
+        $userByKaryawan = \App\Models\User::whereNotNull('karyawan_id')
+            ->with('permissions')
+            ->get()
+            ->keyBy('karyawan_id');
+
+        // Daftar semua permission (untuk checklist)
+        $allPermissions = \Spatie\Permission\Models\Permission::orderBy('name')->pluck('name');
+
+        return view('gaji.karyawan', compact(
+            'karyawan', 'stores', 'storeId', 'search', 'status',
+            'userByKaryawan', 'allPermissions'
+        ));
     }
 
     public function storeKaryawanAjax(Request $request)

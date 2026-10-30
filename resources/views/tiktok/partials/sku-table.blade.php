@@ -63,7 +63,17 @@
                     </td>
                 </tr>
                 @empty
-                <tr><td colspan="8" class="py-12 text-center text-gray-500">Belum ada data.</td></tr>
+                <tr>
+                    <td colspan="8" class="py-12 text-center text-gray-500">
+                        <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                        <div class="text-sm mb-3">Belum ada data. Import file dan jalankan rekonsiliasi.</div>
+                        <a href="{{ route('products.index') }}"
+                           class="inline-flex items-center gap-1 bg-gray-800 text-white px-3 py-1.5 rounded-lg hover:bg-gray-900 transition text-xs font-medium">
+                            <iconify-icon icon="mdi:tag-multiple" class="text-sm"></iconify-icon>
+                            Atur Kategori & Prefix
+                        </a>
+                    </td>
+                </tr>
                 @endforelse
             </tbody>
         </table>

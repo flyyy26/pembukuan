@@ -102,4 +102,9 @@ class BrilinkReport extends Model
                 ? ' – ' . $this->periode_end->format('d/m/Y')
                 : '');
     }
+
+    public function saldoPindahItems()
+    {
+        return $this->hasMany(BrilinkSaldoPindah::class, 'brilink_report_id');
+    }
 }

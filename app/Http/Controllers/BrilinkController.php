@@ -1017,7 +1017,7 @@ class BrilinkController extends Controller
         $isNumericSearch = ($searchAngka !== '');
 
         // Eager load relasi dengan constraint (filter)
-        $query = BrilinkReport::with(['tarikTunaiItems' => function($q) use ($searchAngka, $isNumericSearch) {
+        $query = BrilinkReport::with(['saldoPindahItems', 'tarikTunaiItems' => function($q) use ($searchAngka, $isNumericSearch) {
             if ($isNumericSearch) {
                 // Filter relasi tarikTunaiItems
                 $q->whereRaw('CAST(nominal AS CHAR) LIKE ?', ["%{$searchAngka}%"])
@@ -1092,31 +1092,29 @@ class BrilinkController extends Controller
         
         $mbNominal  = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_nominal);
         $mbAdmin    = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_admin);
-        $mbSaldo    = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_saldo);
         
-        $keterangan = $request->keterangan;
         $saldoPindah = (int) preg_replace('/[^0-9]/', '', (string) $request->saldo_pindah);
 
-        if ($edcNominal <= 0 && $mbNominal <= 0) {
-            return response()->json(['message' => 'Nominal EDC dan MBanking tidak boleh kosong keduanya.'], 422);
+        // Validasi: Minimal salah satu diisi
+        if ($edcNominal <= 0 && $mbNominal <= 0 && $saldoPindah <= 0) {
+            return response()->json(['message' => 'Minimal isi salah satu: Nominal EDC, Nominal MBanking, atau Saldo Masuk & Pindah.'], 422);
         }
 
         DB::beginTransaction();
         try {
-            $report = BrilinkReport::firstOrCreate(
-                [
-                    'store_id'      => $request->store_id,
-                    'periode_start' => $request->tanggal,
-                ],
-                [
-                    'import_id'     => 1,
-                    'file_name'     => 'Input Manual',
-                    'file_hash'     => uniqid(),
-                    'periode_end'   => $request->tanggal,
-                    'status'        => 'imported',
-                ]
-            );
+            // ✅ CEK REPORT BERDASARKAN TANGGAL DAN TOKO
+            $report = BrilinkReport::where('store_id', $request->store_id)
+                ->whereDate('periode_start', $request->tanggal)
+                ->first();
 
+            // ✅ JIKA REPORT TIDAK ADA, HENTIKAN PROSES (JANGAN SIMPAN)
+            if (!$report) {
+                return response()->json([
+                    'message' => 'Belum ada Laporan BRILink untuk tanggal ' . \Carbon\Carbon::parse($request->tanggal)->format('d/m/Y') . ' pada toko ini. Silakan IMPORT file Excel terlebih dahulu.'
+                ], 422); 
+            }
+
+            // Simpan EDC (Tanpa Saldo Masuk)
             if ($edcNominal > 0 || $edcAdmin > 0 || $edcKmc > 0) {
                 BrilinkTarikTunai::create([
                     'brilink_report_id' => $report->id,
@@ -1125,12 +1123,13 @@ class BrilinkController extends Controller
                     'admin_toko'        => $edcAdmin,
                     'ket_mesin_edc'     => $request->ket_mesin_edc,
                     'kmc'               => $edcKmc,
-                    'saldo_masuk'       => $saldoPindah,
+                    'saldo_masuk'       => 0, // ✅ Set 0 karena sudah dipisah
                     'keterangan_rek'    => null,
                     'keterangan'        => $request->keterangan,  
                 ]);
             }
 
+            // Simpan MBanking (Tanpa Saldo Masuk)
             if ($mbNominal > 0 || $mbAdmin > 0) {
                 BrilinkTarikTunai::create([
                     'brilink_report_id' => $report->id,
@@ -1139,12 +1138,22 @@ class BrilinkController extends Controller
                     'admin_toko'        => $mbAdmin,
                     'ket_mesin_edc'     => null,
                     'kmc'               => 0,
-                    'saldo_masuk'       => $mbSaldo,
+                    'saldo_masuk'       => 0, // ✅ Set 0 karena sudah dipisah
                     'keterangan_rek'    => $request->keterangan_rek,
                     'keterangan'        => $request->keterangan, 
                 ]);
             }
 
+            // ✅ Simpan ke tabel Baru khusus Saldo Masuk & Pindah
+            if ($saldoPindah > 0) {
+                \App\Models\BrilinkSaldoPindah::create([
+                    'brilink_report_id' => $report->id,
+                    'nominal'           => $saldoPindah,
+                    'keterangan'        => $request->keterangan,
+                ]);
+            }
+
+            // Update Total di Report
             $totalEdc = $report->tarikTunaiItems()->where('tipe', 'edc_bri')->sum('nominal');
             $totalMb  = $report->tarikTunaiItems()->where('tipe', 'mbanking')->sum('nominal');
             $totalAdmin = $report->tarikTunaiItems()->sum('admin_toko') + $report->tarikTunaiItems()->sum('kmc');
@@ -1163,11 +1172,12 @@ class BrilinkController extends Controller
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json(['message' => 'Gagal simpan: ' . $e->getMessage()], 500);
+            \Log::error('Error Save Tarik Tunai: ' . $e->getMessage());
+            return response()->json(['message' => 'Terjadi kesalahan sistem: ' . $e->getMessage()], 500);
         }
     }
 
-    public function updateLogTarikTunaiAjax(Request $request)
+        public function updateLogTarikTunaiAjax(Request $request)
     {
         $request->validate([
             'edc_id' => 'nullable|exists:brilink_tarik_tunai,id',
@@ -1180,23 +1190,24 @@ class BrilinkController extends Controller
         
         $mbNominal  = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_nominal);
         $mbAdmin    = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_admin);
-        $mbSaldo    = (int) preg_replace('/[^0-9]/', '', (string) $request->mb_saldo);
         
-        $keterangan = $request->keterangan;
         $saldoPindah = (int) preg_replace('/[^0-9]/', '', (string) $request->saldo_pindah);
 
         DB::beginTransaction();
         try {
             $reportId = null;
 
+            // ==========================================
+            // 1. PROSES EDC (Set saldo_masuk = 0)
+            // ==========================================
             if ($request->filled('edc_id')) {
                 $edc = BrilinkTarikTunai::find($request->edc_id);
                 $edc->update([
                     'nominal'        => $edcNominal,
                     'admin_toko'     => $edcAdmin,
                     'kmc'            => $edcKmc,
-                    'saldo_masuk'    => $saldoPindah,
-                    'keterangan_rek' => $keterangan,
+                    'saldo_masuk'    => 0, 
+                    'keterangan_rek' => $request->keterangan,
                 ]);
                 $reportId = $edc->brilink_report_id;
             } elseif ($edcNominal > 0 || $edcAdmin > 0 || $edcKmc > 0) {
@@ -1206,38 +1217,59 @@ class BrilinkController extends Controller
                     'nominal'           => $edcNominal,
                     'admin_toko'        => $edcAdmin,
                     'kmc'               => $edcKmc,
-                    'saldo_masuk'       => $saldoPindah,
-                    'keterangan_rek'    => $keterangan,
+                    'saldo_masuk'       => 0,
+                    'keterangan_rek'    => $request->keterangan,
                 ]);
                 $reportId = $newEdc->brilink_report_id;
             } elseif ($request->filled('edc_id')) {
                 BrilinkTarikTunai::find($request->edc_id)->delete();
             }
 
+            // ==========================================
+            // 2. PROSES MBANKING (Set saldo_masuk = 0)
+            // ==========================================
             if ($request->filled('mb_id')) {
                 $mb = BrilinkTarikTunai::find($request->mb_id);
                 $mb->update([
                     'nominal'        => $mbNominal,
                     'admin_toko'     => $mbAdmin,
-                    'saldo_masuk'    => $mbSaldo,
-                    'keterangan_rek' => $keterangan,
+                    'saldo_masuk'    => 0,
+                    'keterangan_rek' => $request->keterangan,
                 ]);
                 $reportId = $reportId ?: $mb->brilink_report_id;
-            } elseif ($mbNominal > 0 || $mbAdmin > 0) {
+            } elseif ($mbNominal > 0 || $mbAdmin > 0) { 
                 $newMb = BrilinkTarikTunai::create([
                     'brilink_report_id' => $request->report_id,
                     'tipe'              => 'mbanking',
                     'nominal'           => $mbNominal,
                     'admin_toko'        => $mbAdmin,
                     'kmc'               => 0,
-                    'saldo_masuk'       => $mbSaldo,
-                    'keterangan_rek'    => $keterangan,
+                    'saldo_masuk'       => 0,
+                    'keterangan_rek'    => $request->keterangan,
                 ]);
                 $reportId = $reportId ?: $newMb->brilink_report_id;
             } elseif ($request->filled('mb_id')) {
                 BrilinkTarikTunai::find($request->mb_id)->delete();
             }
 
+            // ==========================================
+            // 3. PROSES SALDO PINDAH (Hapus lama, buat baru)
+            // ==========================================
+            if ($reportId) {
+                \App\Models\BrilinkSaldoPindah::where('brilink_report_id', $reportId)->delete();
+                
+                if ($saldoPindah > 0) {
+                    \App\Models\BrilinkSaldoPindah::create([
+                        'brilink_report_id' => $reportId,
+                        'nominal'           => $saldoPindah,
+                        'keterangan'        => $request->keterangan,
+                    ]);
+                }
+            }
+
+            // ==========================================
+            // 4. UPDATE TOTAL DI REPORT
+            // ==========================================
             if ($reportId) {
                 $report = BrilinkReport::find($reportId);
                 if ($report) {
@@ -2366,18 +2398,59 @@ class BrilinkController extends Controller
         $totalSaldoAkhirHarian = 0;
         $totalPenambahanHarian = 0;
 
+        $prioritasUrutan = [
+            'kas'       => 1,
+            'brangkas'  => 2,
+            'pulsa'     => 3,
+            'ppob'      => 4,
+            'brilink'   => 5,
+            'mbanking'  => 6,
+            'pos'       => 7,
+            'saldo barang' => 7,
+        ];
+
         for ($day = 1; $day <= $daysInMonth; $day++) {
             $dateString = sprintf('%s-%02d', $yearMonth, $day);
             $carbonDate = \Carbon\Carbon::parse($dateString);
             
             $saldoAwal = 0;
             $saldoAkhir = 0;
+            $rincianRekening = []; 
 
             if (isset($groupedByDate[$dateString])) {
                 $reportsInDate = $groupedByDate[$dateString];
-                // Jika ada multi toko, jumlahkan semuanya
+                
                 $saldoAwal = (int) $reportsInDate->flatMap->accounts->sum('saldo_awal');
                 $saldoAkhir = (int) $reportsInDate->flatMap->accounts->sum('saldo_akhir');
+
+                // Kelompokkan rekening
+                $allAccounts = $reportsInDate->flatMap->accounts;
+                $groupedAccounts = $allAccounts->groupBy('nama_rekening');
+
+                // ✅ Sortir berdasarkan prioritas kategori, lalu nama rekening (alfabetis)
+                $rincianRekening = $groupedAccounts->map(function ($items, $nama) {
+                    return [
+                        'nama'      => $nama,
+                        'keterangan'=> $items->first()->keterangan ?? '-',
+                        'saldo_awal'=> (int) $items->sum('saldo_awal'),
+                        'saldo_akhir'=> (int) $items->sum('saldo_akhir'),
+                    ];
+                })->sortBy(function ($item) use ($prioritasUrutan) {
+                    $kategoriBawah = strtolower(trim($item['keterangan']));
+                    $namaBawah = strtolower(trim($item['nama']));
+                    
+                    // Cari bobot prioritas (jika tidak ada di list, beri bobot 99)
+                    $bobot = 99;
+                    foreach ($prioritasUrutan as $keyword => $value) {
+                        if (str_contains($kategoriBawah, $keyword) || str_contains($namaBawah, $keyword)) {
+                            $bobot = $value;
+                            break;
+                        }
+                    }
+                    
+                    // Urutkan berdasarkan bobot, jika bobot sama urutkan berdasarkan nama (A-Z)
+                    return sprintf('%02d-%s', $bobot, $namaBawah);
+                })->values()->toArray();
             }
 
             $penambahan = $saldoAkhir - $saldoAwal;
@@ -2388,6 +2461,7 @@ class BrilinkController extends Controller
                 'saldo_awal'      => $saldoAwal,
                 'saldo_akhir'     => $saldoAkhir,
                 'penambahan'      => $penambahan,
+                'rincian_rekening'=> $rincianRekening, 
             ];
 
             $totalSaldoAwalHarian += $saldoAwal;

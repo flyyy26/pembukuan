@@ -39,11 +39,12 @@
                 Perbandingan
             </a>
 
-            {{-- Mapping --}}
-            <a href="{{ route('tiktok.mapping', $storeId) }}"
-            class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm">
-                <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                Cocokan Produk
+            {{-- Kategori & Prefix --}}
+            <a href="{{ route('products.index') }}"
+            class="inline-flex items-center gap-2 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium shadow-sm"
+            title="Atur kategori & prefix SKU untuk mapping otomatis">
+                <iconify-icon icon="mdi:tag-multiple" class="text-lg"></iconify-icon>
+                Kategori & Prefix
             </a>
         </div>
         @endif
@@ -132,17 +133,12 @@
                 ['id' => 'ringkasan', 'label' => 'Ringkasan', 'icon' => 'mdi:view-dashboard-outline'],
                 ['id' => 'bulanan',   'label' => 'Bulanan',   'icon' => 'mdi:calendar-month-outline'],
                 ['id' => 'top',       'label' => 'Top Produk','icon' => 'mdi:trophy-outline'],
-                ['id' => 'sku',       'label' => 'Per SKU',   'icon' => 'mdi:format-list-bulleted'],
             ];
-            $hasSearch = !empty($search);
             $requestedTab = request()->input('tab');
-            if ($requestedTab) {
-                $activeTab = $requestedTab;
-            } elseif ($hasSearch) {
-                $activeTab = 'sku';
-            } else {
-                $activeTab = 'ringkasan';
-            }
+            // Kalau user minta tab yang sudah tidak ada (misal 'sku'), fallback ke ringkasan
+            $activeTab = in_array($requestedTab, ['ringkasan', 'bulanan', 'top'])
+                ? $requestedTab
+                : 'ringkasan';
         @endphp
 
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
@@ -245,50 +241,17 @@
                 </div>
             </div>
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <iconify-icon icon="mdi:link-variant" class="text-purple-600 text-lg"></iconify-icon>
-                            <div class="text-sm font-medium text-gray-700">SKU Dimapping</div>
-                        </div>
-                        <div class="text-xs text-gray-500">
-                            {{ $summary['sku_total'] > 0 ? round(($summary['sku_mapped'] / $summary['sku_total']) * 100, 1) : 0 }}%
-                        </div>
-                    </div>
-                    <div class="flex items-baseline gap-2 mb-3">
-                        <span class="text-3xl font-bold text-purple-600">{{ $summary['sku_mapped'] }}</span>
-                        <span class="text-lg text-gray-400">/</span>
-                        <span class="text-lg text-gray-600">{{ $summary['sku_total'] }}</span>
-                        <span class="text-xs text-gray-500">SKU</span>
-                    </div>
-                    <div class="w-full bg-gray-100 rounded-full h-2">
-                        @php $pct = $summary['sku_total'] > 0 ? ($summary['sku_mapped'] / $summary['sku_total']) * 100 : 0; @endphp
-                        <div class="bg-purple-500 h-2 rounded-full transition-all" style="width: {{ $pct }}%"></div>
-                    </div>
-                </div>
-
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
-                    <div class="flex items-center justify-between mb-3">
-                        <div class="flex items-center gap-2">
-                            <iconify-icon icon="mdi:check-decagram" class="text-green-600 text-lg"></iconify-icon>
-                            <div class="text-sm font-medium text-gray-700">Transaksi Matched</div>
-                        </div>
-                        <div class="text-xs text-gray-500">
-                            {{ $summary['total_transaksi'] > 0 ? round(($summary['transaksi_matched'] / $summary['total_transaksi']) * 100, 1) : 0 }}%
-                        </div>
-                    </div>
-                    <div class="flex items-baseline gap-2 mb-3">
-                        <span class="text-3xl font-bold text-green-600">{{ $summary['transaksi_matched'] }}</span>
-                        <span class="text-lg text-gray-400">/</span>
-                        <span class="text-lg text-gray-600">{{ $summary['total_transaksi'] }}</span>
-                        <span class="text-xs text-gray-500">transaksi</span>
-                    </div>
-                    <div class="w-full bg-gray-100 rounded-full h-2">
-                        @php $pct2 = $summary['total_transaksi'] > 0 ? ($summary['transaksi_matched'] / $summary['total_transaksi']) * 100 : 0; @endphp
-                        <div class="bg-green-500 h-2 rounded-full transition-all" style="width: {{ $pct2 }}%"></div>
-                    </div>
-                </div>
+            <div id="skuTableContainer" class="mt-6">
+                @include('tiktok.partials.sku-table', [
+                    'perProduk'   => $perProduk,
+                    'totalProduk' => $totalProduk,
+                    'page'        => $page,
+                    'perPage'     => $perPage,
+                    'storeId'     => $storeId,
+                    'from'        => $from,
+                    'to'          => $to,
+                    'search'      => $search,
+                ])
             </div>
         @endif
 
@@ -437,29 +400,13 @@
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
                     <iconify-icon icon="mdi:trophy" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                     <div class="text-gray-500">Belum ada SKU yang dimapping. Cocokan produk dulu untuk melihat Top 10.</div>
-                    <a href="{{ route('tiktok.mapping', $storeId) }}"
+                    <a href="{{ route('products.index') }}"
                        class="inline-flex items-center gap-2 mt-4 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
-                        <iconify-icon icon="mdi:link-variant" class="text-lg"></iconify-icon>
-                        Cocokan Produk
+                        <iconify-icon icon="mdi:tag-multiple" class="text-lg"></iconify-icon>
+                        Atur Kategori & Prefix
                     </a>
                 </div>
             @endif
-        @endif
-
-        {{-- ============ TAB: PER SKU ============ --}}
-        @if($activeTab === 'sku')
-            <div id="skuTableContainer">
-                @include('tiktok.partials.sku-table', [
-                    'perProduk' => $perProduk,
-                    'totalProduk' => $totalProduk,
-                    'page' => $page,
-                    'perPage' => $perPage,
-                    'storeId' => $storeId,
-                    'from' => $from,
-                    'to' => $to,
-                    'search' => $search,
-                ])
-            </div>
         @endif
 
     @endif

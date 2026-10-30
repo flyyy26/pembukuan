@@ -3,11 +3,11 @@
 namespace App\Console\Commands;
 
 use App\Models\Product;
-use App\Models\ProductMapping;
 use App\Models\Sale;
 use App\Models\ShopeeIncomeRow;
 use App\Models\ShopeeOrderItem;
 use App\Models\Store;
+use App\Services\SkuResolver;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 
@@ -31,9 +31,7 @@ class ShopeeReconcile extends Command
         Sale::where('store_id', $storeId)->where('marketplace', 'shopee')->delete();
 
         // 2. Mapping SKU Varian → Produk Internal
-        $mappings = ProductMapping::where('store_id', $storeId)
-            ->pluck('product_id', 'marketplace_sku')
-            ->toArray();
+        $resolver = new SkuResolver();
 
         // 3. HPP Produk
         $products = Product::pluck('hpp', 'id')->toArray();
@@ -150,7 +148,7 @@ class ShopeeReconcile extends Command
                 // ============================================
                 foreach ($items as $item) {
                     $skuVarian = trim(preg_replace('/\s+/', ' ', $item->sku_varian ?? ''));
-                    $productId = $mappings[$skuVarian] ?? null;
+                    $productId = $resolver->resolveProductId($skuVarian);
 
                     $dasarHargaItem = $item->harga_setelah_diskon * $item->jumlah;
                     $rasio = ($totalDasarHarga == $itemCount)

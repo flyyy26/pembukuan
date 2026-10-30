@@ -99,12 +99,30 @@
                     // Ambil semua kategori unik
                     $rawCategories = $ppobData->pluck('kategori')->unique()->values()->toArray();
                     
-                    // Susun ulang: Sisipkan "Keterangan" setelah "Barang Titip Jual"
+                    // Urutkan kategori agar rapi (opsional, sesuaikan dengan kebutuhan)
+                    usort($rawCategories, function($a, $b) {
+                        $order = [
+                            'Pulsa & Deposit' => 1,
+                            'Barang Kasir Pintar' => 2,
+                            'Barang Titip Jual' => 3,
+                            'Fastpay' => 4,
+                            'Payfazz' => 5,
+                            'Buku Warung' => 6,
+                            'Penambahan Kas' => 7,
+                            'Lain-lain' => 8,
+                        ];
+                        return ($order[$a] ?? 99) <=> ($order[$b] ?? 99);
+                    });
+                    
+                    // Susun ulang: Sisipkan "Keterangan" setelah "Barang Titip Jual", dan "Sumber Kas" setelah "Penambahan Kas"
                     $allCategories = [];
                     foreach ($rawCategories as $cat) {
                         $allCategories[] = $cat;
                         if (strtolower(trim($cat)) === 'barang titip jual') {
                             $allCategories[] = 'Keterangan'; // Kolom virtual
+                        }
+                        if (strtolower(trim($cat)) === 'penambahan kas') {
+                            $allCategories[] = 'Sumber Kas'; // ✅ Kolom virtual baru
                         }
                     }
                 @endphp
@@ -172,6 +190,28 @@
                                             <td class="border border-gray-200 p-2 sm:p-3 text-left text-gray-700 text-[10px] sm:text-xs max-w-[120px] sm:max-w-[200px] truncate" title="{{ $transaksiTitip['keterangan'] ?? '' }}">
                                                 {{ $transaksiTitip['keterangan'] ?? '-' }}
                                             </td>
+                                        @elseif($kategori === 'Sumber Kas')
+                                            {{-- 🔥 KOLOM SUMBER KAS --}}
+                                            @php 
+                                                $transaksiKas = $row['Penambahan Kas'] ?? null;
+                                                $sumberKas = '-';
+                                                if ($transaksiKas && !empty($transaksiKas['keterangan'])) {
+                                                    // Ekstrak teks dari format [SUMBER: NAMA]
+                                                    $ket = $transaksiKas['keterangan'];
+                                                    if (preg_match('/\[SUMBER:\s*(.*?)\]/', $ket, $matches)) {
+                                                        $sumberKas = $matches[1];
+                                                    } else {
+                                                        $sumberKas = $ket;
+                                                    }
+                                                }
+                                            @endphp
+                                            <td class="border border-gray-200 p-2 sm:p-3 text-left text-gray-700 text-[10px] sm:text-xs whitespace-nowrap">
+                                                @if($sumberKas !== '-')
+                                                    <span class="bg-purple-50 text-purple-700 border border-purple-200 px-2 py-0.5 rounded">{{ $sumberKas }}</span>
+                                                @else
+                                                    -
+                                                @endif
+                                            </td>
                                         @else
                                             {{-- KOLOM NOMINAL --}}
                                             @php $transaksi = $row[$kategori] ?? null; @endphp
@@ -217,6 +257,10 @@
                                 @if($kategori === 'Keterangan')
                                     <td class="border border-gray-200 p-2 sm:p-3 text-center text-gray-400 text-[10px] sm:text-xs italic whitespace-nowrap">
                                         (Ket)
+                                    </td>
+                                @elseif($kategori === 'Sumber Kas')
+                                    <td class="border border-gray-200 p-2 sm:p-3 text-center text-gray-400 text-[10px] sm:text-xs italic whitespace-nowrap">
+                                        (Sumber)
                                     </td>
                                 @else
                                     @php

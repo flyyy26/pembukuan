@@ -87,7 +87,7 @@
                             <th class="p-2 border-r border-gray-200 bg-teal-50 text-teal-800 whitespace-nowrap" colspan="4">Tunai EDC BRI</th>
                             
                             {{-- Kolom Saldo Masuk Berdiri Sendiri --}}
-                            <th class="p-2 border-r border-gray-200 bg-purple-50 text-purple-800 align-middle w-28 sm:w-32 whitespace-nowrap" rowspan="2">Saldo Masuk</th>
+                            <th class="p-2 border-r border-gray-200 bg-purple-50 text-purple-800 align-middle w-28 sm:w-32 whitespace-nowrap" rowspan="2">Saldo Masuk & Pindah</th>
                             
                             <th class="p-2 border-r border-gray-200 bg-yellow-50 text-yellow-800 whitespace-nowrap" colspan="2">Tarik Tunai MBanking</th>
                             <th class="p-2 bg-gray-100 whitespace-nowrap" rowspan="2">Rek/Bank</th>
@@ -115,7 +115,8 @@
                             @php
                                 $edcItems = $report->tarikTunaiItems->where('tipe', 'edc_bri');
                                 $mbItems = $report->tarikTunaiItems->where('tipe', 'mbanking');
-                                $maxRows = max($edcItems->count(), $mbItems->count());
+                                $saldoPindahItems = $report->saldoPindahItems;
+                                $maxRows = max($edcItems->count(), $mbItems->count(), $saldoPindahItems->count());
                             @endphp
 
                             @if($maxRows > 0)
@@ -123,6 +124,7 @@
                                     @php
                                         $edc = $edcItems->values()[$i] ?? null;
                                         $mb = $mbItems->values()[$i] ?? null;
+                                        $saldo = $saldoPindahItems->values()[$i] ?? null;
                                     @endphp
                                     <tr class="hover:bg-gray-50 transition">
                                         {{-- Tanggal --}}
@@ -144,12 +146,9 @@
                                             {{ $edc ? number_format($edc->kmc, 0, ',', '.') : '-' }}
                                         </td>
                                         
-                                        {{-- Saldo Masuk & Pindah --}}
+                                        {{-- Saldo Masuk & Pindah --}}          {{-- Saldo Masuk & Pindah --}}
                                         <td class="p-2 border-r border-gray-200 text-right text-purple-700 font-semibold bg-purple-50/30 w-28 sm:w-32 whitespace-nowrap">
-                                            @php
-                                                $saldoMasuk = ($edc ? $edc->saldo_masuk : 0) + ($mb ? $mb->saldo_masuk : 0);
-                                            @endphp
-                                            {{ number_format($saldoMasuk, 0, ',', '.') }}
+                                            {{ $saldo ? number_format($saldo->nominal, 0, ',', '.') : '-' }}
                                         </td>
 
                                         {{-- MBanking --}}
@@ -175,7 +174,23 @@
                                             <td class="p-2 text-center border-l border-gray-200">
                                                 <div class="inline-flex items-center justify-center">
                                                     <button type="button"
-                                                            onclick="openEditTarikModal(event, {{ $edc?->id ?? 'null' }}, {{ $mb?->id ?? 'null' }}, {{ $edc?->nominal ?? 0 }}, {{ $edc?->admin_toko ?? 0 }}, '{{ addslashes($edc?->ket_mesin_edc ?? '') }}', {{ $edc?->kmc ?? 0 }}, {{ $mb?->nominal ?? 0 }}, {{ $mb?->admin_toko ?? 0 }}, {{ $mb?->saldo_masuk ?? 0 }}, {{ $edc?->saldo_masuk ?? 0 }}, '{{ addslashes($mb?->keterangan_rek ?? '') }}', '{{ addslashes($mb?->keterangan ?? ($edc?->keterangan ?? '')) }}', {{ $report->id }})"
+                                                            onclick="openEditTarikModal(
+                                                                event, 
+                                                                {{ $edc?->id ?? 'null' }}, 
+                                                                {{ $mb?->id ?? 'null' }}, 
+                                                                {{ $edc?->nominal ?? 0 }}, 
+                                                                {{ $edc?->admin_toko ?? 0 }}, 
+                                                                '{{ addslashes($edc?->ket_mesin_edc ?? '') }}', 
+                                                                {{ $edc?->kmc ?? 0 }}, 
+                                                                {{ $mb?->nominal ?? 0 }}, 
+                                                                {{ $mb?->admin_toko ?? 0 }}, 
+                                                                0, 
+                                                                {{ $saldo?->nominal ?? 0 }}, {{-- ✅ Gunakan nominal dari baris ini saja --}}
+                                                                '{{ addslashes($mb?->keterangan_rek ?? '') }}', 
+                                                                '{{ addslashes($mb?->keterangan ?? ($edc?->keterangan ?? '')) }}', 
+                                                                {{ $report->id }},
+                                                                '{{ $report->periode_start->format('Y-m-d') }}'
+                                                            )"
                                                             class="inline-flex items-center gap-1 text-blue-600 hover:bg-blue-50 px-2 py-1 rounded text-xs font-medium transition border sm:border-0 border-blue-200 bg-white"
                                                             title="Edit">
                                                         <iconify-icon icon="mdi:pencil" class="text-xs sm:text-sm"></iconify-icon>
@@ -224,7 +239,7 @@
                     
                     $totalEdc = $edcItems->sum('nominal');
                     $totalKmc = $edcItems->sum('kmc');
-                    $totalSaldoMasuk = $edcItems->sum('saldo_masuk');
+                    $totalSaldoMasuk = $reportsInGroup->flatMap->saldoPindahItems->sum('nominal');
                     $akumulasiEdc = $totalEdc + $totalKmc + $totalSaldoMasuk;
 
                     $validasiFisik = $reportsInGroup->sum('manual_validasi_mutasi_fisik');
@@ -316,7 +331,8 @@
                 
                 $totalMb = $allTarik->where('tipe', 'mbanking')->sum('nominal');
                 $totalTrx = $allTarik->count();
-                $totalSaldoMasuk = $allTarik->sum('saldo_masuk');
+                
+                $totalSaldoMasuk = $reports->flatMap->saldoPindahItems->sum('nominal'); 
                 
                 $adminEdc = $allTarik->where('tipe', 'edc_bri')->sum('admin_toko');
                 $adminMb = $allTarik->where('tipe', 'mbanking')->sum('admin_toko');
@@ -409,15 +425,10 @@
                     </select>
                 </div>
 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="grid grid-cols-1 md:grid-cols-1 gap-4">
                     <div>
                         <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal Transaksi</label>
                         <input type="date" name="tanggal" id="tarikTanggal" value="{{ date('Y-m-d') }}" required
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                    </div>
-                    <div>
-                        <label class="block text-xs font-medium text-gray-600 mb-1">Keterangan Rek/Bank</label>
-                        <input type="text" name="keterangan_rek" id="tarikKeteranganRek" placeholder="cth: kmrn / bca HM"
                             class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
                     </div>
                 </div>
@@ -440,17 +451,18 @@
                             <input type="text" name="ket_mesin_edc" id="inputKetMesinEdc" placeholder="cth: EDC AA"
                                 class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
                         </div>
-                        <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">KMC</label>
-                            <input type="text" name="edc_kmc" id="inputEdcKmc" placeholder="0"
-                                class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none">
-                        </div>
                     </div>
                 </div>
 
                 <div class="border-t border-gray-100 pt-3">
+                    <h4 class="text-sm font-bold text-teal-800 mb-2">KMC</h4>
+                    <input type="text" name="edc_kmc" id="inputEdcKmc" placeholder="0"
+                                class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                </div>
+
+                <div class="border-t border-gray-100 pt-3">
                     <h4 class="text-sm font-bold text-yellow-800 mb-2">Tarik Tunai MBanking</h4>
-                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div>
                             <label class="block text-xs font-medium text-gray-600 mb-1">Nominal</label>
                             <input type="text" name="mb_nominal" id="inputMbNominal" placeholder="0"
@@ -462,17 +474,17 @@
                                 class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-yellow-500 focus:outline-none">
                         </div>
                         <div>
-                            <label class="block text-xs font-medium text-gray-600 mb-1">Saldo Masuk</label>
-                            <input type="text" name="mb_saldo" id="inputMbSaldo" placeholder="0"
-                                class="input-format-rupiah w-full border border-gray-300 rounded-lg px-3 py-2 text-sm font-bold focus:ring-2 focus:ring-yellow-500 focus:outline-none">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Rekening Bank</label>
+                            <input type="text" name="keterangan_rek" id="tarikKeteranganRek" placeholder="cth: kmrn / bca HM"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-teal-500 focus:outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Keterangan</label>
+                            <input type="text" name="keterangan" id="inputKeteranganUmum" placeholder="cth: KIRANG INDOMARCO"
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:outline-none">
                         </div>
                     </div>
-
-                    <h4 class="text-sm font-bold text-gray-800 mb-2 mt-4">Keterangan</h4>
-                    <div>
-                        <input type="text" name="keterangan" id="inputKeteranganUmum" placeholder="cth: KIRANG INDOMARCO"
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:outline-none">
-                    </div>
+                    
                 </div>
                 
                 <div class="border-t border-gray-100 pt-3">
@@ -534,7 +546,7 @@
         document.getElementById('tarikTunaiModal').classList.add('flex');
     }
 
-    function openEditTarikModal(event, edcId, mbId, edcNom, edcAdm, edcKetMesin, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, bank, ket, reportId) {
+    function openEditTarikModal(event, edcId, mbId, edcNom, edcAdm, edcKetMesin, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, bank, ket, reportId, reportTanggal) {
         document.getElementById('tarikTunaiForm').reset();
         document.getElementById('modalErrorTarik').classList.add('hidden');
         
@@ -543,11 +555,16 @@
         document.getElementById('editMbId').value = mbId || '';
         document.getElementById('editReportId').value = reportId;
         
-        document.getElementById('tarikTanggal').disabled = true;
+        // ✅ Isi tanggal dari parameter backend
+        document.getElementById('tarikTanggal').value = reportTanggal; 
+        
+        // Kunci input tanggal karena ini mode edit
+        document.getElementById('tarikTanggal').disabled = true; 
 
         document.getElementById('tokoFieldWrapper').classList.add('hidden');
         document.getElementById('tarikStoreSelect').required = false;
 
+        // Isi form lainnya
         if (edcNom > 0) document.getElementById('inputEdcNominal').value = new Intl.NumberFormat('id-ID').format(edcNom);
         if (edcAdm > 0) document.getElementById('inputEdcAdmin').value = new Intl.NumberFormat('id-ID').format(edcAdm);
         document.getElementById('inputKetMesinEdc').value = edcKetMesin || '';
@@ -555,7 +572,6 @@
 
         if (mbNom > 0) document.getElementById('inputMbNominal').value = new Intl.NumberFormat('id-ID').format(mbNom);
         if (mbAdm > 0) document.getElementById('inputMbAdmin').value = new Intl.NumberFormat('id-ID').format(mbAdm);
-        if (mbSaldo > 0) document.getElementById('inputMbSaldo').value = new Intl.NumberFormat('id-ID').format(mbSaldo);
 
         if (saldoPindah > 0) document.getElementById('inputSaldoPindah').value = new Intl.NumberFormat('id-ID').format(saldoPindah);
         document.getElementById('tarikKeteranganRek').value = bank || '';
@@ -612,6 +628,25 @@
 
         const formData = new FormData(form);
 
+        // ✅ Bersihkan format rupiah (hilangkan titik) sebelum dikirim ke server
+        // Jika kosong, set menjadi string kosong agar controller menganggapnya null/0
+        const fieldsToClean = [
+            'edc_nominal', 'edc_admin', 'edc_kmc', 
+            'mb_nominal', 'mb_admin', 
+            'saldo_pindah'
+        ];
+
+        fieldsToClean.forEach(field => {
+            let val = formData.get(field);
+            if (val) {
+                let cleanVal = val.replace(/[^0-9]/g, '');
+                formData.set(field, cleanVal);
+            } else {
+                formData.set(field, '');
+            }
+        });
+
+        // Handle store ID jika "Semua Toko"
         if (mode === 'create' && CURRENT_STORE_ID === 'all') {
             const selectedStore = document.getElementById('tarikStoreSelect').value;
             if (!selectedStore) {
@@ -643,13 +678,17 @@
 
             const data = await response.json();
 
-            if (!response.ok) throw new Error(data.message || 'Gagal menyimpan data.');
+            // Jika response status bukan 200/201 (misal 422 atau 500)
+            if (!response.ok) {
+                throw new Error(data.message || 'Gagal menyimpan data.');
+            }
 
             closeTarikTunaiModal();
             window.location.reload(); 
 
         } catch (error) {
-            errorDiv.textContent = error.message;
+            // ✅ Tampilkan pesan error dari backend
+            errorDiv.textContent = error.message; 
             errorDiv.classList.remove('hidden');
             btn.disabled = false;
             btn.innerHTML = '<iconify-icon icon="mdi:content-save" class="text-lg"></iconify-icon> Simpan';
