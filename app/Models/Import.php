@@ -10,6 +10,7 @@ class Import extends Model
         'store_id',
         'tipe',
         'file_name',
+        'stored_path',
         'file_hash',
         'periode_start',
         'periode_end',

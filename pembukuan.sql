@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: 127.0.0.1
--- Generation Time: Oct 30, 2026 at 01:01 AM
+-- Generation Time: Nov 02, 2026 at 04:55 AM
 -- Server version: 10.4.32-MariaDB
 -- PHP Version: 8.2.12
 
@@ -177,13 +177,6 @@ CREATE TABLE `cache` (
   `expiration` int(11) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `cache`
---
-
-INSERT INTO `cache` (`key`, `value`, `expiration`) VALUES
-('laravel-cache-spatie.permission.cache', 'a:3:{s:5:\"alias\";a:4:{s:1:\"a\";s:2:\"id\";s:1:\"b\";s:4:\"name\";s:1:\"c\";s:10:\"guard_name\";s:1:\"r\";s:5:\"roles\";}s:11:\"permissions\";a:25:{i:0;a:4:{s:1:\"a\";i:1;s:1:\"b\";s:11:\"view shopee\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:1;a:4:{s:1:\"a\";i:2;s:1:\"b\";s:11:\"view tiktok\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:2;a:4:{s:1:\"a\";i:3;s:1:\"b\";s:16:\"view tiktok live\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:3;a:4:{s:1:\"a\";i:4;s:1:\"b\";s:14:\"view web-sales\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:4;a:4:{s:1:\"a\";i:5;s:1:\"b\";s:12:\"view brilink\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:5;a:4:{s:1:\"a\";i:6;s:1:\"b\";s:18:\"view brilink saldo\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:6;a:4:{s:1:\"a\";i:7;s:1:\"b\";s:24:\"view brilink pertumbuhan\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:7;a:4:{s:1:\"a\";i:8;s:1:\"b\";s:24:\"view brilink pengeluaran\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:8;a:4:{s:1:\"a\";i:9;s:1:\"b\";s:17:\"view brilink ppob\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:9;a:4:{s:1:\"a\";i:10;s:1:\"b\";s:20:\"view brilink setoran\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:10;a:4:{s:1:\"a\";i:11;s:1:\"b\";s:24:\"view brilink tarik-tunai\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:11;a:4:{s:1:\"a\";i:12;s:1:\"b\";s:19:\"view brilink profit\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:12;a:4:{s:1:\"a\";i:13;s:1:\"b\";s:21:\"view brilink brangkas\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:13;a:4:{s:1:\"a\";i:14;s:1:\"b\";s:13:\"view tabungan\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:14;a:4:{s:1:\"a\";i:15;s:1:\"b\";s:11:\"view hutang\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:15;a:4:{s:1:\"a\";i:16;s:1:\"b\";s:12:\"view piutang\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:16;a:4:{s:1:\"a\";i:17;s:1:\"b\";s:10:\"view zakat\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:17;a:4:{s:1:\"a\";i:18;s:1:\"b\";s:13:\"view karyawan\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:18;a:4:{s:1:\"a\";i:19;s:1:\"b\";s:9:\"view gaji\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:19;a:4:{s:1:\"a\";i:20;s:1:\"b\";s:10:\"view minus\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:20;a:4:{s:1:\"a\";i:21;s:1:\"b\";s:18:\"view import shopee\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:21;a:4:{s:1:\"a\";i:22;s:1:\"b\";s:18:\"view import tiktok\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:22;a:4:{s:1:\"a\";i:23;s:1:\"b\";s:19:\"view import brilink\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:23;a:4:{s:1:\"a\";i:24;s:1:\"b\";s:13:\"view products\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}i:24;a:4:{s:1:\"a\";i:25;s:1:\"b\";s:11:\"view stores\";s:1:\"c\";s:3:\"web\";s:1:\"r\";a:1:{i:0;i:1;}}}s:5:\"roles\";a:1:{i:0;a:3:{s:1:\"a\";i:1;s:1:\"b\";s:5:\"admin\";s:1:\"c\";s:3:\"web\";}}}', 1793404255);
-
 -- --------------------------------------------------------
 
 --
@@ -237,6 +230,64 @@ CREATE TABLE `gaji_karyawan` (
 -- --------------------------------------------------------
 
 --
+-- Table structure for table `hancas`
+--
+
+CREATE TABLE `hancas` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `konveksi_karyawan_id` bigint(20) UNSIGNED NOT NULL,
+  `kategori` varchar(255) NOT NULL,
+  `tanggal` date NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `hanca_details`
+--
+
+CREATE TABLE `hanca_details` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `hanca_id` bigint(20) UNSIGNED NOT NULL,
+  `kategori_produk_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `nama_produk` varchar(255) NOT NULL,
+  `warna` varchar(255) DEFAULT NULL,
+  `ukuran` varchar(255) DEFAULT NULL,
+  `jumlah_hanca` int(11) NOT NULL,
+  `sisa_hanca` int(11) NOT NULL,
+  `harga` bigint(20) NOT NULL,
+  `total` bigint(20) NOT NULL,
+  `sisa_nominal` bigint(20) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `hanca_pembayarans`
+--
+
+CREATE TABLE `hanca_pembayarans` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `hanca_id` bigint(20) UNSIGNED NOT NULL,
+  `hanca_detail_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `kasbon_id` bigint(20) UNSIGNED DEFAULT NULL,
+  `tipe` enum('dp','cicil','kasbon','bayaran') NOT NULL,
+  `nominal` bigint(20) NOT NULL,
+  `kasbon_dipotong` bigint(20) NOT NULL DEFAULT 0,
+  `qty_setor` int(11) DEFAULT NULL,
+  `tanggal` date NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
 -- Table structure for table `hutangs`
 --
 
@@ -263,6 +314,7 @@ CREATE TABLE `imports` (
   `store_id` bigint(20) UNSIGNED DEFAULT NULL,
   `tipe` enum('shopee_order','shopee_income','tiktok_order','tiktok_income','brilink') NOT NULL,
   `file_name` varchar(255) NOT NULL,
+  `stored_path` varchar(255) DEFAULT NULL,
   `file_hash` varchar(255) DEFAULT NULL,
   `periode_start` date DEFAULT NULL,
   `periode_end` date DEFAULT NULL,
@@ -322,6 +374,106 @@ CREATE TABLE `karyawan` (
   `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `tanggal_masuk` date DEFAULT NULL,
   `no_hp` varchar(30) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_karyawans`
+--
+
+CREATE TABLE `konveksi_karyawans` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nama` varchar(255) NOT NULL,
+  `no_hp` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_kasbons`
+--
+
+CREATE TABLE `konveksi_kasbons` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `konveksi_karyawan_id` bigint(20) UNSIGNED NOT NULL,
+  `nominal` bigint(20) NOT NULL,
+  `nominal_awal` bigint(20) NOT NULL DEFAULT 0,
+  `tanggal` date NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `status` enum('belum_lunas','lunas') NOT NULL DEFAULT 'belum_lunas',
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_kategoris`
+--
+
+CREATE TABLE `konveksi_kategoris` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nama` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `konveksi_kategoris`
+--
+
+INSERT INTO `konveksi_kategoris` (`id`, `nama`, `created_at`, `updated_at`) VALUES
+(1, 'POTONG KAIN', '2026-11-02 03:51:31', '2026-11-02 03:51:31'),
+(2, 'JAHIT', '2026-11-02 03:51:36', '2026-11-02 03:51:36'),
+(3, 'BUANG BENANG', '2026-11-02 03:51:48', '2026-11-02 03:51:48'),
+(4, 'SETIM', '2026-11-02 03:51:54', '2026-11-02 03:51:54');
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_kategori_produks`
+--
+
+CREATE TABLE `konveksi_kategori_produks` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nama` varchar(255) NOT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_pengeluarans`
+--
+
+CREATE TABLE `konveksi_pengeluarans` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `konveksi_karyawan_id` bigint(20) UNSIGNED NOT NULL,
+  `kategori` enum('dp','lain-lain') NOT NULL,
+  `nominal` bigint(20) NOT NULL,
+  `keterangan` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT NULL,
+  `updated_at` timestamp NULL DEFAULT NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `konveksi_pengeluaran_umums`
+--
+
+CREATE TABLE `konveksi_pengeluaran_umums` (
+  `id` bigint(20) UNSIGNED NOT NULL,
+  `nama` varchar(100) NOT NULL,
+  `nominal` bigint(20) UNSIGNED NOT NULL,
+  `tanggal` date NOT NULL,
+  `keterangan` varchar(255) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -421,12 +573,33 @@ INSERT INTO `migrations` (`id`, `migration`, `batch`) VALUES
 (58, '2026_10_26_013604_add_komisi_host_live_global_to_store_komisi_settings_table', 1),
 (59, '2026_10_26_041352_add_payment_proof_to_web_orders_snapshot_table', 1),
 (60, '2026_10_26_042353_add_komisi_web_to_store_komisi_settings_table', 1),
-(61, '2026_10_30_024734_create_brilink_saldo_pindahs_table', 2),
-(62, '2026_10_30_054421_change_products_to_categories', 3),
-(63, '2026_10_30_054448_drop_product_mappings_table', 3),
-(64, '2026_10_30_062110_add_stok_and_drop_gambar_from_products', 4),
-(65, '2026_10_30_063812_create_permission_tables', 5),
-(66, '2026_10_30_063835_add_karyawan_fields_to_users_table', 6);
+(61, '2026_10_30_024734_create_brilink_saldo_pindahs_table', 1),
+(62, '2026_10_30_054421_change_products_to_categories', 1),
+(63, '2026_10_30_054448_drop_product_mappings_table', 1),
+(64, '2026_10_30_062110_add_stok_and_drop_gambar_from_products', 1),
+(65, '2026_10_30_063812_create_permission_tables', 1),
+(66, '2026_10_30_063835_add_karyawan_fields_to_users_table', 1),
+(67, '2026_11_01_035337_create_konveksi_karyawans_table', 1),
+(68, '2026_11_01_035410_create_hancas_table', 1),
+(69, '2026_11_01_035431_create_hanca_pembayarans_table', 1),
+(70, '2026_11_01_053009_add_sisa_columns_to_hancas_table', 1),
+(71, '2026_11_01_053048_add_qty_setor_to_hanca_pembayarans_table', 1),
+(72, '2026_11_01_060739_create_konveksi_pengeluarans_table', 1),
+(73, '2026_11_01_093451_create_konveksi_kategoris_table', 1),
+(74, '2026_11_01_094024_remove_model_from_hancas_table', 1),
+(75, '2026_11_01_094429_create_konveksi_kategori_produks_table', 1),
+(76, '2026_11_01_094505_add_kategori_produk_to_hancas_table', 1),
+(77, '2026_11_01_095455_create_hanca_details_table', 1),
+(78, '2026_11_01_095846_remove_product_columns_from_hancas_table', 1),
+(79, '2026_11_01_110133_create_konveksi_kasbons_table', 1),
+(80, '2026_11_01_110447_remove_kasbon_columns_from_hancas_table', 1),
+(81, '2026_11_01_220618_add_hanca_detail_id_to_hanca_pembayarans_table', 1),
+(82, '2026_11_01_235911_add_kasbon_id_to_hanca_pembayarans_table', 1),
+(83, '2026_11_02_004358_add_status_to_konveksi_kasbons_table', 1),
+(84, '2026_11_02_084921_add_kasbon_dipotong_to_hanca_pembayarans_table', 1),
+(85, '2026_11_02_090821_add_nominal_awal_to_konveksi_kasbons_table', 1),
+(86, '2026_11_02_100000_create_konveksi_pengeluaran_umums_table', 1),
+(87, '2026_11_02_101500_add_stored_path_to_imports_table', 1);
 
 -- --------------------------------------------------------
 
@@ -439,13 +612,6 @@ CREATE TABLE `model_has_permissions` (
   `model_type` varchar(255) NOT NULL,
   `model_id` bigint(20) UNSIGNED NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `model_has_permissions`
---
-
-INSERT INTO `model_has_permissions` (`permission_id`, `model_type`, `model_id`) VALUES
-(3, 'App\\Models\\User', 2);
 
 -- --------------------------------------------------------
 
@@ -464,8 +630,7 @@ CREATE TABLE `model_has_roles` (
 --
 
 INSERT INTO `model_has_roles` (`role_id`, `model_type`, `model_id`) VALUES
-(1, 'App\\Models\\User', 1),
-(2, 'App\\Models\\User', 2);
+(1, 'App\\Models\\User', 1);
 
 -- --------------------------------------------------------
 
@@ -498,31 +663,32 @@ CREATE TABLE `permissions` (
 --
 
 INSERT INTO `permissions` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES
-(1, 'view shopee', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(2, 'view tiktok', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(3, 'view tiktok live', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(4, 'view web-sales', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(5, 'view brilink', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(6, 'view brilink saldo', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(7, 'view brilink pertumbuhan', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(8, 'view brilink pengeluaran', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(9, 'view brilink ppob', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(10, 'view brilink setoran', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(11, 'view brilink tarik-tunai', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(12, 'view brilink profit', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(13, 'view brilink brangkas', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(14, 'view tabungan', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(15, 'view hutang', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(16, 'view piutang', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(17, 'view zakat', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(18, 'view karyawan', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(19, 'view gaji', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(20, 'view minus', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(21, 'view import shopee', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(22, 'view import tiktok', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(23, 'view import brilink', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(24, 'view products', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(25, 'view stores', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33');
+(1, 'view shopee', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(2, 'view tiktok', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(3, 'view tiktok live', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(4, 'view web-sales', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(5, 'view brilink', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(6, 'view brilink saldo', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(7, 'view brilink pertumbuhan', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(8, 'view brilink pengeluaran', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(9, 'view brilink ppob', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(10, 'view brilink setoran', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(11, 'view brilink tarik-tunai', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(12, 'view brilink profit', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(13, 'view brilink brangkas', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(14, 'view tabungan', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(15, 'view hutang', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(16, 'view piutang', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(17, 'view zakat', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(18, 'view karyawan', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(19, 'view gaji', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(20, 'view minus', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(21, 'view import shopee', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(22, 'view import tiktok', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(23, 'view import brilink', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(24, 'view products', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(25, 'view stores', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40'),
+(26, 'view konveksi', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40');
 
 -- --------------------------------------------------------
 
@@ -540,6 +706,13 @@ CREATE TABLE `products` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `products`
+--
+
+INSERT INTO `products` (`id`, `sku_prefix`, `nama_produk`, `hpp`, `stok`, `is_active`, `created_at`, `updated_at`) VALUES
+(1, 'TR', 'TRENING', 45000, 100, 1, '2026-11-02 03:53:42', '2026-11-02 03:53:42');
 
 -- --------------------------------------------------------
 
@@ -560,8 +733,7 @@ CREATE TABLE `roles` (
 --
 
 INSERT INTO `roles` (`id`, `name`, `guard_name`, `created_at`, `updated_at`) VALUES
-(1, 'admin', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33'),
-(2, 'karyawan', 'web', '2026-10-29 23:39:33', '2026-10-29 23:39:33');
+(1, 'admin', 'web', '2026-11-02 03:45:40', '2026-11-02 03:45:40');
 
 -- --------------------------------------------------------
 
@@ -603,7 +775,8 @@ INSERT INTO `role_has_permissions` (`permission_id`, `role_id`) VALUES
 (22, 1),
 (23, 1),
 (24, 1),
-(25, 1);
+(25, 1),
+(26, 1);
 
 -- --------------------------------------------------------
 
@@ -660,10 +833,7 @@ CREATE TABLE `sessions` (
 --
 
 INSERT INTO `sessions` (`id`, `user_id`, `ip_address`, `user_agent`, `payload`, `last_activity`) VALUES
-('8TavIlJUVxwlh0pvYSrUFMUtRqFZH5DqFFbG6Ebu', 1, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoiSUp6R1RPQWtUNnc2N0tSWTF5dzBBTHVVWjRtSXZ6cGlOVmRCMzR3UiI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjMwOiJodHRwOi8vMTI3LjAuMC4xOjgwMDAva2FyeWF3YW4iO3M6NToicm91dGUiO3M6MTQ6Imthcnlhd2FuLmluZGV4Ijt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MTtzOjE3OiJwYXNzd29yZF9oYXNoX3dlYiI7czo2NDoiNjYxOTM2Y2YzYjk5NDE2ZTYzMjZiOWQ2MWQ5NmRmZDY5YWRiN2ZkZGM3ZWEwZWQ5OTJmNDliMTYwNjVlZWZkZiI7fQ==', 1793318468),
-('lze9OkebiHiXKH0ZcxXeyFCHYn1Zhx5IUOSHwieO', 2, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoiUHdvMHh1NTAwa3p5eXZ4VDQ5TDlFdUJaVjZMbVdtTzIwTGltcldJZCI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjI4OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvc2hvcGVlIjtzOjU6InJvdXRlIjtzOjEyOiJzaG9wZWUuaW5kZXgiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToyO3M6MTc6InBhc3N3b3JkX2hhc2hfd2ViIjtzOjY0OiIxNWQ4Mjg1NmJmZjI0MGRhZGJkMDQwMTAxNmQ4NTFlZjUyODY2ZmNlMWE4MzJkMWZlYTUyNzkzM2E1YzYxZTI1Ijt9', 1793317869),
-('T9PVmlTZTvUn3cgreovwzRmmRCAK62uQYXEYZOV6', 2, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoiRWRGVVFPeHVDNEMxUzBaR3NESVRuRjVQdmxXREppZ2tkSUxlR2pqWSI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjI4OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvc2hvcGVlIjtzOjU6InJvdXRlIjtzOjEyOiJzaG9wZWUuaW5kZXgiO31zOjY6Il9mbGFzaCI7YToyOntzOjM6Im9sZCI7YTowOnt9czozOiJuZXciO2E6MDp7fX1zOjUwOiJsb2dpbl93ZWJfNTliYTM2YWRkYzJiMmY5NDAxNTgwZjAxNGM3ZjU4ZWE0ZTMwOTg5ZCI7aToyO3M6MTc6InBhc3N3b3JkX2hhc2hfd2ViIjtzOjY0OiIxNWQ4Mjg1NmJmZjI0MGRhZGJkMDQwMTAxNmQ4NTFlZjUyODY2ZmNlMWE4MzJkMWZlYTUyNzkzM2E1YzYxZTI1Ijt9', 1793317958),
-('ZuGP3cUKAAKsiftWDA1yrQ3Brsidtk5UZkAN28vG', 2, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'YTo1OntzOjY6Il90b2tlbiI7czo0MDoibENIWU1kd1p6elZEVkRKeFVHR1pvN28xNzA1aUZkR0VCTWNFWklBSSI7czo2OiJfZmxhc2giO2E6Mjp7czozOiJuZXciO2E6MDp7fXM6Mzoib2xkIjthOjA6e319czo5OiJfcHJldmlvdXMiO2E6Mjp7czozOiJ1cmwiO3M6NDc6Imh0dHA6Ly8xMjcuMC4wLjE6ODAwMC9icmlsaW5rL3NhbGRvLWtlc2VsdXJ1aGFuIjtzOjU6InJvdXRlIjtzOjI1OiJicmlsaW5rLnNhbGRvLWtlc2VsdXJ1aGFuIjt9czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MjtzOjE3OiJwYXNzd29yZF9oYXNoX3dlYiI7czo2NDoiMTVkODI4NTZiZmYyNDBkYWRiZDA0MDEwMTZkODUxZWY1Mjg2NmZjZTFhODMyZDFmZWE1Mjc5MzNhNWM2MWUyNSI7fQ==', 1793318319);
+('QnTS4JpXm9J6s8v9DZBEGuyEDqcMYRvXZbZMQghF', 1, '127.0.0.1', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/156.0.0.0 Safari/537.36', 'YTo2OntzOjY6Il90b2tlbiI7czo0MDoiWkhCZjlZdW8wUTlrOXVENG1JWHk5STVxYkl6NzVSN3ZGbEhUYVpINyI7czozOiJ1cmwiO2E6MDp7fXM6OToiX3ByZXZpb3VzIjthOjI6e3M6MzoidXJsIjtzOjI3OiJodHRwOi8vMTI3LjAuMC4xOjgwMDAvemFrYXQiO3M6NToicm91dGUiO3M6MTE6Inpha2F0LmluZGV4Ijt9czo2OiJfZmxhc2giO2E6Mjp7czozOiJvbGQiO2E6MDp7fXM6MzoibmV3IjthOjA6e319czo1MDoibG9naW5fd2ViXzU5YmEzNmFkZGMyYjJmOTQwMTU4MGYwMTRjN2Y1OGVhNGUzMDk4OWQiO2k6MTtzOjE3OiJwYXNzd29yZF9oYXNoX3dlYiI7czo2NDoiOTlmOGJlYzJkYjU0YTg4ODIyNWI5OTY5M2NmNDVhMzVlZWRlMmFiODk3MGQwM2YzNTIxMWU0ZWRhYzYyZDg4YyI7fQ==', 1793591677);
 
 -- --------------------------------------------------------
 
@@ -769,12 +939,12 @@ CREATE TABLE `stores` (
 --
 
 INSERT INTO `stores` (`id`, `marketplace`, `nama_toko`, `seller_id`, `is_active`, `created_at`, `updated_at`) VALUES
-(1, 'brilink', 'Brilink HM Pusat', NULL, 1, '2026-10-26 14:19:11', '2026-10-26 14:19:11'),
-(2, 'brilink', 'Brilink Gunajaya', NULL, 1, '2026-10-26 14:19:18', '2026-10-26 14:19:18'),
-(3, 'brilink', 'Brilink Cieurih', NULL, 1, '2026-10-26 14:19:23', '2026-10-26 14:19:23'),
-(4, 'brilink', 'Brilink Atung', NULL, 1, '2026-10-26 14:19:32', '2026-10-26 14:19:32'),
-(5, 'tiktok', 'Barokah Sport', NULL, 1, '2026-10-26 14:30:13', '2026-10-26 14:30:13'),
-(6, 'shopee', 'HM Barokah', NULL, 1, '2026-10-29 15:23:29', '2026-10-29 15:23:29');
+(1, 'brilink', 'Brilink HM Pusat', NULL, 1, '2026-11-02 03:47:45', '2026-11-02 03:47:45'),
+(2, 'brilink', 'Brilink Gunajaya', NULL, 1, '2026-11-02 03:47:53', '2026-11-02 03:47:53'),
+(3, 'brilink', 'Brilink Atung', NULL, 1, '2026-11-02 03:47:59', '2026-11-02 03:47:59'),
+(4, 'brilink', 'Brilink Cieurih', NULL, 1, '2026-11-02 03:48:05', '2026-11-02 03:48:05'),
+(5, 'tiktok', 'Barokah Sport', NULL, 1, '2026-11-02 03:48:13', '2026-11-02 03:48:13'),
+(6, 'shopee', 'HM Barokah', NULL, 1, '2026-11-02 03:48:17', '2026-11-02 03:48:17');
 
 -- --------------------------------------------------------
 
@@ -794,13 +964,6 @@ CREATE TABLE `store_komisi_settings` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `store_komisi_settings`
---
-
-INSERT INTO `store_komisi_settings` (`id`, `store_id`, `komisi_per_transaksi`, `komisi_host_live_per_trx`, `komisi_host_live_global`, `komisi_web_per_trx`, `tipe_komisi_web`, `tipe_komisi`, `created_at`, `updated_at`) VALUES
-(1, 5, 0, 0, 2000, 2, 'persen', 'rp', '2026-10-26 14:31:46', '2026-10-26 14:31:46');
 
 -- --------------------------------------------------------
 
@@ -961,8 +1124,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `karyawan_id`, `can_login`, `must_change_password`, `name`, `email`, `email_verified_at`, `password`, `remember_token`, `created_at`, `updated_at`) VALUES
-(1, NULL, 1, 0, 'Asep Mubarok', 'admin@barokahsport.com', NULL, '$2y$12$r5V5rAn7cI88WSByb1W76.m4gT6egDmmkFXPG2ksN7PJG3ATwlnRO', NULL, '2026-10-26 14:18:30', '2026-10-29 23:57:55'),
-(2, NULL, 1, 1, 'SITI', 'siti@barokahsport.com', NULL, '$2y$12$/2qGd0ecw1kGEwE0WFIpburuG/1JUJAkDIQbGNh2bjGaqMx5xzJIS', NULL, '2026-10-29 23:50:36', '2026-10-29 23:50:36');
+(1, NULL, 1, 0, 'Asep Mubarok', 'admin@barokahsport.com', NULL, '$2y$12$XcFIQvIJVxw.vSb3Bp/DW.SMLmgyWzVH.di58LUvkZgmG3CIxtZQW', NULL, '2026-11-02 03:45:40', '2026-11-02 03:45:40');
 
 -- --------------------------------------------------------
 
@@ -993,13 +1155,6 @@ CREATE TABLE `web_orders_snapshot` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `web_orders_snapshot`
---
-
-INSERT INTO `web_orders_snapshot` (`id`, `web_order_id`, `order_number`, `customer_id`, `customer_name`, `customer_email`, `customer_phone`, `status`, `payment_status`, `payment_method`, `payment_proof`, `total_amount`, `shipping_cost`, `discount_amount`, `marketplace`, `web_created_at`, `web_updated_at`, `synced_at`, `created_at`, `updated_at`) VALUES
-(1, 145, 'ORD-6ACF432BC3A2E', 4, 'Muhamad Rafli Repmihar Augst', NULL, '0895610411991', 'delivered', 'paid', 'BCA Transfer', 'payment-proofs/AvdAs7Wd4cTWxebon4LtieRjsFCqVRhX1mOBu2Ms.webp', 170600.00, 9100.00, 0.00, 'web', '2026-10-14 08:54:03', '2026-10-25 20:55:56', '2026-10-26 14:31:23', '2026-10-26 14:31:23', '2026-10-26 14:31:23');
-
 -- --------------------------------------------------------
 
 --
@@ -1023,13 +1178,6 @@ CREATE TABLE `web_order_items_snapshot` (
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
---
--- Dumping data for table `web_order_items_snapshot`
---
-
-INSERT INTO `web_order_items_snapshot` (`id`, `web_order_id`, `web_order_item_id`, `product_id`, `product_variant_id`, `product_name`, `sku`, `category_name`, `price`, `quantity`, `subtotal`, `weight`, `created_at`, `updated_at`) VALUES
-(1, 145, 151, 135, 2472, 'HM Barokah - One Set Olahraga Seragam Setelan Olahraga Running Jogging Bahan Tebal', 'SET XTC NAVY-M', 'SETELAN', 161500.00, 1, 161500.00, 0.00, '2026-10-26 14:31:23', '2026-10-26 14:31:23');
-
 -- --------------------------------------------------------
 
 --
@@ -1049,13 +1197,6 @@ CREATE TABLE `web_sync_logs` (
   `created_at` timestamp NULL DEFAULT NULL,
   `updated_at` timestamp NULL DEFAULT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
---
--- Dumping data for table `web_sync_logs`
---
-
-INSERT INTO `web_sync_logs` (`id`, `type`, `started_at`, `finished_at`, `records_created`, `records_updated`, `records_skipped`, `status`, `error_message`, `created_at`, `updated_at`) VALUES
-(1, 'orders', '2026-10-26 14:31:23', '2026-10-26 14:31:23', 1, 0, 0, 'success', NULL, '2026-10-26 14:31:22', '2026-10-26 14:31:23');
 
 -- --------------------------------------------------------
 
@@ -1226,6 +1367,30 @@ ALTER TABLE `gaji_karyawan`
   ADD KEY `gaji_karyawan_periode_index` (`periode`);
 
 --
+-- Indexes for table `hancas`
+--
+ALTER TABLE `hancas`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hancas_konveksi_karyawan_id_foreign` (`konveksi_karyawan_id`);
+
+--
+-- Indexes for table `hanca_details`
+--
+ALTER TABLE `hanca_details`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hanca_details_hanca_id_foreign` (`hanca_id`),
+  ADD KEY `hanca_details_kategori_produk_id_foreign` (`kategori_produk_id`);
+
+--
+-- Indexes for table `hanca_pembayarans`
+--
+ALTER TABLE `hanca_pembayarans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `hanca_pembayarans_hanca_id_foreign` (`hanca_id`),
+  ADD KEY `hanca_pembayarans_hanca_detail_id_foreign` (`hanca_detail_id`),
+  ADD KEY `hanca_pembayarans_kasbon_id_foreign` (`kasbon_id`);
+
+--
 -- Indexes for table `hutangs`
 --
 ALTER TABLE `hutangs`
@@ -1258,6 +1423,46 @@ ALTER TABLE `job_batches`
 ALTER TABLE `karyawan`
   ADD PRIMARY KEY (`id`),
   ADD KEY `karyawan_store_id_foreign` (`store_id`);
+
+--
+-- Indexes for table `konveksi_karyawans`
+--
+ALTER TABLE `konveksi_karyawans`
+  ADD PRIMARY KEY (`id`);
+
+--
+-- Indexes for table `konveksi_kasbons`
+--
+ALTER TABLE `konveksi_kasbons`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `konveksi_kasbons_konveksi_karyawan_id_foreign` (`konveksi_karyawan_id`);
+
+--
+-- Indexes for table `konveksi_kategoris`
+--
+ALTER TABLE `konveksi_kategoris`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `konveksi_kategoris_nama_unique` (`nama`);
+
+--
+-- Indexes for table `konveksi_kategori_produks`
+--
+ALTER TABLE `konveksi_kategori_produks`
+  ADD PRIMARY KEY (`id`),
+  ADD UNIQUE KEY `konveksi_kategori_produks_nama_unique` (`nama`);
+
+--
+-- Indexes for table `konveksi_pengeluarans`
+--
+ALTER TABLE `konveksi_pengeluarans`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `konveksi_pengeluarans_konveksi_karyawan_id_foreign` (`konveksi_karyawan_id`);
+
+--
+-- Indexes for table `konveksi_pengeluaran_umums`
+--
+ALTER TABLE `konveksi_pengeluaran_umums`
+  ADD PRIMARY KEY (`id`);
 
 --
 -- Indexes for table `laporan_minus_karyawan`
@@ -1500,43 +1705,43 @@ ALTER TABLE `zakat_saldo_onlines`
 -- AUTO_INCREMENT for table `brilink_accounts`
 --
 ALTER TABLE `brilink_accounts`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=668;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_pengeluaran`
 --
 ALTER TABLE `brilink_pengeluaran`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=556;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_ppob_transactions`
 --
 ALTER TABLE `brilink_ppob_transactions`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1997;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_reports`
 --
 ALTER TABLE `brilink_reports`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=43;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_saldo_pindah`
 --
 ALTER TABLE `brilink_saldo_pindah`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=6;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_setoran`
 --
 ALTER TABLE `brilink_setoran`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=626;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `brilink_tarik_tunai`
 --
 ALTER TABLE `brilink_tarik_tunai`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3167;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `failed_jobs`
@@ -1548,7 +1753,25 @@ ALTER TABLE `failed_jobs`
 -- AUTO_INCREMENT for table `gaji_karyawan`
 --
 ALTER TABLE `gaji_karyawan`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `hancas`
+--
+ALTER TABLE `hancas`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `hanca_details`
+--
+ALTER TABLE `hanca_details`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `hanca_pembayarans`
+--
+ALTER TABLE `hanca_pembayarans`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `hutangs`
@@ -1560,7 +1783,7 @@ ALTER TABLE `hutangs`
 -- AUTO_INCREMENT for table `imports`
 --
 ALTER TABLE `imports`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=48;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `jobs`
@@ -1572,7 +1795,43 @@ ALTER TABLE `jobs`
 -- AUTO_INCREMENT for table `karyawan`
 --
 ALTER TABLE `karyawan`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=7;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `konveksi_karyawans`
+--
+ALTER TABLE `konveksi_karyawans`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `konveksi_kasbons`
+--
+ALTER TABLE `konveksi_kasbons`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `konveksi_kategoris`
+--
+ALTER TABLE `konveksi_kategoris`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=5;
+
+--
+-- AUTO_INCREMENT for table `konveksi_kategori_produks`
+--
+ALTER TABLE `konveksi_kategori_produks`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `konveksi_pengeluarans`
+--
+ALTER TABLE `konveksi_pengeluarans`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
+
+--
+-- AUTO_INCREMENT for table `konveksi_pengeluaran_umums`
+--
+ALTER TABLE `konveksi_pengeluaran_umums`
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `laporan_minus_karyawan`
@@ -1584,43 +1843,43 @@ ALTER TABLE `laporan_minus_karyawan`
 -- AUTO_INCREMENT for table `migrations`
 --
 ALTER TABLE `migrations`
-  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=67;
+  MODIFY `id` int(10) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=88;
 
 --
 -- AUTO_INCREMENT for table `permissions`
 --
 ALTER TABLE `permissions`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=26;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=27;
 
 --
 -- AUTO_INCREMENT for table `products`
 --
 ALTER TABLE `products`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=8;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `roles`
 --
 ALTER TABLE `roles`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `sales`
 --
 ALTER TABLE `sales`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=4186;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `shopee_income_rows`
 --
 ALTER TABLE `shopee_income_rows`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1597;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `shopee_order_items`
 --
 ALTER TABLE `shopee_order_items`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=995;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `stores`
@@ -1632,7 +1891,7 @@ ALTER TABLE `stores`
 -- AUTO_INCREMENT for table `store_komisi_settings`
 --
 ALTER TABLE `store_komisi_settings`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `tabungan_accounts`
@@ -1650,7 +1909,7 @@ ALTER TABLE `tabungan_transactions`
 -- AUTO_INCREMENT for table `tiktok_income`
 --
 ALTER TABLE `tiktok_income`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1547;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `tiktok_live_products`
@@ -1668,31 +1927,31 @@ ALTER TABLE `tiktok_live_sessions`
 -- AUTO_INCREMENT for table `tiktok_order_items`
 --
 ALTER TABLE `tiktok_order_items`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=1469;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `users`
 --
 ALTER TABLE `users`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=3;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
 
 --
 -- AUTO_INCREMENT for table `web_orders_snapshot`
 --
 ALTER TABLE `web_orders_snapshot`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `web_order_items_snapshot`
 --
 ALTER TABLE `web_order_items_snapshot`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `web_sync_logs`
 --
 ALTER TABLE `web_sync_logs`
-  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT, AUTO_INCREMENT=2;
+  MODIFY `id` bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT;
 
 --
 -- AUTO_INCREMENT for table `zakat_barang`
@@ -1778,6 +2037,27 @@ ALTER TABLE `gaji_karyawan`
   ADD CONSTRAINT `gaji_karyawan_karyawan_id_foreign` FOREIGN KEY (`karyawan_id`) REFERENCES `karyawan` (`id`) ON DELETE CASCADE;
 
 --
+-- Constraints for table `hancas`
+--
+ALTER TABLE `hancas`
+  ADD CONSTRAINT `hancas_konveksi_karyawan_id_foreign` FOREIGN KEY (`konveksi_karyawan_id`) REFERENCES `konveksi_karyawans` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `hanca_details`
+--
+ALTER TABLE `hanca_details`
+  ADD CONSTRAINT `hanca_details_hanca_id_foreign` FOREIGN KEY (`hanca_id`) REFERENCES `hancas` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `hanca_details_kategori_produk_id_foreign` FOREIGN KEY (`kategori_produk_id`) REFERENCES `konveksi_kategori_produks` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `hanca_pembayarans`
+--
+ALTER TABLE `hanca_pembayarans`
+  ADD CONSTRAINT `hanca_pembayarans_hanca_detail_id_foreign` FOREIGN KEY (`hanca_detail_id`) REFERENCES `hanca_details` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `hanca_pembayarans_hanca_id_foreign` FOREIGN KEY (`hanca_id`) REFERENCES `hancas` (`id`) ON DELETE CASCADE,
+  ADD CONSTRAINT `hanca_pembayarans_kasbon_id_foreign` FOREIGN KEY (`kasbon_id`) REFERENCES `konveksi_kasbons` (`id`) ON DELETE SET NULL;
+
+--
 -- Constraints for table `imports`
 --
 ALTER TABLE `imports`
@@ -1788,6 +2068,18 @@ ALTER TABLE `imports`
 --
 ALTER TABLE `karyawan`
   ADD CONSTRAINT `karyawan_store_id_foreign` FOREIGN KEY (`store_id`) REFERENCES `stores` (`id`) ON DELETE SET NULL;
+
+--
+-- Constraints for table `konveksi_kasbons`
+--
+ALTER TABLE `konveksi_kasbons`
+  ADD CONSTRAINT `konveksi_kasbons_konveksi_karyawan_id_foreign` FOREIGN KEY (`konveksi_karyawan_id`) REFERENCES `konveksi_karyawans` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `konveksi_pengeluarans`
+--
+ALTER TABLE `konveksi_pengeluarans`
+  ADD CONSTRAINT `konveksi_pengeluarans_konveksi_karyawan_id_foreign` FOREIGN KEY (`konveksi_karyawan_id`) REFERENCES `konveksi_karyawans` (`id`) ON DELETE CASCADE;
 
 --
 -- Constraints for table `laporan_minus_karyawan`

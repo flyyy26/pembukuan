@@ -12,36 +12,10 @@ class RolesAndPermissionsSeeder extends Seeder
     public function run(): void
     {
         // Permission per halaman
-        $permissions = [
-            'view shopee',
-            'view tiktok',
-            'view tiktok live',
-            'view web-sales',
-            'view brilink',
-            'view brilink saldo',
-            'view brilink pertumbuhan',
-            'view brilink pengeluaran',
-            'view brilink ppob',
-            'view brilink setoran',
-            'view brilink tarik-tunai',
-            'view brilink profit',
-            'view brilink brangkas',
-            'view tabungan',
-            'view hutang',
-            'view piutang',
-            'view zakat',
-            'view karyawan',
-            'view gaji',
-            'view minus',
-            'view import shopee',
-            'view import tiktok',
-            'view import brilink',
-            'view products',
-            'view stores',
-        ];
+        $permissions = array_keys(config('page_permissions', []));
 
         foreach ($permissions as $perm) {
-            Permission::firstOrCreate(['name' => $perm]);
+            Permission::firstOrCreate(['name' => $perm, 'guard_name' => 'web']);
         }
 
         // Role admin: semua permission

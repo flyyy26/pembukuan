@@ -435,17 +435,17 @@
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-[50vh] overflow-y-auto pr-1 -mr-1">
                     {{-- Permission checkbox --}}
-                    @foreach($allPermissions as $perm)
+                    @foreach($allPermissions as $permission)
                         <label class="flex items-center gap-2 bg-white hover:bg-purple-50 border border-gray-200 hover:border-purple-300 rounded-lg px-3 py-2 cursor-pointer transition">
-                            <input type="checkbox" class="perm-checkbox w-4 h-4 text-purple-600 rounded focus:ring-purple-500" value="{{ $perm }}">
-                            <span class="text-xs text-gray-700 font-medium">{{ $perm }}</span>
+                            <input type="checkbox" class="perm-checkbox w-4 h-4 text-purple-600 rounded focus:ring-purple-500" value="{{ $permission['name'] }}">
+                            <span class="text-xs text-gray-700 font-medium">{{ $permission['label'] }}</span>
                         </label>
                     @endforeach
                 </div>
 
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800 flex items-start gap-2">
                     <iconify-icon icon="mdi:information" class="text-base flex-shrink-0 mt-0.5"></iconify-icon>
-                    <div><strong>Catatan:</strong> Permission bertingkat. Misal centang <em>view brilink</em> tapi tidak centang <em>view brilink saldo</em>, maka menu Saldo tetap tidak muncul.</div>
+                    <div><strong>Catatan:</strong> Beberapa halaman memerlukan akses halaman induk. Untuk membuka submenu BRILink, pilih juga <em>Laporan BRILink</em> selain izin submenu yang dibutuhkan.</div>
                 </div>
 
                 {{-- Reset Password --}}
@@ -582,7 +582,7 @@
     }
 
     async function deleteKaryawan(id, nama) {
-        if (!confirm(`Yakin hapus karyawan "${nama}"?`)) return;
+        if (!confirm(`Yakin hapus karyawan "${nama}" beserta akun login terkait?`)) return;
         try {
             const res = await fetch(`/karyawan/${id}/ajax`, {
                 method: 'DELETE',

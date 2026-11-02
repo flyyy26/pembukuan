@@ -6,6 +6,7 @@ use App\Models\Import;
 use App\Models\ShopeeIncomeRow;
 use App\Models\ShopeeOrderItem;
 use App\Models\Store;
+use App\Support\ImportedFileStorage;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -73,6 +74,7 @@ class ImportController extends Controller
                 'store_id'      => $store->id,
                 'tipe'          => 'shopee_order',
                 'file_name'     => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
                 'file_hash'     => $fileHash,
                 'periode_start' => $data['periode_start'],
                 'periode_end'   => $data['periode_end'],
@@ -221,6 +223,7 @@ class ImportController extends Controller
                     'store_id'      => $store->id,
                     'tipe'          => 'shopee_order',
                     'file_name'     => $orderFile->getClientOriginalName(),
+                    'stored_path'   => $orderStoredPath,
                     'file_hash'     => $orderHash,
                     'periode_start' => $orderData['periode_start'],
                     'periode_end'   => $orderData['periode_end'],
@@ -274,6 +277,7 @@ class ImportController extends Controller
                     'store_id'      => $store->id,
                     'tipe'          => 'shopee_income',
                     'file_name'     => $incomeFile->getClientOriginalName(),
+                    'stored_path'   => $incomeStoredPath,
                     'file_hash'     => $incomeHash,
                     'periode_start' => $incomeData['periode_start'],
                     'periode_end'   => $incomeData['periode_end'],
@@ -366,6 +370,7 @@ class ImportController extends Controller
                 'store_id'      => $store->id,
                 'tipe'          => 'shopee_income',
                 'file_name'     => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
                 'file_hash'     => $fileHash,
                 'periode_start' => $data['periode_start'],
                 'periode_end'   => $data['periode_end'],
@@ -515,6 +520,8 @@ class ImportController extends Controller
         }
 
         $storeId = $import->store_id;
+        $storedPath = $import->stored_path;
+        $fileHash = $import->file_hash;
 
         DB::beginTransaction();
         try {
@@ -534,6 +541,17 @@ class ImportController extends Controller
             }
 
             DB::commit();
+
+            try {
+                ImportedFileStorage::deleteAfterImportRemoval($storedPath, $fileHash);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Data import berhasil dihapus, tetapi file Excel gagal dihapus dari storage.',
+                ], 500);
+            }
 
             return response()->json([
                 'success' => true,

@@ -18,6 +18,7 @@ use App\Http\Controllers\ZakatPembayaranController;
 use App\Http\Controllers\WebSalesReportController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\UserManagementController;
+use App\Http\Controllers\LaporanKonveksiController;
 use Illuminate\Support\Facades\Route;
 
 // ============================================
@@ -69,6 +70,7 @@ Route::middleware('auth')->group(function () {
             'view import brilink' => '/brilink/import',
             'view products'       => '/products',
             'view stores'         => '/stores',
+            'view konveksi'       => '/konveksi', // Tambahan
         ];
 
         foreach ($map as $perm => $url) {
@@ -335,6 +337,45 @@ Route::middleware('auth')->group(function () {
         Route::post('/piutang/bayar-bulk', [PiutangController::class, 'bayarPiutangBulk'])->name('piutang.bayar-bulk');
     });
 
+    // ============ KONVEKSI ============
+    Route::middleware('permission:view konveksi')->prefix('konveksi')->name('konveksi.')->group(function () {
+        Route::get('/', [LaporanKonveksiController::class, 'index'])->name('index');
+        Route::get('/data-bayaran', [LaporanKonveksiController::class, 'dataBayaran'])->name('data-bayaran');
+        Route::get('/pengeluaran', [LaporanKonveksiController::class, 'pengeluaranIndex'])->name('pengeluaran');
+        Route::post('/pengeluaran/data/store-ajax', [LaporanKonveksiController::class, 'storePengeluaranUmumAjax'])->name('pengeluaran.data.store-ajax');
+        Route::delete('/pengeluaran/data/{pengeluaran}/ajax', [LaporanKonveksiController::class, 'destroyPengeluaranUmumAjax'])->name('pengeluaran.data.destroy-ajax');
+        Route::get('/pengeluaran/{pengeluaran}/invoice-pdf', [LaporanKonveksiController::class, 'printPengeluaranPdf'])->name('pengeluaran.invoice-pdf');
+        Route::get('/hanca-selesai', [LaporanKonveksiController::class, 'hancaSelesai'])->name('hanca-selesai');
+
+        // Karyawan Konveksi
+        Route::post('/karyawan/store-ajax', [LaporanKonveksiController::class, 'storeKaryawanAjax'])->name('karyawan.store-ajax');
+
+        // Hanca
+        Route::post('/hanca/store-ajax', [LaporanKonveksiController::class, 'storeHancaAjax'])->name('hanca.store-ajax');
+        Route::put('/hanca/{hanca}/ajax', [LaporanKonveksiController::class, 'updateHancaAjax'])->name('hanca.update-ajax');
+        Route::delete('/hanca/{hanca}/ajax', [LaporanKonveksiController::class, 'destroyHancaAjax'])->name('hanca.destroy-ajax');
+
+        // Pembayaran
+        Route::post('/pembayaran/store-ajax', [LaporanKonveksiController::class, 'storePembayaranAjax'])->name('pembayaran.store-ajax');
+        Route::delete('/pembayaran/{pembayaran}/ajax', [LaporanKonveksiController::class, 'destroyPembayaranAjax'])->name('pembayaran.destroy-ajax');
+        Route::post('/pengeluaran/store-ajax', [LaporanKonveksiController::class, 'storePengeluaranAjax'])->name('pengeluaran.store-ajax');
+        Route::delete('/karyawan/{karyawan}/ajax', [LaporanKonveksiController::class, 'destroyKaryawanAjax'])->name('karyawan.destroy-ajax');
+        Route::get('/pembayaran/{pembayaran}/invoice-pdf', [LaporanKonveksiController::class, 'printInvoicePdf'])->name('pembayaran.invoice-pdf');
+        Route::post('/kategori/store-ajax', [LaporanKonveksiController::class, 'storeKategoriAjax'])->name('kategori.store-ajax');
+        Route::delete('/kategori/{kategori}/ajax', [LaporanKonveksiController::class, 'destroyKategoriAjax'])->name('kategori.destroy-ajax');
+        Route::post('/kategori-produk/store-ajax', [LaporanKonveksiController::class, 'storeKategoriProdukAjax'])->name('kategori-produk.store-ajax');
+        Route::delete('/kategori-produk/{kategoriProduk}/ajax', [LaporanKonveksiController::class, 'destroyKategoriProdukAjax'])->name('kategori-produk.destroy-ajax');
+        Route::delete('/hanca-detail/{detail}/ajax', [LaporanKonveksiController::class, 'destroyDetailAjax'])->name('hanca-detail.destroy-ajax');
+
+        Route::get('/kasbon', [LaporanKonveksiController::class, 'kasbonIndex'])->name('kasbon');
+        Route::post('/kasbon/store-ajax', [LaporanKonveksiController::class, 'storeKasbonAjax'])->name('kasbon.store-ajax');
+        Route::delete('/kasbon/{kasbon}/ajax', [LaporanKonveksiController::class, 'destroyKasbonAjax'])->name('kasbon.destroy-ajax');
+        Route::get('/kasbon/{kasbon}/invoice-pdf', [LaporanKonveksiController::class, 'printKasbonPdf'])->name('kasbon.invoice-pdf');
+        Route::get('/kasbon/sisa-ajax', [LaporanKonveksiController::class, 'getSisaKasbonAjax'])->name('kasbon.sisa-ajax');
+        Route::get('/kasbon/karyawan-ajax', [LaporanKonveksiController::class, 'getKasbonByKaryawanAjax'])->name('kasbon.karyawan-ajax');
+        Route::post('/kasbon/{kasbon}/bayar-ajax', [LaporanKonveksiController::class, 'bayarKasbonAjax'])->name('kasbon.bayar-ajax');
+    });
+
     // ============================================
     // USER MANAGEMENT (KHUSUS ADMIN)
     // ============================================
@@ -346,4 +387,5 @@ Route::middleware('auth')->group(function () {
         Route::delete('/users/{user}', [UserManagementController::class, 'destroy'])->name('users.destroy');
         Route::get('/users/permissions', [UserManagementController::class, 'listPermissions'])->name('users.permissions');
     });
+
 });

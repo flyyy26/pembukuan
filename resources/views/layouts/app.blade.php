@@ -32,6 +32,12 @@
             background: #d1d5db;
         }
     </style>
+    <!-- jQuery -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <!-- Select2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+    <!-- Select2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 </head>
 <body class="bg-gray-100 min-h-screen">
 
@@ -42,11 +48,10 @@
     // DEBUG: aktifkan sementara untuk melihat permission user di browser console
     if ($user && !$isAdmin) {
         $userPerms = $user->getAllPermissions()->pluck('name')->toArray();
-        // Log ke console browser
         echo "<script>console.log('USER PERMISSIONS:', " . json_encode($userPerms) . ");</script>";
     }
 
-    // Helper: cek permission dengan aman (case-sensitive, tapi trim spasi)
+    // Helper: cek permission dengan aman
     $canView = function ($permission) use ($user, $isAdmin) {
         if (!$user) return false;
         if ($isAdmin) return true;
@@ -68,6 +73,19 @@
                     ])),
                 ] : null,
                 $canView('view web-sales') ? ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'] : null,
+                
+                $canView('view konveksi') ? [
+                    'route' => 'konveksi.index',
+                    'label' => 'Laporan Konveksi',
+                    'icon' => 'mdi:scissors-cutting',
+                    'submenu' => array_values(array_filter([
+                        $canView('view konveksi') ? ['route' => 'konveksi.index', 'label' => 'Data Setor Hanca', 'icon' => 'mdi:clipboard-list'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran', 'icon' => 'mdi:cash-check'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.hanca-selesai', 'label' => 'Hanca Selesai', 'icon' => 'mdi:check-all'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon', 'icon' => 'mdi:cash-remove'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran', 'icon' => 'mdi:cash-minus'] : null,
+                    ])),
+                ] : null,
             ])),
         ],
         [
@@ -126,7 +144,7 @@
 
 <div class="flex min-h-screen relative">
 
-    {{-- ============ OVERLAY (Latar Gelap saat Sidebar Terbuka di HP) ============ --}}
+    {{-- ============ OVERLAY ============ --}}
     <div id="sidebarOverlay" 
          class="fixed inset-0 bg-black/50 z-40 hidden transition-opacity lg:hidden" 
          onclick="toggleSidebar()"></div>
@@ -143,7 +161,6 @@
                 </div>
                 BukuBarokah
             </a>
-            {{-- Tombol Close (Hanya muncul di Mobile) --}}
             <button class="lg:hidden text-gray-500 hover:text-gray-700" onclick="toggleSidebar()">
                 <iconify-icon icon="mdi:close" class="text-2xl"></iconify-icon>
             </button>
@@ -166,29 +183,47 @@
                             }
 
                             $hasSubmenu = isset($item['submenu']);
-                            // Cek apakah ada submenu yang aktif
                             $isSubmenuActive = $hasSubmenu && collect($item['submenu'])->contains(fn($sub) => request()->routeIs($sub['route']));
                             if ($isSubmenuActive) $isActive = true;
                         @endphp
 
-                        <a href="{{ route($item['route']) }}"
-                            @if($isActive) data-sidebar-active="true" @endif
-                            class="flex items-center justify-between px-6 py-2.5 text-sm transition
-                                    {{ $isActive
-                                        ? 'bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600'
-                                        : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
-                            <div class="flex items-center gap-3">
-                                <iconify-icon icon="{{ $item['icon'] }}" class="text-lg {{ $isActive ? 'text-blue-600' : 'text-gray-400' }}"></iconify-icon>
-                                {{ $item['label'] }}
-                            </div>
-                            @if($hasSubmenu)
-                                <iconify-icon icon="mdi:chevron-down" class="text-sm {{ $isActive ? 'text-blue-600' : 'text-gray-400' }}"></iconify-icon>
-                            @endif
-                        </a>
+                        {{-- ✅ JIKA PUNYA SUBMENU, UBAH JADI BUTTON --}}
+                        @if($hasSubmenu)
+                            <button type="button"
+                                onclick="toggleSubmenu('submenu-{{ Str::slug($item['label']) }}')"
+                                class="w-full flex items-center justify-between px-6 py-2.5 text-sm transition
+                                        {{ $isActive
+                                            ? 'bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+                                <div class="flex items-center gap-3">
+                                    <iconify-icon icon="{{ $item['icon'] }}" class="text-lg {{ $isActive ? 'text-blue-600' : 'text-gray-400' }}"></iconify-icon>
+                                    {{ $item['label'] }}
+                                </div>
+                                {{-- Ikon Panah berputar --}}
+                                <iconify-icon icon="mdi:chevron-down"
+                                    class="submenu-toggle-icon text-sm transition-transform duration-300 ease-in-out text-gray-400">
+                                </iconify-icon>
+                            </button>
+                        @else
+                            {{-- JIKA TIDAK PUNYA SUBMENU, TETAP JADI LINK --}}
+                            <a href="{{ route($item['route']) }}"
+                                @if($isActive) data-sidebar-active="true" @endif
+                                class="flex items-center justify-between px-6 py-2.5 text-sm transition
+                                        {{ $isActive
+                                            ? 'bg-blue-50 text-blue-700 font-medium border-r-2 border-blue-600'
+                                            : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900' }}">
+                                <div class="flex items-center gap-3">
+                                    <iconify-icon icon="{{ $item['icon'] }}" class="text-lg {{ $isActive ? 'text-blue-600' : 'text-gray-400' }}"></iconify-icon>
+                                    {{ $item['label'] }}
+                                </div>
+                            </a>
+                        @endif
 
-                        {{-- Render Submenu --}}
-                        @if($hasSubmenu && ($isActive || request()->routeIs('brilink.*')))
-                            <div class="bg-gray-50/50 py-1 border-r-2 border-transparent">
+                        {{-- ✅ RENDER SUBMENU DENGAN ANIMASI --}}
+                        @if($hasSubmenu)
+                            <div id="submenu-{{ Str::slug($item['label']) }}" 
+                                 class="overflow-hidden transition-all duration-300 ease-in-out bg-gray-50/50 border-r-2 border-transparent
+                                        {{ $isSubmenuActive ? 'max-h-96 opacity-100 py-1' : 'max-h-0 opacity-0 py-0' }}">
                                 @foreach($item['submenu'] as $sub)
                                     @php $isSubActive = request()->routeIs($sub['route']); @endphp
                                     <a href="{{ route($sub['route']) }}"
@@ -207,7 +242,7 @@
             @endforeach
         </nav>
 
-        {{-- Footer Sidebar — User Info + Logout --}}
+        {{-- Footer Sidebar --}}
         <div class="border-t border-gray-200 p-4">
             <div class="flex items-center gap-3 mb-3">
                 <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm shadow-blue-500/30">
@@ -223,7 +258,6 @@
                 </div>
             </div>
 
-            {{-- Logout Button --}}
             <form action="{{ route('logout') }}" method="POST">
                 @csrf
                 <button type="submit"
@@ -242,19 +276,14 @@
     </aside>
 
     {{-- ============ MAIN CONTENT ============ --}}
-    {{-- KUNCI UTAMA: Tambahkan w-full dan min-w-0 agar konten tidak memaksa layout melebar --}}
     <div class="flex-1 w-full min-w-0 min-h-screen transition-all duration-300 ml-0 lg:ml-64 flex flex-col">
 
         {{-- Topbar (Sticky) --}}
         <header class="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 sm:px-8 sticky top-0 z-30 w-full">
-            
             <div class="flex items-center gap-3">
-                {{-- Tombol Hamburger (Hanya muncul di Mobile/Tablet) --}}
                 <button class="lg:hidden p-2 -ml-2 text-gray-600 hover:bg-gray-100 rounded-lg transition" onclick="toggleSidebar()">
                     <iconify-icon icon="mdi:menu" class="text-2xl"></iconify-icon>
                 </button>
-
-                {{-- Page Title --}}
                 <h1 class="text-lg font-semibold text-gray-800 truncate">
                     @yield('title', 'Pembukuan')
                 </h1>
@@ -262,15 +291,11 @@
 
             {{-- User Dropdown --}}
             <div class="relative" id="userDropdownContainer">
-                <button type="button"
-                        onclick="toggleUserDropdown()"
+                <button type="button" onclick="toggleUserDropdown()"
                         class="flex items-center gap-3 pl-2 pr-3 py-1.5 rounded-lg hover:bg-gray-50 transition group">
-                    {{-- Avatar --}}
                     <div class="w-9 h-9 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm shadow-blue-500/30 flex-shrink-0">
                         <iconify-icon icon="mdi:account" class="text-white text-lg"></iconify-icon>
                     </div>
-
-                    {{-- Name (hidden on small screen) --}}
                     <div class="text-left hidden sm:block">
                         <div class="text-sm font-semibold text-gray-800 leading-tight">
                             {{ Auth::user()->name ?? 'Admin' }}
@@ -279,16 +304,11 @@
                             {{ Auth::user()->email ?? '' }}
                         </div>
                     </div>
-
-                    {{-- Chevron --}}
-                    <iconify-icon icon="mdi:chevron-down"
-                                  class="text-gray-400 text-base transition-transform group-hover:text-gray-600"></iconify-icon>
+                    <iconify-icon icon="mdi:chevron-down" class="text-gray-400 text-base transition-transform group-hover:text-gray-600"></iconify-icon>
                 </button>
 
                 {{-- Dropdown Menu --}}
-                <div id="userDropdown"
-                     class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
-                    {{-- User Info --}}
+                <div id="userDropdown" class="hidden absolute right-0 mt-2 w-64 bg-white rounded-xl shadow-lg border border-gray-100 overflow-hidden z-50">
                     <div class="px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-white">
                         <div class="flex items-center gap-3">
                             <div class="w-11 h-11 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center shadow-sm shadow-blue-500/30 flex-shrink-0">
@@ -305,7 +325,6 @@
                         </div>
                     </div>
 
-                    {{-- Menu Items --}}
                     <div class="py-1">
                         <div class="px-4 py-2 flex items-center gap-2 text-xs text-gray-500">
                             <iconify-icon icon="mdi:calendar" class="text-sm"></iconify-icon>
@@ -318,7 +337,6 @@
                         </button>
                     </div>
 
-                    {{-- Logout --}}
                     <div class="border-t border-gray-100 p-2">
                         <form action="{{ route('logout') }}" method="POST">
                             @csrf
@@ -335,14 +353,13 @@
         </header>
 
         {{-- Content --}}
-        {{-- KUNCI KEDUA: main harus w-full dan overflow-x-hidden --}}
         <main class="p-4 sm:p-6 lg:p-8 flex-1 w-full overflow-x-hidden">
             @yield('content')
         </main>
     </div>
 </div>
 
-{{-- MODAL GANTI PASSWORD (untuk semua user) --}}
+{{-- MODAL GANTI PASSWORD --}}
 <div id="changePasswordModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
     <div class="absolute inset-0 bg-black/50" onclick="closeChangePasswordModal()"></div>
     <div class="relative bg-white rounded-xl shadow-xl w-full max-w-md overflow-hidden max-h-[90vh] flex flex-col">
@@ -396,14 +413,11 @@
         const sidebar = document.getElementById('sidebar');
         const overlay = document.getElementById('sidebarOverlay');
         
-        // Toggle class translate-x (geser sidebar)
         sidebar.classList.toggle('-translate-x-full');
         sidebar.classList.toggle('translate-x-0');
 
-        // Toggle overlay (latar hitam transparan)
         if (overlay.classList.contains('hidden')) {
             overlay.classList.remove('hidden');
-            // delay dikit biar animasi transisi opacity jalan
             setTimeout(() => overlay.classList.remove('opacity-0'), 10); 
         } else {
             overlay.classList.add('opacity-0');
@@ -417,7 +431,6 @@
         dropdown.classList.toggle('hidden');
     }
 
-    // Klik di luar = tutup dropdown
     document.addEventListener('click', function (e) {
         const container = document.getElementById('userDropdownContainer');
         const dropdown = document.getElementById('userDropdown');
@@ -426,12 +439,9 @@
         }
     });
 
-    // ESC = tutup dropdown & sidebar
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') {
             document.getElementById('userDropdown').classList.add('hidden');
-            
-            // Tutup sidebar jika sedang terbuka di mobile
             const sidebar = document.getElementById('sidebar');
             const overlay = document.getElementById('sidebarOverlay');
             if (sidebar.classList.contains('translate-x-0') && window.innerWidth < 1024) {
@@ -442,25 +452,58 @@
 </script>
 
 <script>
+    // ==================== TOGGLE SUBMENU DENGAN ANIMASI ====================
+    function toggleSubmenu(id) {
+        const submenu = document.getElementById(id);
+        if (!submenu) return;
+
+        const button = submenu.previousElementSibling;
+        const icon = button.querySelector('.submenu-toggle-icon');
+        const isClosed = submenu.classList.contains('max-h-0');
+
+        if (isClosed) {
+            submenu.classList.remove('max-h-0', 'opacity-0', 'py-0');
+            submenu.classList.add('max-h-96', 'opacity-100', 'py-1');
+            if (icon) icon.classList.add('rotate-180', 'text-blue-600');
+        } else {
+            submenu.classList.remove('max-h-96', 'opacity-100', 'py-1');
+            submenu.classList.add('max-h-0', 'opacity-0', 'py-0');
+            if (icon) icon.classList.remove('rotate-180', 'text-blue-600');
+        }
+    }
+
+    document.addEventListener('DOMContentLoaded', function () {
+        // Cari semua submenu yang sedang terbuka (max-h-96)
+        const openSubmenus = document.querySelectorAll('.max-h-96');
+        openSubmenus.forEach(submenu => {
+            const button = submenu.previousElementSibling;
+            const icon = button.querySelector('.submenu-toggle-icon');
+            if (icon) {
+                icon.classList.add('rotate-180', 'text-blue-600');
+            }
+        });
+    });
+</script>
+
+<script>
     // ==================== AUTO SCROLL KE MENU AKTIF ====================
     document.addEventListener('DOMContentLoaded', function () {
         const activeMenu = document.querySelector('[data-sidebar-active="true"]');
         const navContainer = document.querySelector('aside nav');
 
         if (activeMenu && navContainer) {
-            // Scroll menu aktif ke tengah sidebar
             setTimeout(() => {
                 activeMenu.scrollIntoView({
                     behavior: 'smooth',
-                    block: 'center',   // posisikan di tengah-tengah area scroll
+                    block: 'center',
                 });
-            }, 100); // delay sedikit agar layout sudah settle
+            }, 100);
         }
     });
 </script>
 
 <script>
-        // ==================== CHANGE PASSWORD ====================
+    // ==================== CHANGE PASSWORD ====================
     function openChangePasswordModal() {
         document.getElementById('changePasswordForm').reset();
         document.getElementById('modalErrorChangePassword').classList.add('hidden');

@@ -109,7 +109,7 @@
                 </div>
 
                 {{-- Seller ID --}}
-                <div>
+                <div style="display:none;">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
                         Seller ID <span class="text-gray-400 font-normal">(opsional)</span>
                     </label>

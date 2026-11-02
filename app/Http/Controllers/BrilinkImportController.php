@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\BrilinkReport;
 use App\Models\Import;
+use App\Support\ImportedFileStorage;
 use App\Models\Store;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
@@ -201,6 +202,7 @@ class BrilinkImportController extends Controller
                 'store_id'      => $store->id,
                 'tipe'          => 'brilink',
                 'file_name'     => $uploaded->getClientOriginalName(),
+                'stored_path'   => $storedPath,
                 'file_hash'     => $fileHash,
                 'periode_start' => $tanggalLaporan,
                 'periode_end'   => $tanggalLaporan,
@@ -656,6 +658,8 @@ class BrilinkImportController extends Controller
     public function destroy($id)
     {
         $import = Import::where('tipe', 'brilink')->findOrFail($id);
+        $storedPath = $import->stored_path;
+        $fileHash = $import->file_hash;
 
         DB::beginTransaction();
         try {
@@ -677,16 +681,24 @@ class BrilinkImportController extends Controller
 
             DB::commit();
 
-            return response()->json([
-                'success' => true,
-                'message' => 'Data import dan seluruh transaksinya berhasil dihapus.'
-            ]);
+            try {
+                ImportedFileStorage::deleteAfterImportRemoval($storedPath, $fileHash);
+            } catch (\Throwable $e) {
+                report($e);
+
+                return redirect()->route('brilink.import')
+                    ->with('error', 'Data import berhasil dihapus, tetapi file Excel gagal dihapus dari storage.');
+            }
+
+            return redirect()->route('brilink.import')
+                ->with('success', 'Data import dan seluruh transaksinya berhasil dihapus.');
 
         } catch (\Throwable $e) {
             DB::rollBack();
-            return response()->json([
-                'message' => 'Gagal menghapus: ' . $e->getMessage()
-            ], 500);
+            report($e);
+
+            return redirect()->route('brilink.import')
+                ->with('error', 'Gagal menghapus data import BRILink.');
         }
     }
 }

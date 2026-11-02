@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="csrf-token" content="{{ csrf_token() }}">
-    <title>Login Admin · BukuProfit</title>
+    <title>Login Admin · BukuBarokah</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
     <style>
@@ -22,7 +22,7 @@
             <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-500 rounded-2xl shadow-lg shadow-blue-500/30 mb-4">
                 <iconify-icon icon="mdi:book-open-variant" class="text-white text-3xl"></iconify-icon>
             </div>
-            <h1 class="text-2xl font-bold text-gray-800">BukuProfit</h1>
+            <h1 class="text-2xl font-bold text-gray-800">BukuBarokah</h1>
             <p class="text-sm text-gray-500 mt-1">Login untuk mengakses dashboard</p>
         </div>
 

@@ -43,8 +43,27 @@ class GajiKaryawanController extends Controller
             ->get()
             ->keyBy('karyawan_id');
 
-        // Daftar semua permission (untuk checklist)
-        $allPermissions = \Spatie\Permission\Models\Permission::orderBy('name')->pluck('name');
+        // Pastikan izin untuk semua halaman tersedia, termasuk halaman yang baru ditambahkan.
+        $permissionLabels = config('page_permissions', []);
+        foreach (array_keys($permissionLabels) as $permissionName) {
+            Permission::firstOrCreate([
+                'name' => $permissionName,
+                'guard_name' => 'web',
+            ]);
+        }
+
+        $allPermissions = Permission::where('guard_name', 'web')
+            ->orderBy('name')
+            ->get()
+            ->map(function ($permission) use ($permissionLabels) {
+                $fallbackLabel = preg_replace('/^view\s+/', '', $permission->name);
+
+                return [
+                    'name' => $permission->name,
+                    'label' => $permissionLabels[$permission->name]
+                        ?? ucwords(str_replace(['-', '_'], ' ', $fallbackLabel)),
+                ];
+            });
 
         return view('gaji.karyawan', compact(
             'karyawan', 'stores', 'storeId', 'search', 'status',
@@ -97,11 +116,22 @@ class GajiKaryawanController extends Controller
     public function destroyKaryawanAjax(Karyawan $karyawan)
     {
         $nama = $karyawan->nama;
-        $karyawan->delete();
+        $users = User::where('karyawan_id', $karyawan->id)->get();
+
+        if ($users->contains(fn($user) => $user->isAdmin())) {
+            return response()->json([
+                'message' => 'Karyawan ini terhubung ke akun admin. Lepaskan akun admin dari karyawan sebelum menghapusnya.',
+            ], 422);
+        }
+
+        DB::transaction(function () use ($karyawan, $users) {
+            $users->each->delete();
+            $karyawan->delete();
+        });
 
         return response()->json([
             'success' => true,
-            'message' => "Karyawan '{$nama}' berhasil dihapus.",
+            'message' => "Karyawan '{$nama}' dan akun login terkait berhasil dihapus.",
         ]);
     }
 
