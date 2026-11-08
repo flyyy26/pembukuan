@@ -34,6 +34,17 @@ class ShopeeController extends Controller
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
 
+        // ✅ Filter HANYA pesanan Selesai dan tidak ada pembatalan/retur
+        // Menggunakan whereHas ke ShopeeOrderItem karena data status ada di tabel import
+        $query->whereHas('shopeeOrderItem', function ($q) {
+            $q->where('status_pesanan', 'Selesai')
+              ->where(function ($sub) {
+                  $sub->whereNull('status_pembatalan')
+                      ->orWhere('status_pembatalan', '')
+                      ->orWhere('status_pembatalan', '-');
+              });
+        });
+
         // Filter search
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -57,7 +68,7 @@ class ShopeeController extends Controller
             'biaya_layanan' => $rows->sum('biaya_layanan'),
             'biaya_ongkir'  => $rows->sum('biaya_ongkir'),
             'biaya_afiliasi'=> $rows->sum('biaya_afiliasi'),
-            'biaya_promosi'  => $rows->sum('biaya_promosi'),
+            'biaya_promosi' => $rows->sum('biaya_promosi'),
             'biaya_pajak'   => $rows->sum('biaya_pajak'),
             'biaya_lainnya' => $rows->sum('biaya_lainnya'),
         ];
@@ -94,7 +105,6 @@ class ShopeeController extends Controller
         $perProduk   = $allPerProduk->slice(($page - 1) * $perPage, $perPage)->values();
 
         // ============ REKAP BULANAN ============
-        // Filter search juga diterapkan di monthly summary
         $monthlyData = $this->buildMonthlySummary($storeId, $search);
 
         // ============ TOP PRODUCTS ============
@@ -157,6 +167,17 @@ class ShopeeController extends Controller
         if ($storeId) {
             $query->where('store_id', $storeId);
         }
+        
+        // ✅ TAMBAHKAN FILTER INI AGAR BULANAN JUGA HANYA MENGHITUNG PESANAN SELESAI
+        $query->whereHas('shopeeOrderItem', function ($q) {
+            $q->where('status_pesanan', 'Selesai')
+              ->where(function ($sub) {
+                  $sub->whereNull('status_pembatalan')
+                      ->orWhere('status_pembatalan', '')
+                      ->orWhere('status_pembatalan', '-');
+              });
+        });
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
@@ -387,6 +408,16 @@ class ShopeeController extends Controller
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
 
+        // ✅ Filter HANYA pesanan Selesai dan tidak ada pembatalan/retur
+        $query->whereHas('shopeeOrderItem', function ($q) {
+            $q->where('status_pesanan', 'Selesai')
+              ->where(function ($sub) {
+                  $sub->whereNull('status_pembatalan')
+                      ->orWhere('status_pembatalan', '')
+                      ->orWhere('status_pembatalan', '-');
+              });
+        });
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
@@ -422,7 +453,7 @@ class ShopeeController extends Controller
         ))->render();
     }
 
-    public function exportPdf(Request $request)
+     public function exportPdf(Request $request)
     {
         $storeId = $request->input('store');
         $from    = $request->input('from');
@@ -440,6 +471,16 @@ class ShopeeController extends Controller
         if ($storeId) $query->where('store_id', $storeId);
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
+
+        // ✅ Filter HANYA pesanan Selesai dan tidak ada pembatalan/retur
+        $query->whereHas('shopeeOrderItem', function ($q) {
+            $q->where('status_pesanan', 'Selesai')
+              ->where(function ($sub) {
+                  $sub->whereNull('status_pembatalan')
+                      ->orWhere('status_pembatalan', '')
+                      ->orWhere('status_pembatalan', '-');
+              });
+        });
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -463,7 +504,7 @@ class ShopeeController extends Controller
             'biaya_layanan' => $rows->sum('biaya_layanan'),
             'biaya_ongkir'  => $rows->sum('biaya_ongkir'),
             'biaya_afiliasi'=> $rows->sum('biaya_afiliasi'),
-            'biaya_promosi'  => $rows->sum('biaya_promosi'),
+            'biaya_promosi' => $rows->sum('biaya_promosi'),
             'biaya_pajak'   => $rows->sum('biaya_pajak'),
             'biaya_lainnya' => $rows->sum('biaya_lainnya'),
         ];

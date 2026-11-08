@@ -70,17 +70,7 @@
                 <input type="date" name="end_date" value="{{ $endDate }}"
                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
             </div>
-            <div class="md:col-span-2">
-                <label class="block text-xs font-medium text-gray-600 mb-1">Status Bayar</label>
-                <select name="payment_status"
-                        class="w-full px-3 py-2 text-sm border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none">
-                    <option value="all" @selected($payment === 'all' || !$payment)>Semua</option>
-                    <option value="paid" @selected($payment === 'paid')>Paid</option>
-                    <option value="pending" @selected($payment === 'pending')>Pending</option>
-                    <option value="expired" @selected($payment === 'expired')>Expired</option>
-                </select>
-            </div>
-            <div class="sm:col-span-2 md:col-span-4">
+            <div class="sm:col-span-2 md:col-span-6">
                 <label class="block text-xs font-medium text-gray-600 mb-1">Cari Order / Pelanggan</label>
                 <input type="text" name="q" value="{{ $search }}"
                        placeholder="No order, nama, email..."
@@ -97,8 +87,7 @@
         </form>
     </div>
 
-    {{-- ====== RINGKASAN (2 KOLOM DI MOBILE, 4 KOLOM DI DESKTOP) ====== --}}
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+    <div class="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 sm:gap-4">
         {{-- Total Pesanan --}}
         <div class="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl shadow-sm p-3 sm:p-5 text-white">
             <div class="flex items-center justify-between mb-1 sm:mb-2">
@@ -117,13 +106,13 @@
             <h3 class="text-base sm:text-2xl font-bold"><span class="text-[10px] sm:text-sm font-normal">Rp</span> {{ number_format($summary->total_revenue ?? 0, 0, ',', '.') }}</h3>
         </div>
 
-        {{-- Rata-rata Order --}}
-        <div class="bg-gradient-to-br from-amber-500 to-amber-600 rounded-xl shadow-sm p-3 sm:p-5 text-white">
+        {{-- Total HPP --}}
+        <div class="bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl shadow-sm p-3 sm:p-5 text-white">
             <div class="flex items-center justify-between mb-1 sm:mb-2">
-                <h6 class="text-[10px] sm:text-xs font-medium text-amber-100 uppercase tracking-wide">Rata-rata Order</h6>
-                <iconify-icon icon="mdi:chart-line" class="text-lg sm:text-2xl text-amber-200 hidden sm:block"></iconify-icon>
+                <h6 class="text-[10px] sm:text-xs font-medium text-rose-100 uppercase tracking-wide">Total HPP</h6>
+                <iconify-icon icon="mdi:package-variant-closed" class="text-lg sm:text-2xl text-rose-200 hidden sm:block"></iconify-icon>
             </div>
-            <h3 class="text-base sm:text-2xl font-bold"><span class="text-[10px] sm:text-sm font-normal">Rp</span> {{ number_format($summary->avg_order_value ?? 0, 0, ',', '.') }}</h3>
+            <h3 class="text-base sm:text-2xl font-bold"><span class="text-[10px] sm:text-sm font-normal">Rp</span> {{ number_format($profit['total_hpp'] ?? 0, 0, ',', '.') }}</h3>
         </div>
 
         {{-- Total Ongkir --}}
@@ -134,7 +123,29 @@
             </div>
             <h3 class="text-base sm:text-2xl font-bold"><span class="text-[10px] sm:text-sm font-normal">Rp</span> {{ number_format($summary->total_shipping ?? 0, 0, ',', '.') }}</h3>
         </div>
+
+        {{-- Total Profit --}}
+        <div class="bg-gradient-to-br from-green-600 to-green-700 rounded-xl shadow-sm p-3 sm:p-5 text-white">
+            <div class="flex items-center justify-between mb-1 sm:mb-2">
+                <h6 class="text-[10px] sm:text-xs font-medium text-green-100 uppercase tracking-wide">Profit</h6>
+                <iconify-icon icon="mdi:trending-up" class="text-lg sm:text-2xl text-green-200 hidden sm:block"></iconify-icon>
+            </div>
+            <h3 class="text-base sm:text-2xl font-bold"><span class="text-[10px] sm:text-sm font-normal">Rp</span> {{ number_format($profit['total_profit'] ?? 0, 0, ',', '.') }}</h3>
+        </div>
     </div>
+
+    {{-- Warning: item tanpa HPP --}}
+    @if(($profit['unresolved_count'] ?? 0) > 0)
+        <div class="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg text-xs text-amber-800">
+            <iconify-icon icon="mdi:alert" class="text-base flex-shrink-0 mt-0.5"></iconify-icon>
+            <span>
+                <strong>{{ $profit['unresolved_count'] }} item</strong>
+                (Rp {{ number_format($profit['unresolved_revenue'], 0, ',', '.') }})
+                tidak memiliki prefix SKU yang cocok dengan master Produk.
+                Profit item tersebut dihitung 0. Lengkapi prefix di menu <strong>Produk</strong>.
+            </span>
+        </div>
+    @endif
 
     {{-- ====== TABEL PESANAN ====== --}}
     <div class="bg-white border border-gray-200 rounded-xl shadow-sm overflow-hidden">
@@ -156,11 +167,16 @@
                         <th class="px-4 py-3 text-left font-medium">Pelanggan</th>
                         <th class="px-4 py-3 text-left font-medium">Pembayaran</th>
                         <th class="px-4 py-3 text-right font-medium">Total</th>
+                        <th class="px-4 py-3 text-right font-medium">HPP</th>
+                        <th class="px-4 py-3 text-right font-medium">Profit</th>
                         <th class="px-4 py-3 text-center font-medium">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse ($orders as $order)
+                        @php
+                            $p = $profitByOrder[$order->web_order_id] ?? ['hpp' => 0, 'profit' => 0];
+                        @endphp
                         <tr class="hover:bg-gray-50 transition">
                             <td class="px-4 py-3">
                                 <code class="text-xs bg-gray-100 text-gray-700 px-2 py-0.5 rounded">{{ $order->order_number }}</code>
@@ -175,23 +191,18 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3">
-                                @php
-                                    $badge = match(strtolower($order->payment_status ?? '')) {
-                                        'paid'    => 'bg-emerald-100 text-emerald-700 border-emerald-200',
-                                        'pending' => 'bg-amber-100 text-amber-700 border-amber-200',
-                                        'expired' => 'bg-red-100 text-red-700 border-red-200',
-                                        default   => 'bg-gray-100 text-gray-600 border-gray-200',
-                                    };
-                                @endphp
-                                <span class="inline-flex items-center px-2 py-0.5 text-xs font-medium border rounded-full {{ $badge }}">
-                                    {{ $order->payment_status ?? '-' }}
-                                </span>
                                 @if ($order->payment_method)
                                     <div class="text-xs text-gray-400 mt-1">{{ $order->payment_method }}</div>
                                 @endif
                             </td>
                             <td class="px-4 py-3 text-right font-medium text-gray-900 whitespace-nowrap">
                                 Rp {{ number_format($order->total_amount, 0, ',', '.') }}
+                            </td>
+                            <td class="px-4 py-3 text-right text-rose-600 whitespace-nowrap">
+                                Rp {{ number_format($p['hpp'], 0, ',', '.') }}
+                            </td>
+                            <td class="px-4 py-3 text-right font-semibold whitespace-nowrap {{ $p['profit'] >= 0 ? 'text-green-700' : 'text-red-600' }}">
+                                Rp {{ number_format($p['profit'], 0, ',', '.') }}
                             </td>
                             <td class="px-4 py-3 text-center">
                                 <div class="flex items-center justify-center gap-1">
@@ -202,7 +213,7 @@
                                         <iconify-icon icon="mdi:eye-outline" class="text-sm"></iconify-icon>
                                         Detail
                                     </a>
-                                    <button type="button" 
+                                    <button type="button"
                                             onclick="deleteWebOrder({{ $order->web_order_id }})"
                                             class="inline-flex items-center gap-1 px-2 py-1.5 text-xs font-medium text-red-600 bg-red-50 hover:bg-red-100 border border-red-200 rounded-lg transition">
                                         <iconify-icon icon="mdi:delete-outline" class="text-sm"></iconify-icon>
@@ -212,7 +223,7 @@
                         </tr>
                     @empty
                         <tr>
-                            <td colspan="6" class="px-4 py-10 text-center text-gray-400 text-sm">
+                            <td colspan="8" class="px-4 py-10 text-center text-gray-400 text-sm">
                                 <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 mb-2 w-max block mx-auto"></iconify-icon>
                                 Tidak ada pesanan <strong>delivered</strong> pada rentang ini.<br>
                                 <span class="text-xs">Klik "Sync Sekarang" jika data belum ada di DB lokal.</span>
@@ -226,6 +237,9 @@
         {{-- TAMPILAN CARD (MOBILE) --}}
         <div class="md:hidden divide-y divide-gray-100">
             @forelse ($orders as $order)
+                @php
+                    $p = $profitByOrder[$order->web_order_id] ?? ['hpp' => 0, 'profit' => 0];
+                @endphp
                 <div class="p-4 space-y-2">
                     <div class="flex justify-between items-start">
                         <div>
@@ -247,23 +261,33 @@
                         </div>
                     </div>
 
-                    <div class="bg-gray-50 p-2 rounded-lg mt-2">
+                    <div class="bg-gray-50 p-2 rounded-lg mt-2 space-y-1">
                         <div class="flex justify-between items-center text-xs">
                             <span class="text-gray-500">Pelanggan:</span>
                             <span class="text-gray-800 font-medium text-right truncate pl-2">{{ $order->customer_name ?? '-' }}</span>
                         </div>
-                        <div class="flex justify-between items-center text-xs mt-1">
+                        <div class="flex justify-between items-center text-xs">
                             <span class="text-gray-500">Total Belanja:</span>
                             <span class="text-gray-900 font-bold">Rp {{ number_format($order->total_amount, 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500">HPP:</span>
+                            <span class="text-rose-600 font-medium">Rp {{ number_format($p['hpp'], 0, ',', '.') }}</span>
+                        </div>
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-gray-500">Profit:</span>
+                            <span class="font-bold {{ $p['profit'] >= 0 ? 'text-green-700' : 'text-red-600' }}">
+                                Rp {{ number_format($p['profit'], 0, ',', '.') }}
+                            </span>
                         </div>
                     </div>
 
                     <div class="flex gap-2 pt-1">
                         <a href="{{ route('reports.web-sales.show', $order->web_order_id) }}"
-                           class="flex-1 inline-flex justify-center items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1.5 rounded text-xs font-medium transition">
+                        class="flex-1 inline-flex justify-center items-center gap-1 bg-blue-50 text-blue-700 border border-blue-200 px-2 py-1.5 rounded text-xs font-medium transition">
                             <iconify-icon icon="mdi:eye-outline" class="text-sm"></iconify-icon> Detail
                         </a>
-                        <button type="button" 
+                        <button type="button"
                                 onclick="deleteWebOrder({{ $order->web_order_id }})"
                                 class="flex-none inline-flex justify-center items-center gap-1 bg-red-50 text-red-700 border border-red-200 px-3 py-1.5 rounded text-xs font-medium transition">
                             <iconify-icon icon="mdi:delete-outline" class="text-sm"></iconify-icon>

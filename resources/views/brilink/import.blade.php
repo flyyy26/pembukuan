@@ -9,7 +9,7 @@
         </div>
         <div>
             <h2 class="text-xl font-bold text-gray-800">Import BRILink</h2>
-            <p class="text-sm text-gray-500">Upload file Excel Buku BRILink (6 sheet)</p>
+            <p class="text-sm text-gray-500">Upload hingga 10 file Excel Buku BRILink sekaligus</p>
         </div>
     </div>
 
@@ -45,69 +45,59 @@
         </div>
     @endif
 
-    {{-- Form Import --}}
+    {{-- Form Import Multi --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 mb-6">
-        <form action="{{ route('brilink.import.store') }}" method="POST" enctype="multipart/form-data">
+        <form id="importForm" action="{{ route('brilink.import.store') }}" method="POST" enctype="multipart/form-data">
             @csrf
 
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                {{-- Pilih Toko --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Pilih Toko BRILink <span class="text-red-500">*</span>
-                    </label>
-                    <select name="store_id" required
-                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                        <option value="">-- Pilih Toko --</option>
-                        @foreach($stores as $s)
-                            <option value="{{ $s->id }}" {{ old('store_id') == $s->id ? 'selected' : '' }}>
-                                {{ $s->nama_toko }}
-                            </option>
-                        @endforeach
-                    </select>
-                    @error('store_id')
-                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-
-                {{-- Tanggal Laporan --}}
-                <div>
-                    <label class="block text-sm font-medium text-gray-700 mb-1">
-                        Tanggal Laporan <span class="text-red-500">*</span>
-                    </label>
-                    <input type="date" name="tanggal" required
-                           value="{{ old('tanggal', date('Y-m-d')) }}"
-                           class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
-                    @error('tanggal')
-                        <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
-                    @enderror
-                </div>
-            </div>
-
-            {{-- Upload File --}}
+            {{-- Pilih Toko (satu untuk semua file) --}}
             <div class="mb-4">
                 <label class="block text-sm font-medium text-gray-700 mb-1">
-                    File Excel BRILink <span class="text-red-500">*</span>
+                    Pilih Toko BRILink <span class="text-red-500">*</span>
                 </label>
-                <input type="file" name="file" accept=".xlsx,.xls" required
-                       class="w-full text-sm file:mr-3 file:py-2 file:px-4 file:rounded-lg file:border-0
-                              file:text-xs file:bg-emerald-600 file:text-white file:font-medium
-                              hover:file:bg-emerald-700 file:cursor-pointer file:transition
-                              border border-gray-300 rounded-lg">
-                @error('file')
+                <select name="store_id" required
+                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-emerald-500 focus:outline-none">
+                    <option value="">-- Pilih Toko --</option>
+                    @foreach($stores as $s)
+                        <option value="{{ $s->id }}" {{ old('store_id') == $s->id ? 'selected' : '' }}>
+                            {{ $s->nama_toko }}
+                        </option>
+                    @endforeach
+                </select>
+                @error('store_id')
                     <p class="text-xs text-red-500 mt-1">{{ $message }}</p>
                 @enderror
-                <p class="text-xs text-gray-500 mt-1">
-                    Format: <strong>.xlsx</strong> atau <strong>.xls</strong> · Maksimal 20 MB
+            </div>
+
+            {{-- Daftar File Dinamis --}}
+            <div class="mb-4">
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-sm font-medium text-gray-700">
+                        Daftar File <span class="text-red-500">*</span>
+                        <span id="fileCounter" class="text-xs text-gray-500 font-normal">(0 / 10)</span>
+                    </label>
+                    <button type="button" id="addFileBtn" onclick="addFileRow()"
+                            class="inline-flex items-center gap-1 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 px-3 py-1.5 rounded-lg text-xs font-medium transition border border-emerald-200">
+                        <iconify-icon icon="mdi:plus" class="text-sm"></iconify-icon>
+                        Tambah File
+                    </button>
+                </div>
+
+                <div id="fileRows" class="space-y-3">
+                    {{-- Baris file dibuat via JS --}}
+                </div>
+
+                <p class="text-xs text-gray-500 mt-2">
+                    Format: <strong>.xlsx</strong> atau <strong>.xls</strong> · Maksimal 20 MB per file · Maksimal 10 file.
                 </p>
             </div>
 
-            {{-- Tombol --}}
-            <div class="flex justify-end">
-                <button type="submit"
-                        class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium flex items-center gap-2 shadow-sm">
+            {{-- Tombol Submit --}}
+            <div class="flex justify-end gap-2 pt-2 border-t border-gray-100">
+                <button type="submit" id="submitBtn"
+                        class="bg-emerald-600 text-white px-6 py-2 rounded-lg hover:bg-emerald-700 transition text-sm font-medium flex items-center gap-2 shadow-sm disabled:opacity-50 disabled:cursor-not-allowed">
                     <iconify-icon icon="mdi:cloud-upload" class="text-lg"></iconify-icon>
-                    Import File
+                    <span id="submitText">Import Semua File</span>
                 </button>
             </div>
         </form>
@@ -126,12 +116,14 @@
             <form method="GET" action="{{ route('brilink.import') }}" class="flex flex-wrap items-center gap-2">
                 <div>
                     <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Dari</label>
-                    <input type="date" name="from" value="{{ $fromInput ?? now()->format('Y-m-d') }}"
+                    <input type="date" name="from" 
+                        value="{{ $fromInput ?? now()->startOfMonth()->format('Y-m-d') }}"
                         class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div>
                     <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Sampai</label>
-                    <input type="date" name="to" value="{{ $toInput ?? now()->format('Y-m-d') }}"
+                    <input type="date" name="to" 
+                        value="{{ $toInput ?? now()->format('Y-m-d') }}"
                         class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none">
                 </div>
                 <div class="flex gap-1 pt-3.5">
@@ -143,9 +135,9 @@
                     @if(($fromInput ?? null) || ($toInput ?? null))
                         <a href="{{ route('brilink.import') }}"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs bg-white border border-gray-300 text-gray-500 hover:text-gray-700 rounded-lg transition"
-                            title="Reset ke hari ini">
+                            title="Reset ke bulan ini">
                             <iconify-icon icon="mdi:refresh" class="text-sm"></iconify-icon>
-                            Hari Ini
+                            Bulan Ini
                         </a>
                     @endif
                 </div>
@@ -215,4 +207,97 @@
     </div>
 </div>
 
+<script>
+    const MAX_FILES = 10;
+    let rowIndex = 0;
+
+    function addFileRow() {
+        const container = document.getElementById('fileRows');
+        const currentCount = container.querySelectorAll('.file-row').length;
+
+        if (currentCount >= MAX_FILES) {
+            alert('Maksimal 10 file per sesi import.');
+            return;
+        }
+
+        const idx = rowIndex++;
+        const defaultDate = new Date().toISOString().slice(0, 10);
+
+        const row = document.createElement('div');
+        row.className = 'file-row grid grid-cols-1 md:grid-cols-12 gap-2 items-end p-3 bg-gray-50 rounded-lg border border-gray-200';
+        row.dataset.rowIndex = idx;
+        row.innerHTML = `
+            <div class="md:col-span-1 flex items-center justify-center pb-1">
+                <span class="file-number inline-flex items-center justify-center w-7 h-7 rounded-full bg-emerald-600 text-white text-xs font-bold"></span>
+            </div>
+            <div class="md:col-span-6">
+                <label class="block text-xs font-medium text-gray-600 mb-1">File Excel <span class="text-red-500">*</span></label>
+                <input type="file" name="files[${idx}][file]" accept=".xlsx,.xls" required
+                       class="w-full text-xs file:mr-2 file:py-1.5 file:px-3 file:rounded-lg file:border-0
+                              file:text-xs file:bg-emerald-600 file:text-white file:font-medium
+                              hover:file:bg-emerald-700 file:cursor-pointer file:transition
+                              border border-gray-300 rounded-lg bg-white">
+            </div>
+            <div class="md:col-span-4">
+                <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal Laporan <span class="text-red-500">*</span></label>
+                <input type="date" name="files[${idx}][tanggal]" value="${defaultDate}" required
+                       class="w-full border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none bg-white">
+            </div>
+            <div class="md:col-span-1 flex justify-center">
+                <button type="button" onclick="removeFileRow(this)"
+                        class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition"
+                        title="Hapus baris">
+                    <iconify-icon icon="mdi:delete" class="text-base"></iconify-icon>
+                </button>
+            </div>
+        `;
+        container.appendChild(row);
+        refreshRowNumbers();
+    }
+
+    function removeFileRow(btn) {
+        const row = btn.closest('.file-row');
+        const container = document.getElementById('fileRows');
+        // Minimal harus ada 1 baris
+        if (container.querySelectorAll('.file-row').length <= 1) {
+            alert('Minimal harus ada 1 file.');
+            return;
+        }
+        row.remove();
+        refreshRowNumbers();
+    }
+
+    function refreshRowNumbers() {
+        const rows = document.querySelectorAll('#fileRows .file-row');
+        rows.forEach((r, i) => {
+            r.querySelector('.file-number').textContent = i + 1;
+        });
+        const counter = document.getElementById('fileCounter');
+        counter.textContent = `(${rows.length} / ${MAX_FILES})`;
+
+        const addBtn = document.getElementById('addFileBtn');
+        addBtn.disabled = rows.length >= MAX_FILES;
+        addBtn.classList.toggle('opacity-50', rows.length >= MAX_FILES);
+        addBtn.classList.toggle('cursor-not-allowed', rows.length >= MAX_FILES);
+    }
+
+    // Submit handler: disable button + progress
+    document.getElementById('importForm').addEventListener('submit', function (e) {
+        const rows = document.querySelectorAll('#fileRows .file-row');
+        if (rows.length === 0) {
+            e.preventDefault();
+            alert('Minimal upload 1 file.');
+            return;
+        }
+        const btn = document.getElementById('submitBtn');
+        const text = document.getElementById('submitText');
+        btn.disabled = true;
+        text.textContent = `Memproses ${rows.length} file...`;
+    });
+
+    // Init: tambahkan 1 baris pertama
+    document.addEventListener('DOMContentLoaded', function () {
+        addFileRow();
+    });
+</script>
 @endsection

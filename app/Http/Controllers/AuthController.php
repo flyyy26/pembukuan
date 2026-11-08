@@ -23,13 +23,22 @@ class AuthController extends Controller
         ]);
 
         $credentials = $request->only('email', 'password');
-        $credentials['can_login'] = true; // Hanya user aktif yang boleh login
+        $credentials['can_login'] = true;
 
         if (Auth::attempt($credentials, $request->boolean('remember'))) {
             $request->session()->regenerate();
-            $user = Auth::user();
+            
+            // ✅ BERSIHKAN CACHE PERMISSION SAAT LOGIN
+            app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-            // Kalau ada intended URL, pakai itu. Kalau tidak, cari halaman pertama yang boleh diakses.
+            $user = Auth::user();
+            
+            // ✅ FORCE LOAD ULANG PERMISSION DARI DATABASE
+            // Ini memastikan $user->can() membaca data terbaru
+            $user->unsetRelation('roles');
+            $user->unsetRelation('permissions');
+            $user->load('roles', 'permissions');
+
             $fallback = $this->firstAllowedUrl($user);
             return redirect()->intended($fallback)
                 ->with('success', 'Selamat datang, ' . $user->name . '!');
@@ -75,6 +84,7 @@ class AuthController extends Controller
             'view karyawan'       => '/karyawan',
             'view gaji'           => '/gaji',
             'view minus'          => '/minus-karyawan',
+            'view konveksi'       => '/konveksi',
             'view import shopee'  => '/import',
             'view import tiktok'  => '/tiktok/import',
             'view import brilink' => '/brilink/import',

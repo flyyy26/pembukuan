@@ -75,15 +75,17 @@
                 $canView('view web-sales') ? ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'] : null,
                 
                 $canView('view konveksi') ? [
-                    'route' => 'konveksi.index',
+                    'route' => 'konveksi.potong-kain',
                     'label' => 'Laporan Konveksi',
                     'icon' => 'mdi:scissors-cutting',
                     'submenu' => array_values(array_filter([
-                        $canView('view konveksi') ? ['route' => 'konveksi.index', 'label' => 'Data Setor Hanca', 'icon' => 'mdi:clipboard-list'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran', 'icon' => 'mdi:cash-check'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.hanca-selesai', 'label' => 'Hanca Selesai', 'icon' => 'mdi:check-all'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon', 'icon' => 'mdi:cash-remove'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran', 'icon' => 'mdi:cash-minus'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.potong-kain', 'label' => 'Data Potong Kain'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.ambil-hanca', 'label' => 'Data Ambil Hanca'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.setor-hanca', 'label' => 'Data Setor Hanca'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.hanca-selesai', 'label' => 'Data Hanca Selesai'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon'] : null,
+                        $canView('view konveksi') ? ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran'] : null,
                     ])),
                 ] : null,
             ])),
@@ -112,6 +114,11 @@
         [
             'section' => 'Aset & Kewajiban',
             'items' => array_values(array_filter([
+                $canView('view web-sales') ? [
+                        'route' => 'reports.all-profit.index',
+                        'label' => 'Laporan Seluruh Profit',
+                        'icon'  => 'mdi:chart-box-multiple',
+                    ] : null,
                 $canView('view tabungan') ? ['route' => 'tabungan.index', 'label' => 'Laporan Tabungan', 'icon' => 'mdi:piggy-bank'] : null,
                 $canView('view hutang') ? ['route' => 'hutang.index', 'label' => 'Laporan Hutang', 'icon' => 'mdi:file-document-outline'] : null,
                 $canView('view piutang') ? ['route' => 'piutang.index', 'label' => 'Laporan Piutang', 'icon' => 'mdi:account-cash'] : null,
@@ -452,7 +459,7 @@
 </script>
 
 <script>
-    // ==================== TOGGLE SUBMENU DENGAN ANIMASI ====================
+    // ==================== TOGGLE SUBMENU DENGAN ANIMASI (ACCORDION) ====================
     function toggleSubmenu(id) {
         const submenu = document.getElementById(id);
         if (!submenu) return;
@@ -461,19 +468,36 @@
         const icon = button.querySelector('.submenu-toggle-icon');
         const isClosed = submenu.classList.contains('max-h-0');
 
-        if (isClosed) {
-            submenu.classList.remove('max-h-0', 'opacity-0', 'py-0');
-            submenu.classList.add('max-h-96', 'opacity-100', 'py-1');
-            if (icon) icon.classList.add('rotate-180', 'text-blue-600');
-        } else {
+        // ✅ JIKA MENUTUP SUBMENU YANG SEDANG TERBUKA
+        if (!isClosed) {
             submenu.classList.remove('max-h-96', 'opacity-100', 'py-1');
             submenu.classList.add('max-h-0', 'opacity-0', 'py-0');
             if (icon) icon.classList.remove('rotate-180', 'text-blue-600');
+            return;
         }
+
+        // ✅ JIKA MEMBUKA SUBMENU BARU: TUTUP SEMUA SUBMENU LAIN DULU
+        document.querySelectorAll('nav [id^="submenu-"]').forEach(otherSubmenu => {
+            if (otherSubmenu.id === id) return; // Lewati submenu yang sedang diklik
+
+            // Tutup submenu lain
+            otherSubmenu.classList.remove('max-h-96', 'opacity-100', 'py-1');
+            otherSubmenu.classList.add('max-h-0', 'opacity-0', 'py-0');
+
+            // Kembalikan ikon panah submenu lain ke bawah
+            const otherButton = otherSubmenu.previousElementSibling;
+            const otherIcon = otherButton.querySelector('.submenu-toggle-icon');
+            if (otherIcon) otherIcon.classList.remove('rotate-180', 'text-blue-600');
+        });
+
+        // Buka submenu yang diklik
+        submenu.classList.remove('max-h-0', 'opacity-0', 'py-0');
+        submenu.classList.add('max-h-96', 'opacity-100', 'py-1');
+        if (icon) icon.classList.add('rotate-180', 'text-blue-600');
     }
 
+    // Inisialisasi saat load (jika ada submenu yang aktif di URL)
     document.addEventListener('DOMContentLoaded', function () {
-        // Cari semua submenu yang sedang terbuka (max-h-96)
         const openSubmenus = document.querySelectorAll('.max-h-96');
         openSubmenus.forEach(submenu => {
             const button = submenu.previousElementSibling;

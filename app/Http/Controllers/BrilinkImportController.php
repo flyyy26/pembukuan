@@ -28,8 +28,8 @@ class BrilinkImportController extends Controller
         $fromInput = $request->input('from');
         $toInput   = $request->input('to');
 
-        // Default: hari ini (jika user belum mengisi apa pun)
-        $from = $fromInput ?? now()->format('Y-m-d');
+        // Default filter: Awal bulan ini s/d Hari ini
+        $from = $fromInput ?? now()->startOfMonth()->format('Y-m-d');
         $to   = $toInput ?? now()->format('Y-m-d');
 
         if ($from && !$to) {
@@ -42,9 +42,10 @@ class BrilinkImportController extends Controller
             ->where('tipe', 'brilink')
             ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
             ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
-            ->orderByDesc('id')
+            ->orderByDesc('periode_start')   // ✅ urut tanggal terbaru dulu
+            ->orderByDesc('id')              // tie-breaker: kalau tanggal sama, yang terakhir diupload di atas
             ->paginate(15)
-            ->appends($request->only(['from', 'to'])); // agar paginasi bawa filter
+            ->withQueryString();
 
         $stores = Store::where('marketplace', 'brilink')
             ->where('is_active', true)
@@ -357,6 +358,253 @@ class BrilinkImportController extends Controller
             'total_rows'    => $totalRows,
             'periode_start' => $report['periode_start'] ?? null,
             'periode_end'   => $report['periode_end']   ?? null,
+        ];
+    }
+
+    public function importBatch(Request $request)
+    {
+        // ============================================
+        // 1. VALIDASI INPUT
+        // ============================================
+        $request->validate([
+            'store_id'          => 'required|exists:stores,id',
+            'files'             => 'required|array|min:1|max:10',
+            'files.*.file'      => 'required|file|mimes:xlsx,xls|max:20480',
+            'files.*.tanggal'   => 'required|date_format:Y-m-d',
+        ], [
+            'store_id.required'   => 'Silakan pilih toko terlebih dahulu.',
+            'store_id.exists'     => 'Toko yang dipilih tidak ditemukan.',
+            'files.required'      => 'Minimal upload 1 file.',
+            'files.max'           => 'Maksimal 10 file per sesi import.',
+            'files.min'           => 'Minimal 1 file.',
+            'files.*.file.required'    => 'File wajib diisi pada baris :position.',
+            'files.*.file.mimes'       => 'File baris :position harus .xlsx atau .xls.',
+            'files.*.file.max'         => 'File baris :position maksimal 20 MB.',
+            'files.*.tanggal.required' => 'Tanggal wajib diisi pada baris :position.',
+            'files.*.tanggal.date_format' => 'Format tanggal baris :position tidak valid.',
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+        $files = $request->file('files', []);
+        $dates = $request->input('files', []);
+
+        // ============================================
+        // 2. PROSES SATU PER SATU (dalam 1 transaksi)
+        // ============================================
+        $results   = [];   // hasil per file
+        $successes = 0;
+        $failures  = 0;
+        $errors    = [];
+
+        DB::beginTransaction();
+        try {
+            foreach ($files as $i => $row) {
+                $file    = $row['file']    ?? null;
+                $tanggal = $dates[$i]['tanggal'] ?? null;
+                $position = $i + 1;
+
+                if (!$file || !$tanggal) {
+                    $failures++;
+                    $errors[] = "Baris {$position}: file atau tanggal kosong.";
+                    continue;
+                }
+
+                try {
+                    $result = $this->processSingleFile($file, $tanggal, $store);
+                    $results[] = $result;
+                    $successes++;
+                } catch (\Throwable $e) {
+                    $failures++;
+                    $errors[] = "Baris {$position} ({$file->getClientOriginalName()}): " . $e->getMessage();
+                    // Lanjut ke file berikutnya — tidak rollback semua
+                }
+            }
+
+            // Jika SEMUA file gagal → rollback
+            if ($successes === 0) {
+                DB::rollBack();
+
+                return back()->with('error',
+                    "Semua file gagal diproses.\n\n" . implode("\n", $errors)
+                )->withInput();
+            }
+
+            DB::commit();
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            report($e);
+
+            return back()->with('error',
+                "Terjadi kesalahan sistem saat import batch.\n\n" . $e->getMessage()
+            )->withInput();
+        }
+
+        // ============================================
+        // 3. SUSUN PESAN HASIL
+        // ============================================
+        $msg = "Import batch selesai.\n";
+        $msg .= "✅ Berhasil: {$successes} file\n";
+        if ($failures > 0) {
+            $msg .= "❌ Gagal: {$failures} file\n\n";
+            $msg .= implode("\n", $errors);
+        }
+
+        $flashType = $failures > 0 ? 'warning' : 'success';
+
+        return redirect()->route('brilink.import')
+            ->with($flashType, $msg);
+    }
+
+    private function processSingleFile($uploadedFile, string $tanggalLaporan, Store $store): array
+    {
+        // 2. SIMPAN FILE
+        $storedPath = $uploadedFile->store('imports/brilink', 'local');
+        $fullPath   = Storage::disk('local')->path($storedPath);
+        $fileHash   = hash_file('sha256', $fullPath);
+
+        // 3. CEK DUPLIKAT
+        $existing = Import::where('file_hash', $fileHash)
+            ->where('tipe', 'brilink')
+            ->first();
+
+        if ($existing) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException(
+                "File sudah pernah diimport (Import #{$existing->id}). " .
+                "Hapus dulu data import lama di Riwayat jika ingin import ulang."
+            );
+        }
+
+        // 4. LOAD SPREADSHEET
+        try {
+            $spreadsheet = IOFactory::load($fullPath);
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException(
+                "File tidak bisa dibaca sebagai Excel. Coba save ulang sebagai .xlsx."
+            );
+        }
+
+        // 5. VALIDASI STRUKTUR
+        try {
+            (new BrilinkFileValidator())->validate($spreadsheet);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException($e->toDisplayMessage());
+        }
+
+        // 6. PARSE
+        try {
+            $parsed = $this->parseBrilinkFile($spreadsheet);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException($e->toDisplayMessage());
+        } catch (\Throwable $e) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException(
+                "Gagal membaca data Excel: " . $e->getMessage()
+            );
+        }
+
+        // 7. VALIDASI BARIS
+        try {
+            (new BrilinkRowValidator())->validateAll($parsed);
+        } catch (BrilinkImportException $e) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException($e->toDisplayMessage());
+        }
+
+        // 8. CEK ADA DATA?
+        $totalData = count($parsed['accounts'])
+            + count($parsed['ppob'])
+            + count($parsed['setoran'])
+            + count($parsed['tarik_tunai'])
+            + count($parsed['pengeluaran'])
+            + count($parsed['saldo_pindah']);
+
+        if ($totalData === 0) {
+            Storage::disk('local')->delete($storedPath);
+            throw new \RuntimeException(
+                "Tidak ada data transaksi ditemukan di file ini."
+            );
+        }
+
+        // 9. SIMPAN KE DATABASE
+        try {
+            $import = Import::create([
+                'store_id'      => $store->id,
+                'tipe'          => 'brilink',
+                'file_name'     => $uploadedFile->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'file_hash'     => $fileHash,
+                'periode_start' => $tanggalLaporan,
+                'periode_end'   => $tanggalLaporan,
+                'total_rows'    => $parsed['total_rows'],
+                'status'        => 'pending',
+            ]);
+
+            $report = BrilinkReport::create(array_merge(
+                $parsed['report'],
+                [
+                    'store_id'      => $store->id,
+                    'import_id'     => $import->id,
+                    'file_name'     => $uploadedFile->getClientOriginalName(),
+                    'file_hash'     => $fileHash,
+                    'status'        => 'imported',
+                    'periode_start' => $tanggalLaporan,
+                    'periode_end'   => $tanggalLaporan,
+                ]
+            ));
+
+            $report->accounts()->createMany($parsed['accounts']);
+            $report->ppobItems()->createMany($parsed['ppob']);
+            $report->setoranItems()->createMany($parsed['setoran']);
+            $report->tarikTunaiItems()->createMany($parsed['tarik_tunai']);
+            $report->pengeluaranItems()->createMany($parsed['pengeluaran']);
+
+            if (!empty($parsed['saldo_pindah'])) {
+                $report->saldoPindahItems()->createMany($parsed['saldo_pindah']);
+            }
+
+            $import->update(['status' => 'imported']);
+
+        } catch (\Illuminate\Database\QueryException $e) {
+            Storage::disk('local')->delete($storedPath);
+            report($e);
+
+            $sqlState  = $e->errorInfo[0] ?? '';
+            $driverMsg = $e->errorInfo[2] ?? $e->getMessage();
+
+            if ($sqlState === '22001') {
+                $kolom = 'tidak diketahui';
+                if (preg_match("/Data too long for column '([^']+)'/", $driverMsg, $m)) {
+                    $kolom = $m[1];
+                }
+                throw new \RuntimeException(
+                    "Data terlalu panjang di kolom '{$kolom}'. Perpendek teks, lalu upload ulang."
+                );
+            }
+            if ($sqlState === '22003') {
+                throw new \RuntimeException(
+                    "Ada angka terlalu besar / tidak valid di Excel."
+                );
+            }
+            if ($sqlState === '23000') {
+                throw new \RuntimeException(
+                    "Ada data wajib yang kosong. Periksa kembali semua baris transaksi."
+                );
+            }
+
+            throw new \RuntimeException(
+                "Gagal simpan ke database (kode: " . ($sqlState ?: 'unknown') . ")."
+            );
+        }
+
+        return [
+            'file_name'  => $uploadedFile->getClientOriginalName(),
+            'tanggal'    => $tanggalLaporan,
+            'total_rows' => $parsed['total_rows'],
         ];
     }
 

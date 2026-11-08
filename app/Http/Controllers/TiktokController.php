@@ -36,6 +36,14 @@ class TiktokController extends Controller
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
 
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $query->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
@@ -137,6 +145,14 @@ class TiktokController extends Controller
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
 
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $query->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
@@ -193,6 +209,15 @@ class TiktokController extends Controller
     {
         $query = Sale::where('marketplace', 'tiktok');
         if ($storeId) $query->where('store_id', $storeId);
+
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $query->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
+
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('marketplace_sku', 'LIKE', "%{$search}%")
@@ -268,12 +293,30 @@ class TiktokController extends Controller
         $queryA = Sale::with('product')->where('marketplace', 'tiktok');
         if ($storeId) $queryA->where('store_id', $storeId);
         $queryA->whereDate('tanggal', '>=', $aFrom)->whereDate('tanggal', '<=', $aTo);
+        
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $queryA->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
+        
         $rowsA = $queryA->get();
 
         // ============ AMBIL DATA PERIODE B ============
         $queryB = Sale::with('product')->where('marketplace', 'tiktok');
         if ($storeId) $queryB->where('store_id', $storeId);
         $queryB->whereDate('tanggal', '>=', $bFrom)->whereDate('tanggal', '<=', $bTo);
+        
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $queryB->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
+        
         $rowsB = $queryB->get();
 
         // ============ SUMMARY ============
@@ -346,6 +389,14 @@ class TiktokController extends Controller
         if ($storeId) $query->where('store_id', $storeId);
         if ($from) $query->whereDate('tanggal', '>=', $from);
         if ($to)   $query->whereDate('tanggal', '<=', $to);
+
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $query->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
@@ -468,6 +519,14 @@ class TiktokController extends Controller
         if ($storeId) $query->where('store_id', $storeId);
         if ($from)    $query->whereDate('tanggal', '>=', $from);
         if ($to)      $query->whereDate('tanggal', '<=', $to);
+
+        // ✅ Filter HANYA pesanan yang statusnya Selesai / Completed
+        $query->whereHas('tiktokOrderItem', function ($q) {
+            $q->where(function($sub) {
+                $sub->where('order_status', 'Selesai')
+                    ->orWhere('order_status', 'Completed');
+            });
+        });
 
         $sales = $query->orderBy('tanggal', 'desc')->get();
 

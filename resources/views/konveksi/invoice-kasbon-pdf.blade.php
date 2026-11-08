@@ -1,22 +1,9 @@
 @php
-    $logoPath = public_path('images/favicon.png');
-    $tiktokPath = public_path('images/tiktok.png');
-    $shopeePath = public_path('images/shopee.png');
-    $whatsappPath = public_path('images/whatsapp.png');
-
-    $logoBase64 = file_exists($logoPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($logoPath))
-        : null;
-    
-    $tiktokBase64 = file_exists($tiktokPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($tiktokPath))
-        : null;
-    $shopeeBase64 = file_exists($shopeePath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($shopeePath))
-        : null;
-    $whatsappBase64 = file_exists($whatsappPath)
-        ? 'data:image/png;base64,' . base64_encode(file_get_contents($whatsappPath))
-        : null;
+    // ✅ SOLUSI HOSTING: Gunakan URL asset()
+    $logoUrl = asset('images/favicon.png');
+    $tiktokUrl = asset('images/tiktok.png');
+    $shopeeUrl = asset('images/shopee.png');
+    $whatsappUrl = asset('images/whatsapp.png');
 @endphp
 
 <!DOCTYPE html>
@@ -365,23 +352,22 @@
                             </p>
 
                             <p style="margin-top: 4px;">
-                                <img src="{{ $tiktokBase64 }}" alt="" style="width:7pt; margin-top:7pt;"> barokah.sport &nbsp;
-                                <img src="{{ $shopeeBase64 }}" alt="" style="width:7pt; margin-top:7pt;"> hmbarokah &nbsp;
-                                <img src="{{ $whatsappBase64 }}" alt="" style="width:7pt; margin-top:7pt;"> 081381899600
+                                {{-- ✅ Gunakan URL langsung --}}
+                                <img src="{{ $tiktokUrl }}" alt="" style="width:7pt; margin-top:7pt;"> barokah.sport &nbsp;
+                                <img src="{{ $shopeeUrl }}" alt="" style="width:7pt; margin-top:7pt;"> hmbarokah &nbsp;
+                                <img src="{{ $whatsappUrl }}" alt="" style="width:7pt; margin-top:7pt;"> 081381899600
                             </p>
 
                         </td>
 
                         <td style="width: 25%; text-align: right;">
-                            {{-- Sesuaikan dengan lokasi logo --}}
-                            @if ($logoBase64)
-                                <img
-                                    src="{{ $logoBase64 }}"
-                                    class="logo"
-                                    alt="Logo Barokah Sport"
-                                    style="margin-right:17px;"
-                                >
-                            @endif
+                            {{-- ✅ Gunakan URL langsung --}}
+                            <img
+                                src="{{ $logoUrl }}"
+                                class="logo"
+                                alt="Logo Barokah Sport"
+                                style="margin-right:17px;"
+                            >
                         </td>
                     </tr>
                 </table>

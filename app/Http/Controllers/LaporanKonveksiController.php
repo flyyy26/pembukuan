@@ -14,6 +14,7 @@ use Illuminate\Support\Facades\DB;
 use Barryvdh\DomPDF\Facade\Pdf;
 use App\Models\HancaDetail; 
 use App\Models\KonveksiKasbon; 
+use App\Models\KonveksiPembayaran;
 
 class LaporanKonveksiController extends Controller
 {
@@ -144,6 +145,18 @@ class LaporanKonveksiController extends Controller
             return response()->json(['message' => 'Minimal 1 produk harus diisi.'], 422);
         }
 
+        // ✅ Validasi: jika kategori Jahit dan ada sumber_potong_id, pastikan belum dipakai
+        $sumberIds = collect($products)->pluck('sumber_potong_id')->filter()->unique()->toArray();
+        if (!empty($sumberIds)) {
+            $used = HancaDetail::whereIn('sumber_potong_id', $sumberIds)
+                ->whereNotNull('sumber_potong_id')
+                ->pluck('sumber_potong_id')
+                ->toArray();
+            if (!empty($used)) {
+                return response()->json(['message' => 'Beberapa produk dari Potong Kain sudah diambil sebelumnya.'], 422);
+            }
+        }
+
         KonveksiKategori::firstOrCreate(['nama' => trim($validated['kategori'])]);
 
         DB::beginTransaction();
@@ -165,6 +178,7 @@ class LaporanKonveksiController extends Controller
                 $total = $harga * $prod['jumlah_hanca'];
 
                 $hanca->details()->create([
+                    'sumber_potong_id'   => $prod['sumber_potong_id'] ?? null,
                     'kategori_produk_id' => $kategoriProdukId,
                     'nama_produk'        => $prod['nama_produk'],
                     'warna'              => $prod['warna'] ?? null,
@@ -224,6 +238,7 @@ class LaporanKonveksiController extends Controller
                 if (!empty($prod['id'])) {
                     $detail = HancaDetail::find($prod['id']);
                     $detail->update([
+                        'sumber_potong_id'   => $prod['sumber_potong_id'] ?? $detail->sumber_potong_id,
                         'kategori_produk_id' => $kategoriProdukId,
                         'nama_produk'        => $prod['nama_produk'],
                         'warna'              => $prod['warna'] ?? null,
@@ -235,6 +250,7 @@ class LaporanKonveksiController extends Controller
                     $existingIds[] = $detail->id;
                 } else {
                     $new = $hanca->details()->create([
+                        'sumber_potong_id'   => $prod['sumber_potong_id'] ?? null,
                         'kategori_produk_id' => $kategoriProdukId,
                         'nama_produk'        => $prod['nama_produk'],
                         'warna'              => $prod['warna'] ?? null,
@@ -249,9 +265,7 @@ class LaporanKonveksiController extends Controller
                 }
             }
 
-            // Hapus detail yang dihapus user
             $hanca->details()->whereNotIn('id', $existingIds)->delete();
-
             $hanca->recalculateSisa();
 
             DB::commit();
@@ -273,10 +287,11 @@ class LaporanKonveksiController extends Controller
     // ============================================
     public function storePembayaranAjax(Request $request)
     {
+        // ✅ Ubah validasi: nominal_setor jadi nullable
         $validated = $request->validate([
             'qty_setor'       => 'required|array|min:1',
-            'qty_setor.*'     => 'integer|min:0',
-            'nominal_setor'   => 'required|array|min:1',
+            'qty_setor.*'     => 'integer|min:1',
+            'nominal_setor'   => 'nullable|array',
             'nominal_setor.*' => 'integer|min:0',
             'kasbon_ids'      => 'nullable|array',
             'kasbon_ids.*'    => 'exists:konveksi_kasbons,id',
@@ -288,34 +303,9 @@ class LaporanKonveksiController extends Controller
         try {
             $pembayaranIds = [];
             
-            // Hitung total nominal yang disetor hari ini
-            $totalSetoran = array_sum($validated['nominal_setor']);
-            
             // Ambil ID Kasbon pertama
             $kasbonId = !empty($validated['kasbon_ids']) ? $validated['kasbon_ids'][0] : null;
-            $kasbon = $kasbonId ? KonveksiKasbon::find($kasbonId) : null;
 
-            // LOGIKA PEMOTONGAN KASBON
-            $nominalDipotong = 0;
-            $sisaSetoran = $totalSetoran;
-
-            if ($kasbon && $sisaSetoran > 0) {
-                if ($kasbon->nominal <= $sisaSetoran) {
-                    $nominalDipotong = $kasbon->nominal;
-                    $kasbon->status = 'lunas';
-                    $kasbon->nominal = 0; 
-                    $kasbon->save();
-                    $sisaSetoran -= $nominalDipotong;
-                } else {
-                    $nominalDipotong = $sisaSetoran;
-                    $kasbon->nominal -= $sisaSetoran;
-                    $kasbon->save();
-                    $sisaSetoran = 0;
-                }
-            }
-
-            // Simpan setoran hanca (seperti biasa)
-            $sisaKasbonDipotong = $nominalDipotong;
             foreach ($validated['qty_setor'] as $detailId => $qty) {
                 if ($qty <= 0) continue;
 
@@ -323,26 +313,36 @@ class LaporanKonveksiController extends Controller
                 if (!$detail) continue;
 
                 $hanca = $detail->hanca;
-                $nominal = (int) ($validated['nominal_setor'][$detailId] ?? 0);
-                if ($nominal <= 0) continue;
+                
+                // ✅ LOGIKA BARU: 
+                // Karena halaman setor hanya mengirim Qty, kita set nominal = 0.
+                // Nominal akan dihitung saat diproses di halaman Data Bayaran.
+                $nominal = 0;
+                
+                // (Opsional) Jika ada halaman lain yang mengirim nominal_setor, bisa ditangkap di sini
+                if (isset($validated['nominal_setor'][$detailId])) {
+                    $nominal = (int) $validated['nominal_setor'][$detailId];
+                }
 
-                $kasbonDipotongDetail = min($sisaKasbonDipotong, $nominal);
-                $sisaKasbonDipotong -= $kasbonDipotongDetail;
-
+                // Simpan Pembayaran
                 $pembayaran = HancaPembayaran::create([
                     'hanca_id'        => $hanca->id,
                     'hanca_detail_id' => $detail->id, 
                     'kasbon_id'       => $kasbonId, 
                     'tipe'            => 'bayaran',
-                    'nominal'         => $nominal,
-                    'kasbon_dipotong' => $kasbonDipotongDetail,
+                    'nominal'         => $nominal, // 0 untuk setoran tanpa nominal
+                    'kasbon_dipotong' => 0,
                     'qty_setor'       => $qty,
                     'tanggal'         => $validated['tanggal'],
                     'keterangan'      => $validated['keterangan'],
                 ]);
 
+                // Update Sisa Qty & Sisa Nominal di Detail
                 $detail->sisa_hanca -= $qty;
-                $detail->sisa_nominal -= $nominal;
+                // Jika nominal 0, sisa_nominal tidak berkurang (tetap menunggu pembayaran)
+                if ($nominal > 0) {
+                    $detail->sisa_nominal = max(0, $detail->sisa_nominal - $nominal);
+                }
                 $detail->save();
 
                 $pembayaranIds[] = $pembayaran->id;
@@ -369,6 +369,152 @@ class LaporanKonveksiController extends Controller
         }
     }
 
+    public function bayarMassalAjax(Request $request)
+    {
+        $request->validate([
+            'pembayaran_ids'   => 'required|array',
+            'pembayaran_ids.*' => 'exists:hanca_pembayarans,id',
+            'tanggal_bayar'    => 'required|date',
+            'kasbon_ids'       => 'nullable|array',
+            'kasbon_ids.*'     => 'exists:konveksi_kasbons,id',
+        ]);
+
+        DB::beginTransaction();
+        try {
+            $pembayaranIds = $request->pembayaran_ids;
+            $kasbonIds     = $request->input('kasbon_ids', []);
+            $tanggalBayar  = $request->tanggal_bayar;
+
+            // 1. Ambil data pembayaran yang dipilih
+            $pembayarans = HancaPembayaran::with('hancaDetail')->whereIn('id', $pembayaranIds)->get();
+            
+            // 2. Hitung total upah kotor (sebelum dipotong)
+            $totalUpahKotor = 0;
+            foreach ($pembayarans as $p) {
+                $harga = $p->hancaDetail->harga ?? 0;
+                $totalUpahKotor += ($p->qty_setor * $harga);
+            }
+
+            // 3. Proses Potong Kasbon
+            $totalPotongKasbon = 0;
+            $sisaUpah = $totalUpahKotor;
+
+            // Ambil ID kasbon pertama (jika ada yang dipilih)
+            $kasbonIdUtama = null;
+            if (!empty($kasbonIds)) {
+                $kasbons = KonveksiKasbon::whereIn('id', $kasbonIds)->orderBy('id', 'asc')->get();
+                
+                foreach ($kasbons as $kasbon) {
+                    if ($sisaUpah <= 0) break;
+
+                    $sisaKasbon = $kasbon->nominal; // Sesuai model Anda
+                    if ($sisaKasbon <= 0) continue;
+
+                    $potong = min($sisaUpah, $sisaKasbon);
+
+                    if ($potong > 0) {
+                        $sisaKasbonBaru = $sisaKasbon - $potong;
+                        
+                        $kasbon->update([
+                            'nominal' => $sisaKasbonBaru,
+                            'status'  => $sisaKasbonBaru <= 0 ? 'lunas' : 'belum_lunas',
+                        ]);
+
+                        $sisaUpah -= $potong;
+                        $totalPotongKasbon += $potong;
+                        
+                        if ($kasbonIdUtama === null) {
+                            $kasbonIdUtama = $kasbon->id;
+                        }
+                    }
+                }
+            }
+
+            // 4. Update HancaPembayaran 
+            // ✅ PENTING: Simpan nominal KOTOR (sebelum dipotong) ke kolom 'nominal'
+            $isFirst = true;
+            foreach ($pembayarans as $p) {
+                $harga = $p->hancaDetail->harga ?? 0;
+                $nominalKotor = $p->qty_setor * $harga;
+                
+                $p->update([
+                    'nominal'         => $nominalKotor, // Simpan nilai asli
+                    'kasbon_id'       => $isFirst ? $kasbonIdUtama : null,
+                    'kasbon_dipotong' => $isFirst ? $totalPotongKasbon : 0, // Potongan hanya di baris pertama
+                    'tanggal'         => $tanggalBayar,
+                ]);
+                
+                $isFirst = false;
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success'             => true,
+                'message'             => 'Pembayaran berhasil diproses.',
+                'total_upah'          => $totalUpahKotor,
+                'total_potong_kasbon' => $totalPotongKasbon,
+                'total_diterima'      => $sisaUpah,
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'message' => 'Gagal memproses pembayaran: ' . $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function printMassalPdf(Request $request)
+    {
+        $ids = $request->query('ids', []);
+        
+        if (empty($ids) || !is_array($ids)) {
+            abort(400, 'Tidak ada data pembayaran yang dipilih.');
+        }
+
+        // Ambil semua pembayaran beserta relasinya
+        $pembayarans = HancaPembayaran::with(['hanca.karyawan', 'hancaDetail'])
+            ->whereIn('id', $ids)
+            ->orderBy('id')
+            ->get();
+
+        if ($pembayarans->isEmpty()) {
+            abort(404, 'Data pembayaran tidak ditemukan.');
+        }
+
+        // ✅ Kelompokkan berdasarkan karyawan_id dan tanggal_bayar
+        $grouped = $pembayarans->groupBy(function($item) {
+            return $item->hanca->konveksi_karyawan_id . '|' . $item->tanggal->format('Y-m-d');
+        });
+
+        // ✅ Hitung total untuk setiap grup
+        foreach ($grouped as $key => $items) {
+            $totalKasbon = $items->sum('kasbon_dipotong');
+            $totalKotor = $items->sum('nominal'); // 'nominal' sekarang berisi nilai kotor
+            
+            // Simpan hasil hitungan ke dalam koleksi agar bisa dibaca di view
+            $items->total_kasbon = $totalKasbon;
+            $items->total_kotor = $totalKotor;
+            $items->total_bersih = $totalKotor - $totalKasbon;
+        }
+
+        $data = [
+            'groupedPembayarans'  => $grouped,
+            'tanggal_cetak'       => now()->translatedFormat('d F Y H:i'),
+        ];
+
+        $pdf = Pdf::loadView('konveksi.invoice-massal-pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+        return $pdf->stream('Nota-Pembayaran-Massal-' . now()->format('YmdHis') . '.pdf');
+    }
+
 
     public function destroyPembayaranAjax(HancaPembayaran $pembayaran)
     {
@@ -383,6 +529,269 @@ class LaporanKonveksiController extends Controller
             DB::rollBack();
             return response()->json(['message' => 'Gagal hapus: ' . $e->getMessage()], 500);
         }
+    }
+
+    public function potongKainIndex(Request $request)
+    {
+        $search = trim($request->input('search', ''));
+        $karyawanId = $request->input('karyawan_id', 'all');
+        $kategoriProdukFilter = $request->input('kategori_produk', 'all');
+        $bulanFilter = $request->input('bulan', 'all');
+
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+            ->where('kategori', 'Potong Kain')
+            ->whereHas('details', function($q) {
+                $q->where('sisa_hanca', '>', 0);
+            })
+            ->when($karyawanId !== 'all', fn($q) => $q->where('konveksi_karyawan_id', $karyawanId))
+            ->when($kategoriProdukFilter !== 'all', function($q) use ($kategoriProdukFilter) {
+                $q->whereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', $kategoriProdukFilter));
+            })
+            ->when($bulanFilter !== 'all', function($q) use ($bulanFilter) {
+                $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
+                ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+            });
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $hancaList = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+
+        $summary = [
+            'total_hanca'   => (int) $hancaList->sum('total'),
+            'total_dibayar' => (int) $hancaList->sum(fn($h) => $h->total_dibayar),
+            'total_sisa'    => (int) $hancaList->sum(fn($h) => $h->sisa),
+            'jumlah_data'   => $hancaList->count(),
+        ];
+
+        $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
+        $kategoriProdukList = KonveksiKategoriProduk::orderBy('nama')->pluck('nama');
+        $kategoriProdukIdsByName = KonveksiKategoriProduk::pluck('id', 'nama');
+
+        $bulanList = Hanca::where('kategori', 'Potong Kain')
+            ->selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
+            ->groupBy('year', 'month')
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get()
+            ->map(fn($item) => [
+                'value' => $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT),
+                'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y'),
+            ]);
+
+        $hancaBelumLunas = $hancaList->filter(function($h) {
+            return $h->details->contains(function($detail) use ($h) {
+                $dibayarQty = $h->pembayarans->where('hanca_detail_id', $detail->id)->sum('qty_setor');
+                return ($detail->jumlah_hanca - $dibayarQty) > 0;
+            });
+        })->values();
+
+        return view('konveksi.potong-kain', compact(
+            'hancaList', 'summary', 'karyawanList', 'search', 'karyawanId',
+            'kategoriProdukList', 'kategoriProdukIdsByName',
+            'kategoriProdukFilter', 'bulanFilter', 'bulanList',
+            'hancaBelumLunas'
+        ));
+    }
+
+    // ============================================
+    // DATA AMBIL HANCA
+    // ============================================
+    public function ambilHancaIndex(Request $request)
+    {
+        $search = trim($request->input('search', ''));
+        $karyawanId = $request->input('karyawan_id', 'all');
+        $kategoriProdukFilter = $request->input('kategori_produk', 'all');
+        $bulanFilter = $request->input('bulan', 'all');
+
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+            ->where('kategori', '!=', 'Potong Kain')
+            ->whereHas('details', function($q) {
+                $q->where('sisa_hanca', '>', 0);
+            })
+            ->when($karyawanId !== 'all', fn($q) => $q->where('konveksi_karyawan_id', $karyawanId))
+            ->when($kategoriProdukFilter !== 'all', function($q) use ($kategoriProdukFilter) {
+                $q->whereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', $kategoriProdukFilter));
+            })
+            ->when($bulanFilter !== 'all', function($q) use ($bulanFilter) {
+                $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
+                ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+            });
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->whereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $hancaList = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+
+        $summary = [
+            'total_hanca'   => (int) $hancaList->sum('total'),
+            'total_dibayar' => (int) $hancaList->sum(fn($h) => $h->total_dibayar),
+            'total_sisa'    => (int) $hancaList->sum(fn($h) => $h->sisa),
+            'jumlah_data'   => $hancaList->count(),
+        ];
+
+        $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
+        $kategoriProdukList = KonveksiKategoriProduk::orderBy('nama')->pluck('nama');
+        $kategoriProdukIdsByName = KonveksiKategoriProduk::pluck('id', 'nama');
+        $kategoriList = KonveksiKategori::where('nama', '!=', 'Potong Kain')
+            ->orderBy('nama')
+            ->pluck('nama')
+            ->toArray();
+        if (!in_array('Jahit', $kategoriList)) {
+            array_unshift($kategoriList, 'Jahit');
+        }
+        $kategoriIdsByName = KonveksiKategori::pluck('id', 'nama');
+
+        $usedPotongIds = HancaDetail::whereNotNull('sumber_potong_id')->pluck('sumber_potong_id')->toArray();
+
+        // Potong Kain yang punya detail selesai
+        $potongKainSelesai = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+            ->where('kategori', 'Potong Kain')
+            ->whereHas('details', function($q) use ($usedPotongIds) {
+                $q->where('sisa_hanca', '<=', 0)
+                ->whereNotIn('id', $usedPotongIds); // ✅ Hanya yang belum diambil
+            })
+            ->orderByDesc('tanggal')
+            ->get();
+
+        $bulanList = Hanca::where('kategori', '!=', 'Potong Kain')
+            ->selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
+            ->groupBy('year', 'month')
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get()
+            ->map(fn($item) => [
+                'value' => $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT),
+                'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y'),
+            ]);
+
+        return view('konveksi.ambil-hanca', compact(
+            'hancaList', 'summary', 'karyawanList', 'search', 'karyawanId',
+            'kategoriProdukList', 'kategoriProdukIdsByName', 'potongKainSelesai',
+            'usedPotongIds', 'kategoriProdukFilter', 'bulanFilter', 'bulanList',
+            'kategoriList', 'kategoriIdsByName'
+        ));
+    }
+
+    // ============================================
+    // DATA SETOR HANCA
+    // ============================================
+    public function setorHancaIndex(Request $request)
+    {
+        $search = trim($request->input('search', ''));
+        $karyawanId = $request->input('karyawan_id', 'all');
+        $kategoriFilter = $request->input('kategori', 'all');
+        $kategoriProdukFilter = $request->input('kategori_produk', 'all');
+        $bulanFilter = $request->input('bulan', 'all');
+
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+            ->where('kategori', '!=', 'Potong Kain')   // ✅ EXCLUDE Potong Kain
+            ->whereHas('details', fn($q) => $q->where('sisa_hanca', '>', 0))
+            ->when($karyawanId !== 'all', fn($q) => $q->where('konveksi_karyawan_id', $karyawanId))
+            ->when($kategoriFilter !== 'all', fn($q) => $q->where('kategori', $kategoriFilter))
+            ->when($kategoriProdukFilter !== 'all', function($q) use ($kategoriProdukFilter) {
+                $q->whereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', $kategoriProdukFilter));
+            })
+            ->when($bulanFilter !== 'all', function($q) use ($bulanFilter) {
+                $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
+                ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+            });
+
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('kategori', 'LIKE', "%{$search}%")
+                ->orWhereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details.kategoriProduk', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"));
+            });
+        }
+
+        $hancaList = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+
+        $summary = [
+            'total_hanca'   => (int) $hancaList->sum('total'),
+            'total_dibayar' => (int) $hancaList->sum(fn($h) => $h->total_dibayar),
+            'total_sisa'    => (int) $hancaList->sum(fn($h) => $h->sisa),
+            'jumlah_data'   => $hancaList->count(),
+        ];
+
+        $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
+        $kategoriList = KonveksiKategori::where('nama', '!=', 'Potong Kain')->orderBy('nama')->pluck('nama'); // ✅ exclude di dropdown
+        $kategoriProdukList = KonveksiKategoriProduk::orderBy('nama')->pluck('nama');
+        $kategoriProdukIdsByName = KonveksiKategoriProduk::pluck('id', 'nama');
+        $kategoriIdsByName = KonveksiKategori::pluck('id', 'nama');
+
+        $bulanList = Hanca::where('kategori', '!=', 'Potong Kain')   // ✅ exclude dari list bulan
+            ->selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
+            ->groupBy('year', 'month')
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get()
+            ->map(fn($item) => [
+                'value' => $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT),
+                'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y'),
+            ]);
+
+        $hancaBelumLunas = $hancaList->filter(function($h) {
+            return $h->details->contains(function($detail) use ($h) {
+                $dibayarQty = $h->pembayarans->where('hanca_detail_id', $detail->id)->sum('qty_setor');
+                return ($detail->jumlah_hanca - $dibayarQty) > 0;
+            });
+        })->values();
+
+        return view('konveksi.setor-hanca', compact(
+            'hancaList', 'summary', 'karyawanList', 'search', 'karyawanId',
+            'kategoriList', 'kategoriProdukList', 'kategoriIdsByName', 'kategoriProdukIdsByName',
+            'hancaBelumLunas', 'kategoriFilter', 'kategoriProdukFilter', 'bulanFilter', 'bulanList'
+        ));
+    }
+
+    // ============================================
+    // AJAX: Detail Potong Kain Selesai
+    // ============================================
+    public function getPotongKainDetailsAjax(Hanca $hanca)
+    {
+        $hanca->load(['karyawan', 'details.kategoriProduk', 'pembayarans']);
+
+        if ($hanca->kategori !== 'Potong Kain') {
+            return response()->json(['message' => 'Bukan data Potong Kain.'], 422);
+        }
+
+        $usedIds = HancaDetail::whereNotNull('sumber_potong_id')->pluck('sumber_potong_id')->toArray();
+
+        $details = $hanca->details
+            ->filter(function($d) use ($hanca) {
+                $dibayarQty = $hanca->pembayarans->where('hanca_detail_id', $d->id)->sum('qty_setor');
+                return ($d->jumlah_hanca - $dibayarQty) <= 0;
+            })
+            ->filter(fn($d) => !in_array($d->id, $usedIds))
+            ->map(fn($d) => [
+                'id'                 => $d->id,
+                'nama_produk'        => $d->nama_produk,
+                'warna'              => $d->warna,
+                'ukuran'             => $d->ukuran,
+                'jumlah_hanca'       => $d->jumlah_hanca,
+                'kategori_produk'    => $d->kategoriProduk->nama ?? '',
+                'kategori_produk_id' => $d->kategori_produk_id,
+            ])
+            ->values();
+
+        return response()->json([
+            'hanca_id'  => $hanca->id,
+            'karyawan'  => $hanca->karyawan->nama ?? '-',
+            'tanggal'   => $hanca->tanggal?->format('d/m/Y'),
+            'details'   => $details,
+        ]);
     }
 
     // ============================================
@@ -412,13 +821,48 @@ class LaporanKonveksiController extends Controller
         return response()->json(['success' => true, 'message' => 'Pengeluaran berhasil disimpan.']);
     }
 
-    public function pengeluaranIndex()
+    public function pengeluaranIndex(Request $request)
     {
-        $pengeluaranList = KonveksiPengeluaranUmum::orderByDesc('tanggal')
-            ->orderByDesc('id')
-            ->get();
+        $search = trim($request->input('search', ''));
+        $bulanFilter = $request->input('bulan', now()->format('Y-m')); // ✅ Default bulan ini
 
-        return view('konveksi.data-pengeluaran', compact('pengeluaranList'));
+        $query = KonveksiPengeluaranUmum::when($bulanFilter !== 'all', function($q) use ($bulanFilter) {
+            $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
+              ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+        });
+
+        // ✅ Logika Pencarian
+        if ($search !== '') {
+            $query->where(function ($q) use ($search) {
+                $q->where('nama', 'LIKE', "%{$search}%")
+                  ->orWhere('keterangan', 'LIKE', "%{$search}%");
+            });
+        }
+
+        $pengeluaranList = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
+
+        // ✅ Ambil daftar bulan unik untuk dropdown
+        $bulanList = KonveksiPengeluaranUmum::selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
+            ->groupBy('year', 'month')
+            ->orderByDesc('year')
+            ->orderByDesc('month')
+            ->get()
+            ->map(function($item) {
+                return [
+                    'value' => $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT),
+                    'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y')
+                ];
+            });
+        
+        // Pastikan bulan yang dipilih ada di list (jika belum ada datanya)
+        if ($bulanFilter !== 'all' && !$bulanList->contains('value', $bulanFilter)) {
+            $bulanList->prepend([
+                'value' => $bulanFilter,
+                'label' => \Carbon\Carbon::createFromFormat('Y-m', $bulanFilter)->translatedFormat('F Y'),
+            ]);
+        }
+
+        return view('konveksi.data-pengeluaran', compact('pengeluaranList', 'bulanFilter', 'bulanList', 'search'));
     }
 
     public function storePengeluaranUmumAjax(Request $request)
@@ -477,8 +921,8 @@ class LaporanKonveksiController extends Controller
         $pdf = Pdf::loadView('konveksi.invoice-kasbon-pdf', $data)
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'isRemoteEnabled' => false,
-                'isHtml5ParserEnabled' => false,
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
                 'defaultFont' => 'sans-serif',
             ]);
 
@@ -636,8 +1080,8 @@ class LaporanKonveksiController extends Controller
         $pdf = Pdf::loadView('konveksi.invoice-pdf', $data)
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'isRemoteEnabled' => false,
-                'isHtml5ParserEnabled' => false,
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
                 'defaultFont' => 'sans-serif',
             ]);
 
@@ -783,8 +1227,8 @@ class LaporanKonveksiController extends Controller
         $pdf = Pdf::loadView('konveksi.invoice-kasbon-pdf', $data)
             ->setPaper('a4', 'portrait')
             ->setOptions([
-                'isRemoteEnabled' => false,
-                'isHtml5ParserEnabled' => false,
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
                 'defaultFont' => 'sans-serif',
             ]);
 
@@ -853,56 +1297,93 @@ class LaporanKonveksiController extends Controller
 
     public function dataBayaran(Request $request)
     {
-        $search = trim($request->input('search', ''));
-        $karyawanId = $request->input('karyawan_id', 'all');
+        $karyawanId  = $request->input('karyawan_id', 'all');
         $bulanFilter = $request->input('bulan', now()->format('Y-m'));
+        $search      = trim($request->input('search', ''));
 
-        $query = HancaPembayaran::with(['hanca.karyawan', 'hancaDetail'])
-            ->where('qty_setor', '>', 0)
-            ->whereNotNull('hanca_detail_id')
+        $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
+
+        // 1. QUERY PEMBAYARAN (BELUM DIBAYAR)
+        // Mengambil dari HancaPembayaran yang memiliki nominal 0 (belum ditentukan upahnya)
+        $queryBelum = HancaPembayaran::with(['hanca.karyawan', 'hancaDetail'])
+            ->where('tipe', 'bayaran')
+            ->where('nominal', 0) // ✅ Belum dibayar (nominal masih 0)
             ->when($karyawanId !== 'all', function ($q) use ($karyawanId) {
                 $q->whereHas('hanca', fn($sq) => $sq->where('konveksi_karyawan_id', $karyawanId));
             })
             ->when($bulanFilter !== 'all', function ($q) use ($bulanFilter) {
                 $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
-                    ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
-            });
+                  ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('hanca.karyawan', fn($sq) => $sq->where('nama', 'like', "%{$search}%"))
+                  ->orWhereHas('hancaDetail', fn($sq) => $sq->where('nama_produk', 'like', "%{$search}%"));
+            })
+            ->orderBy('tanggal', 'asc')
+            ->get();
 
-        if ($search !== '') {
-            $query->where(function ($q) use ($search) {
-                $q->where('keterangan', 'LIKE', "%{$search}%")
-                    ->orWhereHas('hanca', fn($sq) => $sq->where('kategori', 'LIKE', "%{$search}%"))
-                    ->orWhereHas('hanca.karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
-                    ->orWhereHas('hancaDetail', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"));
-            });
+        // 2. QUERY PEMBAYARAN (RIWAYAT)
+        // Mengambil dari HancaPembayaran yang nominalnya > 0 (sudah dibayar)
+        $queryRiwayat = HancaPembayaran::with(['hanca.karyawan', 'hancaDetail'])
+            ->where('tipe', 'bayaran')
+            ->where('nominal', '>', 0) // ✅ Sudah dibayar
+            ->when($karyawanId !== 'all', function ($q) use ($karyawanId) {
+                $q->whereHas('hanca', fn($sq) => $sq->where('konveksi_karyawan_id', $karyawanId));
+            })
+            ->when($bulanFilter !== 'all', function ($q) use ($bulanFilter) {
+                $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
+                  ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+            })
+            ->when($search, function ($q) use ($search) {
+                $q->whereHas('hanca.karyawan', fn($sq) => $sq->where('nama', 'like', "%{$search}%"))
+                  ->orWhereHas('hancaDetail', fn($sq) => $sq->where('nama_produk', 'like', "%{$search}%"));
+            })
+            ->orderByDesc('tanggal')
+            ->orderByDesc('id')
+            ->get();
+
+        $pembayaranBelumDibayar = $queryBelum;
+        $pembayaranRiwayat      = $queryRiwayat;
+
+        // 3. AMBIL DATA KASBON AKTIF
+        $kasbonAktif = [];
+        
+        // Ambil kasbon yang statusnya belum lunas (atau nominal > 0)
+        $kasbons = KonveksiKasbon::where('status', 'belum_lunas')
+            ->orderBy('id', 'asc')
+            ->get();
+
+        foreach ($kasbons as $kasbon) {
+            // Karena di tabel kasbon Anda menggunakan 'nominal' sebagai sisa, kita ambil itu
+            $sisa = $kasbon->nominal; 
+            if ($sisa > 0) {
+                $kasbonAktif[$kasbon->konveksi_karyawan_id][] = [
+                    'id'         => $kasbon->id,
+                    'sisa'       => $sisa,
+                    'keterangan' => $kasbon->keterangan ?? 'Kasbon #' . $kasbon->id,
+                ];
+            }
         }
 
-        $pembayarans = $query->orderByDesc('tanggal')->orderByDesc('id')->get();
-
-        $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
-        
-        $bulanList = HancaPembayaran::where('qty_setor', '>', 0)
-            ->whereNotNull('hanca_detail_id')
-            ->selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
-            ->groupBy('year', 'month')
-            ->orderByDesc('year')
-            ->orderByDesc('month')
-            ->get()
-            ->map(function($item) {
-                return [
-                    'value' => $item->year . '-' . str_pad($item->month, 2, '0', STR_PAD_LEFT),
-                    'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y')
-                ];
-            });
-        if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $bulanFilter) && !$bulanList->contains('value', $bulanFilter)) {
-            $bulanList->prepend([
-                'value' => $bulanFilter,
-                'label' => \Carbon\Carbon::createFromFormat('Y-m', $bulanFilter)->translatedFormat('F Y'),
+        // 4. LIST BULAN UNTUK FILTER
+        $bulanList = collect();
+        for ($i = 0; $i < 12; $i++) {
+            $date = now()->subMonths($i);
+            $bulanList->push([
+                'value' => $date->format('Y-m'),
+                'label' => $date->translatedFormat('F Y'),
             ]);
         }
 
         return view('konveksi.data-bayaran', compact(
-            'pembayarans', 'karyawanList', 'search', 'karyawanId', 'bulanFilter', 'bulanList'
+            'karyawanList',
+            'karyawanId',
+            'bulanList',
+            'bulanFilter',
+            'search',
+            'pembayaranBelumDibayar',
+            'pembayaranRiwayat',
+            'kasbonAktif'
         ));
     }
 
@@ -910,38 +1391,36 @@ class LaporanKonveksiController extends Controller
     {
         $search = trim($request->input('search', ''));
         $karyawanId = $request->input('karyawan_id', 'all');
-        $bulanFilter = $request->input('bulan', now()->format('Y-m'));
+        $bulanFilter = $request->input('bulan', now()->format('Y-m')); 
 
-        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
-            ->whereHas('details', fn($q) => $q->where('sisa_hanca', '<=', 0))
+        // ✅ Ambil hanca yang sudah selesai (sisa_hanca <= 0)
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans', 'details.turunanJahit.hanca.karyawan'])
+            ->whereHas('details', function($q) {
+                // Pastikan SEMUA detail sudah selesai (tidak ada yang > 0)
+                $q->where('sisa_hanca', '<=', 0);
+            })
             ->when($karyawanId !== 'all', fn($q) => $q->where('konveksi_karyawan_id', $karyawanId))
             ->when($bulanFilter !== 'all', function ($q) use ($bulanFilter) {
                 $q->whereYear('tanggal', substr($bulanFilter, 0, 4))
-                    ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
+                ->whereMonth('tanggal', substr($bulanFilter, 5, 2));
             });
 
         if ($search !== '') {
             $query->where(function ($q) use ($search) {
                 $q->where('kategori', 'LIKE', "%{$search}%")
-                    ->orWhereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
-                    ->orWhereHas('details', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"));
+                ->orWhereHas('karyawan', fn($sq) => $sq->where('nama', 'LIKE', "%{$search}%"))
+                ->orWhereHas('details', fn($sq) => $sq->where('nama_produk', 'LIKE', "%{$search}%"));
             });
         }
 
         $hancaList = $query->orderByDesc('updated_at')->get();
-        $detailsSelesai = collect();
 
-        foreach ($hancaList as $hanca) {
-            foreach ($hanca->details as $detail) {
-                if ($detail->sisa_hanca <= 0) {
-                    $detail->hanca_induk = $hanca;
-                    $detailsSelesai->push($detail);
-                }
-            }
-        }
+        // ✅ Kelompokkan berdasarkan Kategori Kerja (Potong Kain / Jahit / dll)
+        $groupedByKategori = $hancaList->groupBy('kategori');
 
-        $groupedHancas = $detailsSelesai->groupBy('nama_produk');
         $karyawanList = KonveksiKaryawan::orderBy('nama')->get();
+        
+        // Ambil list bulan dari data hanca
         $bulanList = Hanca::selectRaw('YEAR(tanggal) as year, MONTH(tanggal) as month')
             ->groupBy('year', 'month')
             ->orderByDesc('year')
@@ -953,6 +1432,7 @@ class LaporanKonveksiController extends Controller
                     'label' => \Carbon\Carbon::create($item->year, $item->month, 1)->translatedFormat('F Y'),
                 ];
             });
+            
         if (preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $bulanFilter) && !$bulanList->contains('value', $bulanFilter)) {
             $bulanList->prepend([
                 'value' => $bulanFilter,
@@ -961,7 +1441,7 @@ class LaporanKonveksiController extends Controller
         }
 
         return view('konveksi.hanca-selesai', compact(
-            'groupedHancas', 'karyawanList', 'search', 'karyawanId', 'bulanFilter', 'bulanList'
+            'groupedByKategori', 'karyawanList', 'search', 'karyawanId', 'bulanFilter', 'bulanList'
         ));
     }
 }

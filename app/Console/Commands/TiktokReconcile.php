@@ -17,11 +17,6 @@ class TiktokReconcile extends Command
     protected $signature = 'tiktok:reconcile {store_id}';
     protected $description = 'Rekonsiliasi TikTok: order + income menjadi sales';
 
-    /**
-     * Alokasikan biaya bulat berdasarkan proporsi subtotal.
-     * Sisa pembulatan dibagikan ke SKU dengan pecahan terbesar,
-     * sehingga total alokasi selalu sama dengan total biaya.
-     */
     private function allocateAmount(
         int $amount,
         array $weights,
@@ -48,8 +43,6 @@ class TiktokReconcile extends Command
         }
 
         $remaining = $amount - $allocated;
-
-        // Bagikan sisa rupiah berdasarkan pecahan terbesar.
         arsort($remainders, SORT_NUMERIC);
 
         foreach (array_keys($remainders) as $index) {
@@ -114,9 +107,20 @@ class TiktokReconcile extends Command
             foreach ($orderItems as $orderId => $items) {
                 $incomeRows = $income->get($orderId);
 
+                // ✅ PERBAIKAN: Jangan di-skip jika income kosong.
+                // Beri nilai default 0 agar produk tetap dimasukkan ke sales.
                 if (!$incomeRows || $incomeRows->isEmpty()) {
-                    $skipped++;
-                    continue;
+                    $incomeRows = collect([
+                        (object) [
+                            'biaya_komisi_platform' => 0,
+                            'biaya_pemrosesan_pesanan' => 0,
+                            'biaya_growth_xtra' => 0,
+                            'ongkir' => 0,
+                            'komisi_afiliasi' => 0,
+                            'pph_22' => 0,
+                            'komisi_dinamis' => 0,
+                        ]
+                    ]);
                 }
 
                 $items = $items->values();
@@ -136,15 +140,6 @@ class TiktokReconcile extends Command
                     continue;
                 }
 
-                /*
-                 * Biaya tiap order:
-                 * jumlahkan nilai absolut setiap baris Income untuk
-                 * menghindari keyBy() yang membuang baris duplikat.
-                 *
-                 * Jika file Income Anda memiliki baris koreksi/refund,
-                 * aturan agregasinya perlu disesuaikan dengan makna
-                 * transaksi pada file tersebut.
-                 */
                 $feeFields = [
                     'komisi' => 'biaya_komisi_platform',
                     'layanan' => null,
@@ -170,7 +165,6 @@ class TiktokReconcile extends Command
                     }
                 }
 
-                // Alokasikan setiap kelompok biaya dengan aturan sama.
                 $allocatedFees = [];
 
                 foreach ($orderFees as $key => $amount) {
@@ -191,12 +185,7 @@ class TiktokReconcile extends Command
                     $biayaPajak = $allocatedFees['pajak'][$index];
                     $biayaLainnya = $allocatedFees['lainnya'][$index];
 
-                    $totalBiaya = $biayaKomisi
-                        + $biayaLayanan
-                        + $biayaOngkir
-                        + $biayaAfiliasi
-                        + $biayaPajak
-                        + $biayaLainnya;
+                    $totalBiaya = $biayaKomisi + $biayaLayanan + $biayaOngkir + $biayaAfiliasi + $biayaPajak + $biayaLainnya;
 
                     // Net Revenue = subtotal setelah diskon - biaya.
                     $netRevenue = $nilaiItem - $totalBiaya;
@@ -208,9 +197,7 @@ class TiktokReconcile extends Command
                     $profit = null;
 
                     if ($productId && isset($products[$productId])) {
-                        $hppTotal = (int) $products[$productId]
-                            * (int) $item->quantity;
-
+                        $hppTotal = (int) $products[$productId] * (int) $item->quantity;
                         $profit = $netRevenue - $hppTotal;
                     }
 
@@ -218,21 +205,18 @@ class TiktokReconcile extends Command
                         'store_id' => $storeId,
                         'marketplace' => 'tiktok',
                         'order_id' => $orderId,
-                        'tanggal' => $item->delivered_time?->format('Y-m-d')
-                            ?? $item->paid_time?->format('Y-m-d')
-                            ?? $item->created_time?->format('Y-m-d'),
+                        'tanggal' => $item->created_time?->format('Y-m-d') 
+                                     ?? $item->delivered_time?->format('Y-m-d') 
+                                     ?? now()->format('Y-m-d'),
 
                         'product_id' => $productId,
                         'marketplace_sku' => $sku,
                         'qty' => $item->quantity,
 
-                        'harga_jual' =>
-                            $item->sku_unit_original_price * $item->quantity,
-
+                        'harga_jual' => $item->sku_unit_original_price * $item->quantity,
                         'diskon_platform' => $item->sku_platform_discount,
                         'diskon_seller' => $item->sku_seller_discount,
                         'subtotal' => $nilaiItem,
-
                         'net_revenue' => $netRevenue,
 
                         'biaya_komisi' => $biayaKomisi,
@@ -255,11 +239,8 @@ class TiktokReconcile extends Command
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-
             $this->error('Gagal rekonsiliasi: ' . $e->getMessage());
-
             report($e);
-
             return 1;
         }
 

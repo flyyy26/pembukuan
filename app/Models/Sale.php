@@ -60,4 +60,18 @@ class Sale extends Model
     {
         return $this->belongsTo(Product::class);
     }
+
+    public function shopeeOrderItem()
+    {
+        // Asumsi tabel sales punya kolom 'order_id' yang isinya 'no_pesanan' dari shopee
+        return $this->hasOne(ShopeeOrderItem::class, 'no_pesanan', 'order_id');
+        // Atau jika di tabel sales kolomnya bernama 'no_pesanan':
+        // return $this->hasOne(ShopeeOrderItem::class, 'no_pesanan', 'no_pesanan');
+    }
+
+    public function tiktokOrderItem()
+    {
+        // Sesuaikan nama kolom penghubungnya (biasanya order_id di sales = order_id di tiktok_order_items)
+        return $this->hasOne(TiktokOrderItem::class, 'order_id', 'order_id');
+    }
 }

@@ -7,12 +7,13 @@ use App\Models\WebOrderSnapshot;
 use App\Models\WebOrderItemSnapshot;
 use App\Models\WebSyncLog;
 use App\Services\WebOrderSyncService;
+use App\Services\WebSalesReportService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class WebSalesReportController extends Controller
 {
-    public function index(Request $request)
+    public function index(Request $request, WebSalesReportService $profitService)
     {
         $startDate = $request->input('start_date', now()->startOfMonth()->toDateString());
         $endDate   = $request->input('end_date', now()->toDateString());
@@ -27,8 +28,8 @@ class WebSalesReportController extends Controller
         if ($search) {
             $baseQuery->where(function ($q) use ($search) {
                 $q->where('order_number', 'like', "%{$search}%")
-                  ->orWhere('customer_name', 'like', "%{$search}%")
-                  ->orWhere('customer_email', 'like', "%{$search}%");
+                ->orWhere('customer_name', 'like', "%{$search}%")
+                ->orWhere('customer_email', 'like', "%{$search}%");
             });
         }
         if ($payment && $payment !== 'all') {
@@ -48,6 +49,12 @@ class WebSalesReportController extends Controller
             COALESCE(SUM(shipping_cost), 0) as total_shipping,
             COALESCE(SUM(discount_amount), 0) as total_discount
         ')->first();
+
+        // ====== Profit summary (HPP & laba kotor) ======
+        $profit = $profitService->buildProfitSummary($startDate, $endDate, $search, $payment);
+
+        // ====== Profit per order (hanya untuk halaman ini) ======
+        $profitByOrder = $profitService->profitPerOrder($orders->getCollection());
 
         // ====== Top 10 produk terlaris ======
         $topProducts = WebOrderItemSnapshot::query()
@@ -93,7 +100,8 @@ class WebSalesReportController extends Controller
             ->first();
 
         return view('reports.web-sales.index', compact(
-            'orders', 'summary', 'topProducts', 'byCategory',
+            'orders', 'summary', 'profit', 'profitByOrder',
+            'topProducts', 'byCategory',
             'startDate', 'endDate', 'search', 'payment', 'lastSync'
         ));
     }

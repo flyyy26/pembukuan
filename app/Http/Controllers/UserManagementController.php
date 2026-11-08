@@ -7,6 +7,7 @@ use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Validation\Rules\Password;
 use Spatie\Permission\Models\Permission;
 use Spatie\Permission\Models\Role;
@@ -69,9 +70,15 @@ class UserManagementController extends Controller
             return response()->json(['message' => 'Permission admin tidak bisa diubah.'], 422);
         }
 
-        $user->syncPermissions($request->permissions ?? []);
+        $user->syncPermissions($request->input('permissions', []));
 
-        return response()->json(['success' => true, 'message' => 'Permission berhasil diperbarui.']);
+        // ✅ TAMBAHKAN BARIS INI: Bersihkan cache Spatie
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
+        
+        // ✅ Opsional: Bersihkan cache manual jika ada
+        Cache::forget('user_permissions_' . $user->id);
+
+        return response()->json(['success' => true, 'message' => 'Hak akses berhasil diperbarui.']);
     }
 
     /**
