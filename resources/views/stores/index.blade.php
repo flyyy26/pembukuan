@@ -108,6 +108,23 @@
                                   focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
                 </div>
 
+                {{-- KODE TOKO (SINGKATAN) --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Kode Toko (Singkatan) <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <iconify-icon icon="mdi:tag-outline" class="text-gray-400 text-base"></iconify-icon>
+                        </div>
+                        <input type="text" id="kodeToko" name="kode_toko" required
+                               placeholder="cth: HM, CRH, AT"
+                               class="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm uppercase
+                                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent">
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Gunakan singkatan (misal: HM) yang sama dengan yang ada di Excel kategori pengeluaran.</div>
+                </div>
+
                 {{-- Seller ID --}}
                 <div style="display:none;">
                     <label class="block text-sm font-medium text-gray-700 mb-1">
@@ -183,6 +200,7 @@ function openModal(mode, storeId = null, btn = null) {
         const data = {
             id: row.getAttribute('data-id'),
             nama_toko: row.getAttribute('data-nama'),
+            kode_toko: row.getAttribute('data-kode'), // ✅ Ambil data kode
             marketplace: row.getAttribute('data-marketplace'),
             seller_id: row.getAttribute('data-seller')
         };
@@ -192,6 +210,7 @@ function openModal(mode, storeId = null, btn = null) {
         document.getElementById('modalIcon').setAttribute('icon', 'mdi:pencil');
         document.getElementById('storeId').value = data.id;
         document.getElementById('namaToko').value = data.nama_toko;
+        document.getElementById('kodeToko').value = data.kode_toko || ''; // ✅ Set data kode ke input
         document.getElementById('sellerId').value = data.seller_id || '';
         document.getElementById('submitBtnText').textContent = 'Simpan Perubahan';
 

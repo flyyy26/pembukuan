@@ -32,6 +32,7 @@ class ShopeeOrderItem extends Model
         'diskon_dari_shopee',
         'ongkos_kirim_dibayar_pembeli',
         'total_pembayaran',
+        'is_in_income', 
     ];
 
     protected $casts = [
@@ -48,6 +49,7 @@ class ShopeeOrderItem extends Model
         'diskon_dari_shopee' => 'integer',
         'ongkos_kirim_dibayar_pembeli' => 'integer',
         'total_pembayaran' => 'integer',
+        'is_in_income' => 'boolean', 
     ];
 
     public function import()

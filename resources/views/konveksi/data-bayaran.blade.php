@@ -15,6 +15,13 @@
                 <p class="text-xs sm:text-sm text-gray-500">Proses pembayaran upah karyawan konveksi</p>
             </div>
         </div>
+
+        {{-- ✅ TAMBAHKAN TOMBOL INI --}}
+        <button type="button" onclick="openNotaKosongModal()"
+           class="inline-flex items-center justify-center gap-2 bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 transition text-sm font-medium shadow-sm">
+            <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon>
+            Cetak Nota Kosong
+        </button>
     </div>
 
     {{-- FILTER --}}
@@ -271,6 +278,173 @@
         </form>
     </div>
 </div>
+
+{{-- MODAL CETAK NOTA KOSONG --}}
+<div id="notaKosongModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+    <div class="absolute inset-0 bg-black/50" onclick="closeNotaKosongModal()"></div>
+    <div class="relative bg-white rounded-xl shadow-xl w-full max-w-4xl max-h-[90vh] flex flex-col">
+        
+        <div class="px-5 py-4 border-b border-gray-100 flex justify-between items-center bg-gray-50 flex-shrink-0">
+            <div class="flex items-center gap-2">
+                <iconify-icon icon="mdi:printer" class="text-gray-600 text-lg"></iconify-icon>
+                <h3 class="font-bold text-gray-800">Form Cetak Nota Kosong</h3>
+            </div>
+            <button type="button" onclick="closeNotaKosongModal()" class="text-gray-400 hover:text-gray-600">
+                <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+            </button>
+        </div>
+
+        <div class="p-5 overflow-y-auto flex-1 space-y-4">
+            <div class="grid grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Nama Penerima</label>
+                    <input type="text" id="notaNama" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:outline-none" placeholder="Masukkan nama...">
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Tanggal</label>
+                    <input type="date" id="notaTanggal" value="{{ now()->format('Y-m-d') }}" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-gray-500 focus:outline-none">
+                </div>
+            </div>
+
+            <div>
+                <div class="flex items-center justify-between mb-2">
+                    <label class="block text-xs font-medium text-gray-600">Daftar Barang</label>
+                    <button type="button" onclick="tambahBarisNota()" class="text-xs bg-blue-50 text-blue-600 px-2 py-1 rounded hover:bg-blue-100 transition font-medium">
+                        + Tambah Baris
+                    </button>
+                </div>
+                <div class="border border-gray-200 rounded-lg overflow-hidden">
+                    <table class="w-full text-xs">
+                        <thead class="bg-gray-100 border-b border-gray-200">
+                            <tr>
+                                <th class="px-2 py-2 text-left">Nama Barang</th>
+                                <th class="px-2 py-2 text-left w-24">Warna</th>
+                                <th class="px-2 py-2 text-left w-20">Size</th>
+                                <th class="px-2 py-2 text-center w-16">Qty</th>
+                                <th class="px-2 py-2 text-right w-24">Harga</th>
+                                <th class="px-2 py-2 text-right w-28">Jumlah</th>
+                                <th class="px-2 py-2 text-center w-10"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="notaTableBody" class="divide-y divide-gray-100">
+                            {{-- Baris di-generate via JS --}}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="px-5 py-3 border-t border-gray-100 bg-gray-50 flex justify-end gap-2 flex-shrink-0">
+            <button type="button" onclick="closeNotaKosongModal()" class="px-4 py-2 text-sm text-gray-600 hover:bg-gray-200 rounded-lg">Batal</button>
+            <button type="button" onclick="cetakNotaKosong()" class="bg-gray-800 text-white px-4 py-2 rounded-lg hover:bg-gray-900 text-sm font-medium flex items-center gap-2">
+                <iconify-icon icon="mdi:printer" class="text-lg"></iconify-icon> Cetak PDF
+            </button>
+        </div>
+    </div>
+</div>
+
+<script>
+    function openNotaKosongModal() {
+        document.getElementById('notaKosongModal').classList.remove('hidden');
+        document.getElementById('notaKosongModal').classList.add('flex');
+        
+        // Tambah 1 baris default jika masih kosong
+        const tbody = document.getElementById('notaTableBody');
+        if (tbody.children.length === 0) {
+            tambahBarisNota();
+        }
+    }
+
+    function closeNotaKosongModal() {
+        document.getElementById('notaKosongModal').classList.add('hidden');
+        document.getElementById('notaKosongModal').classList.remove('flex');
+    }
+
+    function tambahBarisNota() {
+        const tbody = document.getElementById('notaTableBody');
+        const tr = document.createElement('tr');
+        tr.className = 'hover:bg-gray-50';
+        tr.innerHTML = `
+            <td class="px-2 py-1"><input type="text" class="w-full border-none focus:ring-1 focus:ring-gray-300 rounded px-1 py-1" placeholder="Nama Barang"></td>
+            <td class="px-2 py-1"><input type="text" class="w-full border-none focus:ring-1 focus:ring-gray-300 rounded px-1 py-1" placeholder="Warna"></td>
+            <td class="px-2 py-1"><input type="text" class="w-full border-none focus:ring-1 focus:ring-gray-300 rounded px-1 py-1" placeholder="Size"></td>
+            <td class="px-2 py-1"><input type="number" min="1" value="1" class="w-full text-center border-none focus:ring-1 focus:ring-gray-300 rounded px-1 py-1" oninput="hitungJumlahNota(this)"></td>
+            <td class="px-2 py-1"><input type="number" min="0" value="0" class="w-full text-right border-none focus:ring-1 focus:ring-gray-300 rounded px-1 py-1" oninput="hitungJumlahNota(this)"></td>
+            <td class="px-2 py-1"><input type="number" min="0" value="0" readonly class="w-full text-right bg-gray-50 border-none rounded px-1 py-1 text-gray-600"></td>
+            <td class="px-2 py-1 text-center">
+                <button type="button" onclick="hapusBarisNota(this)" class="text-red-400 hover:text-red-600">
+                    <iconify-icon icon="mdi:trash-can-outline" class="text-sm"></iconify-icon>
+                </button>
+            </td>
+        `;
+        tbody.appendChild(tr);
+    }
+
+    function hapusBarisNota(btn) {
+        const tr = btn.closest('tr');
+        tr.remove();
+    }
+
+    function hitungJumlahNota(input) {
+        const tr = input.closest('tr');
+        const qty = parseFloat(tr.children[3].querySelector('input').value) || 0;
+        const harga = parseFloat(tr.children[4].querySelector('input').value) || 0;
+        const jumlahInput = tr.children[5].querySelector('input');
+        jumlahInput.value = qty * harga;
+    }
+
+    function cetakNotaKosong() {
+        const nama = document.getElementById('notaNama').value;
+        const tanggal = document.getElementById('notaTanggal').value;
+        
+        const items = [];
+        document.querySelectorAll('#notaTableBody tr').forEach(tr => {
+            const inputs = tr.querySelectorAll('input');
+            const item = {
+                nama_produk: inputs[0].value,
+                warna: inputs[1].value,
+                ukuran: inputs[2].value,
+                qty: parseInt(inputs[3].value) || 0,
+                harga: parseFloat(inputs[4].value) || 0,
+                jumlah: parseFloat(inputs[5].value) || 0
+            };
+            // Hanya masukkan yang ada nama produknya
+            if (item.nama_produk.trim() !== '') {
+                items.push(item);
+            }
+        });
+
+        // Buat form virtual untuk submit data ke Controller
+        const form = document.createElement('form');
+        form.method = 'GET';
+        form.action = "{{ route('konveksi.pembayaran.print-kosong-pdf') }}";
+        form.target = '_blank';
+
+        const inputNama = document.createElement('input');
+        inputNama.type = 'hidden';
+        inputNama.name = 'nama';
+        inputNama.value = nama;
+        form.appendChild(inputNama);
+
+        const inputTanggal = document.createElement('input');
+        inputTanggal.type = 'hidden';
+        inputTanggal.name = 'tanggal';
+        inputTanggal.value = tanggal;
+        form.appendChild(inputTanggal);
+
+        const inputItems = document.createElement('input');
+        inputItems.type = 'hidden';
+        inputItems.name = 'items';
+        inputItems.value = JSON.stringify(items);
+        form.appendChild(inputItems);
+
+        document.body.appendChild(form);
+        form.submit();
+        document.body.removeChild(form);
+        
+        closeNotaKosongModal();
+    }
+</script>
 
 <script>
     const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;

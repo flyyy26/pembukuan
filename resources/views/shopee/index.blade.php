@@ -5,6 +5,60 @@
 @section('content')
 <div class="w-full">
 
+    {{-- ============ MODAL DETAIL SKU SHOPEE ============ --}}
+    <div id="shopeeSkuDetailModal" class="fixed inset-0 z-50 hidden items-center justify-center p-4">
+        <div class="absolute inset-0 bg-black/50" onclick="window.closeShopeeSkuDetail()"></div>
+        <div class="relative bg-white rounded-xl shadow-xl w-full max-w-5xl max-h-[90vh] flex flex-col">
+            <div class="px-6 py-4 border-b border-gray-100 flex justify-between items-center bg-orange-50">
+                <h3 class="font-bold text-gray-800">Rincian Biaya & Net Revenue: <span id="shopeeDetailSkuLabel" class="text-orange-600 font-mono"></span></h3>
+                <button onclick="window.closeShopeeSkuDetail()" class="text-gray-400 hover:text-gray-700">
+                    <iconify-icon icon="mdi:close" class="text-xl"></iconify-icon>
+                </button>
+            </div>
+            <div id="shopeeSkuDetailContent" class="p-4 overflow-y-auto flex-1">
+                {{-- Konten di-load via AJAX --}}
+            </div>
+        </div>
+    </div>
+
+    <script>
+        window.showShopeeSkuDetail = function (sku) {
+            const modal = document.getElementById('shopeeSkuDetailModal');
+            const content = document.getElementById('shopeeSkuDetailContent');
+            const label = document.getElementById('shopeeDetailSkuLabel');
+            if (!modal || !content || !label) {
+                throw new Error('Elemen popup detail SKU tidak ditemukan.');
+            }
+
+            label.textContent = sku;
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            content.innerHTML = '<div class="text-center py-8 text-gray-500"><iconify-icon icon="mdi:loading" class="animate-spin text-2xl"></iconify-icon><br>Memuat data...</div>';
+
+            const params = new URLSearchParams({
+                store: '{{ $storeId ?? "" }}',
+                sku: sku,
+                from: '{{ $from ?? "" }}',
+                to: '{{ $to ?? "" }}'
+            });
+
+            fetch(`{{ route('shopee.sku.detail') }}?${params}`)
+                .then(res => res.text())
+                .then(html => {
+                    content.innerHTML = html;
+                })
+                .catch(err => {
+                    content.innerHTML = `<div class="text-red-500 text-center py-4">Gagal memuat data: ${err.message}</div>`;
+                });
+        };
+
+        window.closeShopeeSkuDetail = function () {
+            const modal = document.getElementById('shopeeSkuDetailModal');
+            modal.classList.add('hidden');
+            modal.classList.remove('flex');
+        };
+    </script>
+
     {{-- ============ HEADER ============ --}}
     <div class="flex flex-col md:flex-row md:justify-between md:items-center gap-4 mb-6">
         {{-- Title --}}
@@ -69,6 +123,13 @@
         {{-- ============ FILTER ============ --}}
         <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
             <form method="GET" class="flex gap-3 items-end flex-wrap">
+                <input type="hidden" name="tab" value="{{ request()->input('tab', 'ringkasan') }}">
+                @if(request()->input('tab') === 'pembatalan')
+                    <input type="hidden" name="kategori_return" value="{{ $kategoriReturn }}">
+                @endif
+                @if(request()->input('tab') === 'live')
+                    <input type="hidden" name="live_type" value="{{ $liveType }}">
+                @endif
                 <div class="flex-1 min-w-[180px]">
                     <label class="block text-xs font-medium text-gray-600 mb-1">Toko</label>
                     <select name="store" class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
@@ -86,7 +147,7 @@
                         <input type="text"
                             name="search"
                             value="{{ $search ?? '' }}"
-                            placeholder="Cari SKU varian / nama produk / SKU internal..."
+                            placeholder="Cari nomor pesanan / SKU / nama produk..."
                             class="w-full border border-gray-300 rounded-lg pl-10 pr-3 py-2 text-sm
                                     focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                     </div>
@@ -106,7 +167,7 @@
                     <iconify-icon icon="mdi:filter" class="text-lg"></iconify-icon>
                     Filter
                 </button>
-                @if($from || $to || !empty($search))
+                @if($from || $to || !empty($search) || $kategoriReturn !== 'all')
                     <a href="{{ route('shopee.index', ['store' => $storeId]) }}"
                     class="inline-flex items-center gap-2 text-gray-500 hover:text-gray-700 px-3 py-2 text-sm">
                         <iconify-icon icon="mdi:close" class="text-lg"></iconify-icon>
@@ -128,14 +189,16 @@
         {{-- ============ TABS ============ --}}
         @php
             $tabs = [
-                ['id' => 'ringkasan', 'label' => 'Ringkasan', 'icon' => 'mdi:view-dashboard-outline'],
-                ['id' => 'bulanan',   'label' => 'Bulanan',   'icon' => 'mdi:calendar-month-outline'],
+                ['id' => 'ringkasan', 'label' => 'Profit Per Produk', 'icon' => 'mdi:view-dashboard-outline'],
+                ['id' => 'pesanan',   'label' => 'Profit Per Pesanan', 'icon' => 'mdi:receipt-text-outline'],
+                ['id' => 'pembatalan','label' => 'Batal / Return',    'icon' => 'mdi:package-variant-remove'],
+                ['id' => 'chat',      'label' => 'Statistik Chat',    'icon' => 'mdi:message-text-outline'],
+                ['id' => 'live',      'label' => 'Live & Video',      'icon' => 'mdi:video-outline'],
                 ['id' => 'top',       'label' => 'Top Produk','icon' => 'mdi:trophy-outline'],
             ];
 
             $requestedTab = request()->input('tab');
-            // Kalau user minta tab yang sudah tidak ada (misal 'sku'), fallback ke ringkasan
-            $activeTab = in_array($requestedTab, ['ringkasan', 'bulanan', 'top'])
+            $activeTab = in_array($requestedTab, ['ringkasan', 'pesanan', 'pembatalan', 'chat', 'live', 'top'])
                 ? $requestedTab
                 : 'ringkasan';
         @endphp
@@ -159,15 +222,15 @@
         {{-- ============ TAB: RINGKASAN ============ --}}
         @if($activeTab === 'ringkasan')
             {{-- RINGKASAN KEUANGAN --}}
-            <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
                     <div class="flex items-center justify-between mb-3">
                         <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
                             <iconify-icon icon="mdi:receipt-text-outline" class="text-gray-600 text-xl"></iconify-icon>
                         </div>
                     </div>
-                    <div class="text-xs text-gray-500 mb-1">Total Transaksi</div>
-                    <div class="text-md md:text-xl lg:text-2xl font-bold text-gray-800">{{ number_format($summary['total_rows']) }}</div>
+                    <div class="text-xs text-gray-500 mb-1">Produk Terjual</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-gray-800">{{ number_format($summary['total_qty']) }}</div>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
@@ -196,6 +259,8 @@
                     </div>
                 </div>
 
+                @include('shopee.partials.ad-spend-input', ['inputId' => 'biaya-iklan-produk'])
+
                 <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-sm p-5 text-white">
                     <div class="flex items-center justify-between mb-3">
                         <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
@@ -205,7 +270,7 @@
                     <div class="text-xs text-white/80 mb-1">Profit</div>
                     <div class="text-md md:text-xl lg:text-2xl font-bold">
                         <span class="text-sm text-white/70 font-normal">Rp</span>
-                        {{ number_format($summary['profit'], 0, ',', '.') }}
+                        {{ number_format($summary['profit_after_ads'], 0, ',', '.') }}
                     </div>
                 </div>
             </div>
@@ -257,118 +322,473 @@
             </div>
         @endif
 
-        {{-- ============ TAB: BULANAN ============ --}}
-        @if($activeTab === 'bulanan')
-            @if(!empty($monthlyData['months']))
-            <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5 mb-6">
-                <div class="flex items-center justify-between mb-4">
-                    <div class="flex items-center gap-2">
-                        <iconify-icon icon="mdi:chart-timeline-variant" class="text-gray-600 text-lg"></iconify-icon>
-                        <h3 class="font-semibold text-gray-800">Rekap Per Bulan</h3>
-                    </div>
-                    @if($monthlyData['best_month'])
-                        <div class="inline-flex items-center gap-2 bg-yellow-50 border border-yellow-200 px-3 py-1.5 rounded-lg">
-                            <iconify-icon icon="mdi:trophy" class="text-yellow-600 text-base"></iconify-icon>
-                            <span class="text-xs text-yellow-800">
-                                Bulan terbaik:
-                                <strong>{{ $monthlyData['best_month']['label'] }}</strong>
-                                (Rp {{ number_format($monthlyData['best_month']['profit'], 0, ',', '.') }})
-                            </span>
+        {{-- ============ TAB: PER PESANAN ============ --}}
+        @if($activeTab === 'pesanan')
+            <div class="grid grid-cols-2 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 bg-gray-100 rounded-lg flex items-center justify-center">
+                            <iconify-icon icon="mdi:receipt-text-outline" class="text-gray-600 text-xl"></iconify-icon>
                         </div>
-                    @endif
+                    </div>
+                    <div class="text-xs text-gray-500 mb-1">Total Pesanan</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-gray-800">{{ number_format($perPesanan->count()) }}</div>
                 </div>
 
-                <div class="mb-6" style="height: 280px;">
-                    <canvas id="monthlyChart"></canvas>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+                            <iconify-icon icon="mdi:cash-multiple" class="text-blue-600 text-xl"></iconify-icon>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-1">Net Revenue</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-blue-600">
+                        <span class="text-sm text-gray-400 font-normal">Rp</span>
+                        {{ number_format($summary['net_revenue'], 0, ',', '.') }}
+                    </div>
                 </div>
 
-                <div class="overflow-x-auto border border-gray-100 rounded-lg">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+                            <iconify-icon icon="mdi:package-variant-closed" class="text-orange-600 text-xl"></iconify-icon>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 mb-1">Total HPP</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold text-orange-600">
+                        <span class="text-sm text-gray-400 font-normal">Rp</span>
+                        {{ number_format($summary['total_hpp'], 0, ',', '.') }}
+                    </div>
+                </div>
+
+                @include('shopee.partials.ad-spend-input', ['inputId' => 'biaya-iklan-pesanan'])
+
+                <div class="bg-gradient-to-br from-green-500 to-emerald-600 rounded-xl shadow-sm p-5 text-white">
+                    <div class="flex items-center justify-between mb-3">
+                        <div class="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                            <iconify-icon icon="mdi:chart-line" class="text-white text-xl"></iconify-icon>
+                        </div>
+                    </div>
+                    <div class="text-xs text-white/80 mb-1">Profit</div>
+                    <div class="text-md md:text-xl lg:text-2xl font-bold">
+                        <span class="text-sm text-white/70 font-normal">Rp</span>
+                        {{ number_format($summary['profit_after_ads'], 0, ',', '.') }}
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+                    <div class="flex items-center gap-2">
+                        <iconify-icon icon="mdi:receipt-text-outline" class="text-gray-600 text-lg"></iconify-icon>
+                        <h3 class="font-semibold text-gray-800">Daftar Pesanan</h3>
+                    </div>
+                    <div class="text-xs text-gray-500">
+                        Total: {{ $totalPesanan }} Pesanan
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
                     <table class="w-full text-sm">
                         <thead class="bg-gray-50 border-b border-gray-100">
                             <tr>
-                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Bulan</th>
-                                <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Transaksi</th>
-                                <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Qty</th>
-                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Net Revenue</th>
-                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">HPP</th>
-                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Profit</th>
-                                <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider">Growth</th>
+                                <th class="text-center py-3 px-4 text-xs font-semibold text-gray-500 uppercase">No.</th>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">No. Pesanan / Tanggal</th>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Produk yang Dibeli</th>
+                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Net Revenue</th>
+                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">HPP</th>
+                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Profit Pesanan</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100">
-                            @foreach($monthlyData['months'] as $m)
-                            <tr class="hover:bg-gray-50 transition">
-                                <td class="py-3 px-4">
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-8 h-8 bg-blue-50 rounded-lg flex items-center justify-center">
-                                            <iconify-icon icon="mdi:calendar-month" class="text-blue-600 text-sm"></iconify-icon>
-                                        </div>
-                                        <div>
-                                            <div class="font-medium text-gray-800">{{ $m['label'] }}</div>
-                                            <div class="text-[10px] text-gray-400 font-mono">{{ $m['year_month'] }}</div>
-                                        </div>
-                                    </div>
+                            @forelse($perPesananPage as $index => $pesanan)
+                            <tr class="hover:bg-gray-50 transition align-top">
+                                <td class="py-4 px-4 text-center text-gray-500">
+                                    {{ (($pesananPage - 1) * $perPage) + $index + 1 }}
                                 </td>
-                                <td class="py-3 px-4 text-center text-gray-700">{{ number_format($m['transaksi']) }}</td>
-                                <td class="py-3 px-4 text-center text-gray-700">{{ number_format($m['qty']) }}</td>
-                                <td class="py-3 px-4 text-right text-gray-700">{{ number_format($m['net_revenue'], 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right text-orange-600">{{ number_format($m['hpp_total'], 0, ',', '.') }}</td>
-                                <td class="py-3 px-4 text-right font-bold {{ $m['profit'] > 0 ? 'text-green-600' : 'text-red-600' }}">
-                                    {{ number_format($m['profit'], 0, ',', '.') }}
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <div class="font-mono font-medium text-gray-800">{{ $pesanan['order_id'] }}</div>
+                                    <div class="text-xs text-gray-500 mt-1">{{ \Carbon\Carbon::parse($pesanan['tanggal'])->format('d M Y') }}</div>
                                 </td>
-                                <td class="py-3 px-4 text-center">
-                                    @if($m['growth'] === null)
-                                        <span class="text-xs text-gray-400">—</span>
-                                    @elseif($m['growth'] > 0)
-                                        <span class="inline-flex items-center gap-1 bg-green-50 text-green-700 px-2 py-1 rounded-full text-xs font-medium">
-                                            <iconify-icon icon="mdi:trending-up" class="text-sm"></iconify-icon>
-                                            +{{ $m['growth'] }}%
-                                        </span>
-                                    @elseif($m['growth'] < 0)
-                                        <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded-full text-xs font-medium">
-                                            <iconify-icon icon="mdi:trending-down" class="text-sm"></iconify-icon>
-                                            {{ $m['growth'] }}%
-                                        </span>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 bg-gray-50 text-gray-700 px-2 py-1 rounded-full text-xs font-medium">
-                                            <iconify-icon icon="mdi:minus" class="text-sm"></iconify-icon>
-                                            0%
-                                        </span>
-                                    @endif
+                                <td class="py-4 px-4">
+                                    <ul class="space-y-1.5">
+                                        @foreach($pesanan['detail_produk'] as $produk)
+                                            <li class="text-xs">
+                                                <div class="font-medium text-gray-800">{{ $produk['nama_produk'] }}</div>
+                                                <div class="text-gray-500 flex items-center gap-2 mt-1">
+                                                    {{-- TOMBOL SKU YANG BISA DIKLIK --}}
+                                                    <button type="button"
+                                                            data-sku="{{ $produk['sku'] }}"
+                                                            onclick="window.showShopeeSkuDetail(this.dataset.sku)"
+                                                            class="font-mono text-[11px] bg-gray-100 hover:bg-orange-100 hover:text-orange-700 px-1.5 py-0.5 rounded text-gray-700 transition flex items-center gap-1">
+                                                        {{ $produk['sku'] }}
+                                                        <iconify-icon icon="mdi:eye-outline" class="text-[10px]"></iconify-icon>
+                                                    </button>
+
+                                                    <span>• {{ $produk['qty'] }}x</span>
+                                                    <span class="text-gray-400">(Net: {{ number_format($produk['net_revenue'], 0, ',', '.') }})</span>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </td>
+                                <td class="py-4 px-4 text-right text-gray-700 whitespace-nowrap">
+                                    {{ number_format($pesanan['total_net'], 0, ',', '.') }}
+                                </td>
+                                <td class="py-4 px-4 text-right text-orange-600 whitespace-nowrap">
+                                    {{ number_format($pesanan['total_hpp'], 0, ',', '.') }}
+                                </td>
+                                <td class="py-4 px-4 text-right font-bold whitespace-nowrap {{ $pesanan['total_profit'] > 0 ? 'text-green-600' : 'text-red-600' }}">
+                                    {{ number_format($pesanan['total_profit'], 0, ',', '.') }}
                                 </td>
                             </tr>
-                            @endforeach
-                        </tbody>
-                        <tfoot class="bg-gray-50 border-t border-gray-200">
+                            @empty
                             <tr>
-                                <td class="py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Total</td>
-                                <td class="py-3 px-4 text-center font-bold text-gray-800">
-                                    {{ number_format(collect($monthlyData['months'])->sum('transaksi')) }}
+                                <td colspan="6" class="py-12 text-center text-gray-500">
+                                    <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                                    <div class="text-sm">Belum ada data pesanan di periode ini.</div>
                                 </td>
-                                <td class="py-3 px-4 text-center font-bold text-gray-800">
-                                    {{ number_format(collect($monthlyData['months'])->sum('qty')) }}
-                                </td>
-                                <td class="py-3 px-4 text-right font-bold text-blue-600">
-                                    {{ number_format(collect($monthlyData['months'])->sum('net_revenue'), 0, ',', '.') }}
-                                </td>
-                                <td class="py-3 px-4 text-right font-bold text-orange-600">
-                                    {{ number_format(collect($monthlyData['months'])->sum('hpp_total'), 0, ',', '.') }}
-                                </td>
-                                <td class="py-3 px-4 text-right font-bold text-green-600">
-                                    {{ number_format(collect($monthlyData['months'])->sum('profit'), 0, ',', '.') }}
-                                </td>
-                                <td class="py-3 px-4 text-center">—</td>
                             </tr>
-                        </tfoot>
+                            @endforelse
+                        </tbody>
                     </table>
                 </div>
+                @include('shopee.partials.pagination', [
+                    'currentPage' => $pesananPage,
+                    'totalItems' => $totalPesanan,
+                    'perPage' => $perPage,
+                    'pageParameter' => 'pesanan_page',
+                    'itemLabel' => 'pesanan',
+                ])
             </div>
-            @else
-                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-12 text-center">
-                    <iconify-icon icon="mdi:chart-line" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
-                    <div class="text-gray-500">Belum ada data bulanan.</div>
+        @endif
+
+        {{-- ============ TAB: PENGEMBALIAN / PEMBATALAN ============ --}}
+        @if($activeTab === 'pembatalan')
+            
+            {{-- Ringkasan Batal --}}
+            <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-red-100 p-5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <iconify-icon icon="mdi:cart-off" class="text-red-600 text-xl"></iconify-icon>
+                        <div class="text-xs text-gray-500">Pembatalan</div>
+                    </div>
+                    <div class="text-2xl font-bold text-red-600">
+                        {{ number_format($summaryBatal['total_batal']) }} <span class="text-sm font-normal text-gray-500">Pesanan</span>
+                    </div>
                 </div>
-            @endif
+
+                <div class="bg-white rounded-xl shadow-sm border border-purple-100 p-5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <iconify-icon icon="mdi:package-variant-closed-remove" class="text-purple-600 text-xl"></iconify-icon>
+                        <div class="text-xs text-gray-500">Pengembalian / Retur</div>
+                    </div>
+                    <div class="text-2xl font-bold text-purple-600">
+                        {{ number_format($summaryBatal['total_retur']) }} <span class="text-sm font-normal text-gray-500">Pesanan</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-amber-100 p-5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <iconify-icon icon="mdi:truck-alert-outline" class="text-amber-600 text-xl"></iconify-icon>
+                        <div class="text-xs text-gray-500">Gagal Kirim</div>
+                    </div>
+                    <div class="text-2xl font-bold text-amber-600">
+                        {{ number_format($summaryBatal['total_gagal_kirim']) }} <span class="text-sm font-normal text-gray-500">Pesanan</span>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="flex items-center gap-2 mb-2">
+                        <iconify-icon icon="mdi:package-variant" class="text-gray-600 text-xl"></iconify-icon>
+                        <div class="text-xs text-gray-500">Total Item</div>
+                    </div>
+                    <div class="text-2xl font-bold text-gray-800">
+                        {{ number_format($summaryBatal['total_item']) }} <span class="text-sm font-normal text-gray-500">Pcs</span>
+                    </div>
+                </div>
+            </div>
+
+            {{-- Tabel Batal --}}
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <iconify-icon icon="mdi:package-variant-remove" class="text-gray-600 text-lg"></iconify-icon>
+                        <h3 class="font-semibold text-gray-800">Daftar Pembatalan & Pengembalian</h3>
+                    </div>
+                    <form method="GET" action="{{ route('shopee.index') }}" class="flex items-end gap-2">
+                        <input type="hidden" name="store" value="{{ $storeId }}">
+                        <input type="hidden" name="from" value="{{ $from }}">
+                        <input type="hidden" name="to" value="{{ $to }}">
+                        <input type="hidden" name="search" value="{{ $search }}">
+                        <input type="hidden" name="tab" value="pembatalan">
+                        <div>
+                            <label for="kategori_return" class="block text-xs font-medium text-gray-600 mb-1">Tampilkan</label>
+                            <select id="kategori_return" name="kategori_return"
+                                    class="border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="all" {{ $kategoriReturn === 'all' ? 'selected' : '' }}>Semua</option>
+                                <option value="return" {{ $kategoriReturn === 'return' ? 'selected' : '' }}>Pengembalian / Retur</option>
+                                <option value="cancel" {{ $kategoriReturn === 'cancel' ? 'selected' : '' }}>Pembatalan</option>
+                                <option value="shipping_failed" {{ $kategoriReturn === 'shipping_failed' ? 'selected' : '' }}>Gagal Kirim</option>
+                            </select>
+                        </div>
+                        <button type="submit"
+                                class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                            Terapkan
+                        </button>
+                    </form>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 border-b border-gray-100">
+                            <tr>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">No. Pesanan / Tanggal</th>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Status</th>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Alasan</th> {{-- <-- KOLOM BARU --}}
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Produk yang Dibatalkan</th>
+                                <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Alur Barang</th>
+                                <th class="text-right py-3 px-4 text-xs font-semibold text-gray-500 uppercase">Dana Kembali</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @forelse($perBatalPage as $batal)
+                            <tr class="hover:bg-gray-50 transition align-top">
+                                <td class="py-4 px-4 whitespace-nowrap">
+                                    <div class="font-mono font-medium text-gray-800">{{ $batal['order_id'] }}</div>
+                                    <div class="text-xs text-blue-600 font-semibold mt-1 flex items-center gap-1">
+                                        <iconify-icon icon="mdi:calendar-check" class="text-[12px]"></iconify-icon>
+                                        Tanggal Pengajuan: {{ $batal['tanggal'] ? \Carbon\Carbon::parse($batal['tanggal'])->format('d M Y') : '-' }}
+                                    </div>
+                                </td>
+                                <td class="py-4 px-4">
+                                    <span class="inline-flex items-center gap-1 bg-red-50 text-red-700 px-2 py-1 rounded text-[11px] font-medium border border-red-100">
+                                        <iconify-icon icon="mdi:alert-circle-outline" class="text-sm"></iconify-icon>
+                                        {{ $batal['status_utama'] }}
+                                    </span>
+                                </td>
+                                
+                                {{-- KOLOM ALASAN BARU --}}
+                                <td class="py-4 px-4 text-xs text-gray-600 max-w-[200px] break-words">
+                                    {{ $batal['detail_produk']->first()['alasan'] ?? '-' }}
+                                </td>
+
+                                <td class="py-4 px-4">
+                                    <ul class="space-y-1.5">
+                                        @foreach($batal['detail_produk'] as $produk)
+                                            <li class="text-xs">
+                                                <div class="font-medium text-gray-800">{{ $produk['nama_produk'] }}</div>
+                                                <div class="text-gray-500 flex items-center gap-2 mt-1">
+                                                    <span class="font-mono text-[11px] bg-gray-100 px-1.5 py-0.5 rounded text-gray-700">
+                                                        {{ $produk['sku'] }}
+                                                    </span>
+                                                    <span>• {{ $produk['qty'] }}x</span>
+                                                </div>
+                                            </li>
+                                        @endforeach
+                                    </ul>
+                                </td>
+                                <td class="py-4 px-4 text-xs text-gray-600 space-y-1">
+                                    <div>
+                                        <span class="font-semibold">Ke Pembeli:</span> 
+                                        {{ $batal['detail_produk']->first()['status_kirim'] ?? '-' }}
+                                    </div>
+                                    <div>
+                                        <span class="font-semibold">Ke Penjual:</span> 
+                                        {{ $batal['detail_produk']->first()['status_kembali'] ?? '-' }}
+                                    </div>
+                                </td>
+
+                                {{-- Kolom Dana Kembali --}}
+                                <td class="py-4 px-4 text-right font-bold text-red-600 whitespace-nowrap">
+                                    {{ number_format($batal['detail_produk']->first()['dana_kembali'] ?? 0, 0, ',', '.') }}
+                                </td>
+                            </tr>
+                            @empty
+                            <tr>
+                                <td colspan="6" class="py-12 text-center text-gray-500">
+                                    <iconify-icon icon="mdi:check-decagram-outline" class="text-4xl text-green-400 block m-auto mb-2 w-max"></iconify-icon>
+                                    <div class="text-sm">Tidak ada data untuk filter ini pada periode yang dipilih.</div>
+                                </td>
+                            </tr>
+                            @endforelse
+                        </tbody>
+                    </table>
+                </div>
+                @include('shopee.partials.pagination', [
+                    'currentPage' => $batalPage,
+                    'totalItems' => $totalBatal,
+                    'perPage' => $perPage,
+                    'pageParameter' => 'batal_page',
+                    'itemLabel' => 'pesanan',
+                ])
+            </div>
+        @endif
+
+        {{-- ============ TAB: CHAT ============ --}}
+        @if($activeTab === 'chat')
+            {{-- Ringkasan Chat --}}
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="text-xs text-gray-500 mb-1">Total Pengunjung</div>
+                    <div class="text-2xl font-bold text-gray-800">{{ number_format($summaryChat['total_pengunjung']) }}</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-blue-100 p-5">
+                    <div class="text-xs text-blue-600 mb-1">Total Chat Masuk</div>
+                    <div class="text-2xl font-bold text-blue-600">{{ number_format($summaryChat['total_chat']) }}</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-green-100 p-5">
+                    <div class="text-xs text-green-600 mb-1">Chat Dibalas</div>
+                    <div class="text-2xl font-bold text-green-600">{{ number_format($summaryChat['chat_dibalas']) }}</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-red-100 p-5">
+                    <div class="text-xs text-red-600 mb-1">Belum Dibalas</div>
+                    <div class="text-2xl font-bold text-red-600">{{ number_format($summaryChat['chat_belum_dibalas']) }}</div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="text-xs text-gray-500 mb-1">Rata-rata CSAT</div>
+                    <div class="text-2xl font-bold text-yellow-600">{{ number_format($summaryChat['csat_persen'], 1) }}%</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="text-xs text-gray-500 mb-1">Konversi Chat ke Order</div>
+                    <div class="text-2xl font-bold text-purple-600">{{ number_format($summaryChat['konversi_chat'], 1) }}%</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="text-xs text-gray-500 mb-1">Total Pesanan dari Chat</div>
+                    <div class="text-2xl font-bold text-gray-800">{{ number_format($summaryChat['total_pesanan']) }}</div>
+                </div>
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-5">
+                    <div class="text-xs text-gray-500 mb-1">Penjualan dari Chat</div>
+                    <div class="text-2xl font-bold text-green-600">Rp {{ number_format($summaryChat['total_penjualan'], 0, ',', '.') }}</div>
+                </div>
+            </div>
+        @endif
+
+        {{-- ============ TAB: LIVE & VIDEO ============ --}}
+        @if($activeTab === 'live')
+            <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+                <div class="px-5 py-4 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center gap-2">
+                        <iconify-icon icon="mdi:video-outline" class="text-gray-600 text-lg"></iconify-icon>
+                        <h3 class="font-semibold text-gray-800">Daftar Livestream & Video</h3>
+                    </div>
+                    <form method="GET" class="flex items-center gap-2">
+                        <input type="hidden" name="tab" value="live">
+                        <input type="hidden" name="store" value="{{ $storeId }}">
+                        <input type="hidden" name="from" value="{{ $from }}">
+                        <input type="hidden" name="to" value="{{ $to }}">
+                        <input type="hidden" name="search" value="{{ $search }}">
+                        <label for="liveTypeFilter" class="text-xs text-gray-500">Jenis laporan</label>
+                        <select id="liveTypeFilter" name="live_type" onchange="this.form.submit()"
+                                class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <option value="all" {{ $liveType === 'all' ? 'selected' : '' }}>Semua</option>
+                            <option value="live" {{ $liveType === 'live' ? 'selected' : '' }}>Live</option>
+                            <option value="video" {{ $liveType === 'video' ? 'selected' : '' }}>Video</option>
+                        </select>
+                    </form>
+                </div>
+
+                @if($rawLive->isEmpty())
+                    <div class="py-12 px-5 text-center text-gray-500">
+                        <iconify-icon icon="mdi:video-off-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
+                        <div class="text-sm">Belum ada daftar konten untuk toko, jenis, dan tanggal yang dipilih.</div>
+                        <div class="text-xs mt-1">Import ekspor Daftar Livestream dan Daftar Video dari Seller Center untuk menampilkan datanya.</div>
+                    </div>
+                @else
+                    <div class="p-4 sm:p-5 space-y-6">
+                        @if($liveType !== 'video' && $liveRows->isNotEmpty())
+                            <section>
+                                <h4 class="font-semibold text-gray-800 mb-3">Daftar Livestream</h4>
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full text-sm">
+                                <thead class="bg-gray-50 text-xs text-gray-600">
+                                    <tr>
+                                        <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Tanggal Mulai</th>
+                                        <th class="px-3 py-3 text-left font-semibold min-w-[220px]">Nama Livestream</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Penonton Aktif</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Penonton</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Pesanan Siap Dikirim</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Produk Terjual</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Penjualan Dibuat</th>
+                                        <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Penjualan Siap Dikirim</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-100">
+                                    @foreach($liveRows as $live)
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-3 py-3 whitespace-nowrap text-gray-600">{{ \Carbon\Carbon::parse($live->metrics['published_at'])->format('d M Y H:i') }}</td>
+                                            <td class="px-3 py-3 text-gray-800">{{ $live->judul }}</td>
+                                            <td class="px-3 py-3 text-right text-gray-700">{{ number_format($live->metrics['active_viewers'] ?? 0) }}</td>
+                                            <td class="px-3 py-3 text-right font-semibold text-gray-800">{{ number_format($live->metrics['views'] ?? 0) }}</td>
+                                            <td class="px-3 py-3 text-right text-gray-700">{{ number_format($live->metrics['orders_ready_to_ship'] ?? 0) }}</td>
+                                            <td class="px-3 py-3 text-right text-gray-700">{{ number_format($live->metrics['products_sold_ready_to_ship'] ?? 0) }}</td>
+                                            <td class="px-3 py-3 text-right text-gray-700 whitespace-nowrap">Rp {{ number_format($live->metrics['sales_created'] ?? 0, 0, ',', '.') }}</td>
+                                            <td class="px-3 py-3 text-right font-semibold text-green-700 whitespace-nowrap">Rp {{ number_format($live->metrics['sales_ready_to_ship'] ?? 0, 0, ',', '.') }}</td>
+                                        </tr>
+                                        <tr class="bg-gray-50/70">
+                                            <td colspan="8" class="px-3 py-2">
+                                                <details>
+                                                    <summary class="cursor-pointer text-xs text-blue-700">Metrik lainnya dari Excel</summary>
+                                                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 py-3 text-xs">
+                                                        <div><span class="text-gray-500">Durasi live</span><div class="font-semibold">{{ $live->metrics['duration'] ?? '-' }}</div></div>
+                                                        <div><span class="text-gray-500">Komentar</span><div class="font-semibold">{{ number_format($live->metrics['comments'] ?? 0) }}</div></div>
+                                                        <div><span class="text-gray-500">Tambah ke keranjang</span><div class="font-semibold">{{ number_format($live->metrics['add_to_cart'] ?? 0) }}</div></div>
+                                                        <div><span class="text-gray-500">Rata-rata durasi ditonton</span><div class="font-semibold">{{ $live->metrics['average_watch_duration'] ?? '-' }}</div></div>
+                                                        <div><span class="text-gray-500">Pesanan dibuat</span><div class="font-semibold">{{ number_format($live->metrics['orders_created'] ?? 0) }}</div></div>
+                                                        <div><span class="text-gray-500">Produk terjual (pesanan dibuat)</span><div class="font-semibold">{{ number_format($live->metrics['products_sold_created'] ?? 0) }}</div></div>
+                                                    </div>
+                                                </details>
+                                            </td>
+                                        </tr>
+                                    @endforeach
+                                </tbody>
+                            </table>
+                        </div>
+                            </section>
+                        @endif
+
+                        @if($liveType !== 'live' && $videoRows->isNotEmpty())
+                            <section>
+                                <h4 class="font-semibold text-gray-800 mb-3">Daftar Video</h4>
+                                <p class="text-xs text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+                                    File ekspor video tidak memuat data penjualan. Penjualan tiap video ditandai “Tidak tersedia” dan tidak dianggap Rp0.
+                                </p>
+                                <div class="overflow-x-auto">
+                                    <table class="min-w-full text-sm">
+                                        <thead class="bg-gray-50 text-xs text-gray-600">
+                                            <tr>
+                                                <th class="px-3 py-3 text-left font-semibold whitespace-nowrap">Tanggal Posting</th>
+                                                <th class="px-3 py-3 text-left font-semibold min-w-[280px]">Judul Video</th>
+                                                <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Ditonton</th>
+                                                <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Suka</th>
+                                                <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Komentar</th>
+                                                <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Rata-rata Ditonton</th>
+                                                <th class="px-3 py-3 text-right font-semibold whitespace-nowrap">Penjualan</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody class="divide-y divide-gray-100">
+                                            @foreach($videoRows as $video)
+                                                <tr class="hover:bg-gray-50">
+                                                    <td class="px-3 py-3 whitespace-nowrap text-gray-600">{{ \Carbon\Carbon::parse($video->metrics['published_at'])->format('d M Y H:i') }}</td>
+                                                    <td class="px-3 py-3 text-gray-800 whitespace-pre-line">{{ $video->judul }}</td>
+                                                    <td class="px-3 py-3 text-right font-semibold text-gray-800">{{ number_format($video->metrics['views'] ?? 0) }}</td>
+                                                    <td class="px-3 py-3 text-right text-gray-700">{{ number_format($video->metrics['likes'] ?? 0) }}</td>
+                                                    <td class="px-3 py-3 text-right text-gray-700">{{ number_format($video->metrics['comments'] ?? 0) }}</td>
+                                                    <td class="px-3 py-3 text-right text-gray-700">{{ $video->metrics['average_watch_duration'] ?? '-' }}</td>
+                                                    <td class="px-3 py-3 text-right text-gray-400 whitespace-nowrap">Tidak tersedia</td>
+                                                </tr>
+                                            @endforeach
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </section>
+                        @endif
+                    </div>
+                @endif
+            </div>
         @endif
 
         {{-- ============ TAB: TOP PRODUK ============ --}}
@@ -552,6 +972,16 @@
     @endif
 </div>
 
+<script>
+    document.addEventListener('input', function (event) {
+        const input = event.target;
+        if (!(input instanceof HTMLInputElement) || !input.matches('[data-rupiah-input]')) return;
+
+        const digits = input.value.replace(/\D/g, '');
+        input.value = digits.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    });
+</script>
+
 {{-- ============ CHART.JS UNTUK GRAFIK BULANAN ============ --}}
 @if(!empty($monthlyData['months']) && $activeTab === 'bulanan')
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -639,39 +1069,5 @@
 
 
 @endif
-<script>
-// ==================== AJAX PAGINATION UNTUK TAB PER SKU ====================
-async function loadSkuPage(page) {
-    const container = document.getElementById('skuTableContainer');
-    if (!container) return;
 
-    container.style.opacity = '0.5';
-    container.style.pointerEvents = 'none';
-
-    try {
-        const params = new URLSearchParams({
-            page: page,
-            store: '{{ $storeId ?? "" }}',
-            from: '{{ $from ?? "" }}',
-            to: '{{ $to ?? "" }}',
-            search: '{{ $search ?? "" }}',  // <-- TAMBAHKAN INI
-        });
-
-        const response = await fetch(`{{ route('shopee.sku.table') }}?${params.toString()}`, {
-            headers: { 'Accept': 'text/html' },
-        });
-
-        const html = await response.text();
-        container.innerHTML = html;
-        container.style.opacity = '1';
-        container.style.pointerEvents = 'auto';
-
-        container.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } catch (err) {
-        container.style.opacity = '1';
-        container.style.pointerEvents = 'auto';
-        alert('Gagal memuat halaman: ' + err.message);
-    }
-}
-</script>
 @endsection

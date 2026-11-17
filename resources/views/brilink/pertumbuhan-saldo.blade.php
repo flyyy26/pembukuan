@@ -115,17 +115,56 @@
                     @foreach($dailyBalance as $index => $daily)
                         @php
                             $isEmpty = ($daily['saldo_awal'] == 0 && $daily['saldo_akhir'] == 0);
+
+                            // Saldo akhir hari ini harus sama dengan saldo awal hari berikutnya.
+                            $nextDaily = $dailyBalance[$index + 1] ?? null;
+                            $isMatch = false;
+                            $selisih = 0;
+                            $hasNextBalance = $nextDaily
+                                && !$isEmpty
+                                && ($nextDaily['saldo_awal'] != 0 || $nextDaily['saldo_akhir'] != 0);
+
+                            if ($hasNextBalance) {
+                                $selisih = (float) $daily['saldo_akhir'] - (float) $nextDaily['saldo_awal'];
+                                $isMatch = abs($selisih) < 0.00001;
+                            }
                         @endphp
-                        <tr class="hover:bg-gray-50 transition {{ $isEmpty ? 'opacity-50' : '' }}">
+                
+                        <tr class="hover:bg-gray-50 transition relative group {{ $isEmpty ? 'opacity-50' : '' }}">
                             <td class="p-2 sm:p-3 text-center text-gray-700 font-medium text-xs sm:text-sm whitespace-nowrap">
                                 {{ $daily['tanggal_label'] }}
                             </td>
                             <td class="p-2 sm:p-3 text-right text-gray-700 text-xs sm:text-sm whitespace-nowrap">
                                 {{ $daily['saldo_awal'] != 0 ? 'Rp ' . number_format($daily['saldo_awal'], 0, ',', '.') : '-' }}
                             </td>
-                            <td class="p-2 sm:p-3 text-right text-gray-800 font-semibold text-xs sm:text-sm whitespace-nowrap">
-                                {{ $daily['saldo_akhir'] != 0 ? 'Rp ' . number_format($daily['saldo_akhir'], 0, ',', '.') : '-' }}
+                            
+                            {{-- SALDO AKHIR HARI INI DIHUBUNGKAN KE SALDO AWAL BESOK --}}
+                            <td class="p-2 sm:p-3 text-right text-gray-800 font-semibold text-xs sm:text-sm whitespace-nowrap relative">
+                                <span class="relative z-10">
+                                    {{ $daily['saldo_akhir'] != 0 ? 'Rp ' . number_format($daily['saldo_akhir'], 0, ',', '.') : '-' }}
+                                </span>
+
+                                @if($hasNextBalance)
+                                    {{-- Garis membentang dari posisi saldo akhir hari ini ke saldo awal hari berikutnya. --}}
+                                    <svg
+                                        class="absolute pointer-events-none overflow-visible"
+                                        style="left: -1%; top: 0; width: 75%; height: 200%; z-index: 1;"
+                                        viewBox="0 0 100 100"
+                                        preserveAspectRatio="none"
+                                        aria-hidden="true"
+                                        title="{{ $isMatch ? 'Saldo cocok dengan saldo awal besok' : 'Selisih: Rp ' . number_format(abs($selisih), 0, ',', '.') }}"
+                                    >
+                                        <line
+                                            x1="100" y1="25"
+                                            x2="0" y2="75"
+                                            stroke="{{ $isMatch ? '#10b981' : '#ef4444' }}"
+                                            stroke-width="0.7"
+                                            vector-effect="non-scaling-stroke"
+                                        />
+                                    </svg>
+                                @endif
                             </td>
+                
                             <td class="p-2 sm:p-3 text-right font-bold text-xs sm:text-sm whitespace-nowrap {{ $daily['penambahan'] > 0 ? 'text-emerald-600' : ($daily['penambahan'] < 0 ? 'text-red-600' : 'text-gray-400') }}">
                                 @if($daily['penambahan'] > 0)
                                     + Rp {{ number_format($daily['penambahan'], 0, ',', '.') }}
@@ -135,12 +174,13 @@
                                     -
                                 @endif
                             </td>
-                            {{-- ✅ TOMBOL MATA UNTUK DETAIL --}}
+                            
+                            {{-- Tombol Aksi --}}
                             <td class="p-2 sm:p-3 text-center">
                                 @if(!$isEmpty && count($daily['rincian_rekening']) > 0)
                                     <button type="button" 
                                             onclick='showDetailRekening(@json($daily["tanggal_label"]), @json($daily["rincian_rekening"]))'
-                                            class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition border border-indigo-200 bg-white" 
+                                            class="p-1.5 text-indigo-600 hover:bg-indigo-100 rounded transition border border-indigo-200 bg-white relative z-20" 
                                             title="Lihat Rincian Rekening">
                                         <iconify-icon icon="mdi:eye-outline" class="text-sm"></iconify-icon>
                                     </button>

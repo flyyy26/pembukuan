@@ -242,29 +242,45 @@
                                     <div>
                                         <label class="block text-xs font-medium text-gray-600 mb-1">Validasi Mutasi Rekening</label>
                                         @if($isSingleStore)
-                                            {{-- Form Input (Hanya untuk 1 toko) --}}
-                                            <form onsubmit="submitValidasiMutasi(event, {{ $firstReport->id }})" class="flex items-center gap-2">
+                                            <form onsubmit="submitValidasiMutasi(event, {{ $firstReport->id }})" class="space-y-3">
                                                 @csrf
-                                                <div class="relative flex-1">
-                                                    <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
-                                                        <span class="text-gray-500 text-xs font-medium">Rp</span>
+                                                
+                                                {{-- Input Nominal --}}
+                                                <div class="flex items-center gap-2">
+                                                    <div class="relative flex-1">
+                                                        <div class="absolute inset-y-0 left-0 pl-2 flex items-center pointer-events-none">
+                                                            <span class="text-gray-500 text-xs font-medium">Rp</span>
+                                                        </div>
+                                                        <input type="text" name="manual_validasi_mutasi_rek" 
+                                                            id="input-validasi-mutasi-{{ $firstReport->id }}"
+                                                            value="{{ $validasiMutasi > 0 ? number_format($validasiMutasi, 0, ',', '.') : '' }}" 
+                                                            placeholder="0"
+                                                            class="w-full border border-teal-300 rounded-lg text-right pl-8 pr-2 py-1.5 text-sm font-bold text-teal-900 focus:ring-2 focus:ring-teal-500 focus:outline-none transition"
+                                                            oninput="formatRupiahInput(this); hitungSelisihRealtime({{ $firstReport->id }})">
                                                     </div>
-                                                    <input type="text" name="manual_validasi_mutasi_rek" 
-                                                        id="input-validasi-{{ $firstReport->id }}"
-                                                        value="{{ $validasiMutasi > 0 ? number_format($validasiMutasi, 0, ',', '.') : '' }}" 
-                                                        placeholder="0"
-                                                        class="w-full border border-indigo-300 rounded-lg text-right pl-8 pr-2 py-1.5 text-sm font-bold text-indigo-900 focus:ring-2 focus:ring-indigo-500 focus:outline-none transition"
-                                                        oninput="formatRupiahInput(this); hitungSelisihRealtime({{ $firstReport->id }})">
                                                 </div>
-                                                <button type="submit" class="bg-indigo-600 text-white p-2 rounded-lg hover:bg-indigo-700 transition shadow-sm" title="Simpan">
-                                                    <iconify-icon icon="mdi:content-save" class="text-base block"></iconify-icon>
+
+                                                {{-- ✅ TEXTAREA KETERANGAN SELISIH BARU --}}
+                                                <div>
+                                                    <label class="block text-xs font-medium text-gray-600 mb-1">Keterangan Selisih (Opsional)</label>
+                                                    <textarea name="keterangan_selisih" rows="2" placeholder="Contoh: Ada titip transfer dari toko lain"
+                                                        class="w-full border border-gray-300 rounded-lg px-3 py-2 text-xs focus:ring-2 focus:ring-teal-500 focus:outline-none">{{ $firstReport->keterangan_selisih ?? '' }}</textarea>
+                                                </div>
+
+                                                <button type="submit" class="w-full bg-teal-600 text-white px-3 py-2 rounded-lg hover:bg-teal-700 transition shadow-sm text-xs font-medium flex items-center justify-center gap-1">
+                                                    <iconify-icon icon="mdi:content-save" class="text-sm"></iconify-icon> Simpan Validasi
                                                 </button>
                                             </form>
                                         @else
-                                            {{-- Readonly (Jika Semua Toko) --}}
+                                            {{-- Tampilan Read-Only jika mode "Semua Toko" --}}
                                             <div class="w-full bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 text-sm text-right font-bold text-gray-700">
                                                 Rp {{ number_format($validasiMutasi, 0, ',', '.') }}
                                             </div>
+                                            @if($firstReport->keterangan_selisih)
+                                                <div class="mt-2 text-xs text-gray-600 bg-gray-100 p-2 rounded italic border border-gray-200">
+                                                    "{{ $firstReport->keterangan_selisih }}"
+                                                </div>
+                                            @endif
                                             <div class="text-[10px] text-orange-500 mt-1">
                                                 * Pilih toko spesifik untuk mengubah validasi.
                                             </div>
@@ -273,7 +289,7 @@
 
                                     <div class="flex flex-col sm:flex-row justify-between sm:items-center pt-2 border-t border-gray-100 gap-1">
                                         <span class="text-xs font-bold text-gray-600">Selisih Rekonsiliasi</span>
-                                        <span id="selisih-{{ $firstReport->id }}" class="font-bold text-sm {{ $selisih == 0 ? 'text-gray-500' : ($selisih > 0 ? 'text-orange-600' : 'text-red-600') }}">
+                                        <span id="selisih-rek-{{ $firstReport->id }}" class="font-bold text-sm {{ $selisih == 0 ? 'text-gray-500' : ($selisih > 0 ? 'text-orange-600' : 'text-red-600') }}">
                                             Rp {{ number_format($selisih, 0, ',', '.') }}
                                         </span>
                                     </div>
@@ -469,7 +485,6 @@
         if (nominal > 0) document.getElementById('inputNominalEdc').value = new Intl.NumberFormat('id-ID').format(nominal);
         if (admin > 0) document.getElementById('inputAdminToko').value = new Intl.NumberFormat('id-ID').format(admin);
         
-        // Perbaikan: ambil dari parameter, bukan dari variabel global yang tidak didefinisikan
         document.getElementById('inputKeteranganSetoran').value = keterangan || '';
 
         document.getElementById('setoranModal').classList.remove('hidden');
@@ -585,16 +600,19 @@
         e.preventDefault();
         const form = e.target;
         const btn = form.querySelector('button[type="submit"]');
-        const input = form.querySelector('input[name="manual_validasi_mutasi_rek"]');
+        const inputNominal = form.querySelector('input[name="manual_validasi_mutasi_rek"]');
+        const inputKeterangan = form.querySelector('textarea[name="keterangan_selisih"]'); 
         
         const originalBtnHtml = btn.innerHTML;
         btn.disabled = true;
-        btn.innerHTML = '<iconify-icon icon="mdi:loading" class="text-xs block animate-spin"></iconify-icon>';
+        btn.innerHTML = '<iconify-icon icon="mdi:loading" class="text-xs block animate-spin"></iconify-icon> Menyimpan...';
         
-        const rawValue = input.value.replace(/\./g, '');
+        const rawValue = inputNominal.value.replace(/\./g, '');
+        
         const formData = new FormData();
         formData.append('_token', document.querySelector('meta[name="csrf-token"]').content);
         formData.append('manual_validasi_mutasi_rek', rawValue);
+        formData.append('keterangan_selisih', inputKeterangan.value); 
 
         try {
             const response = await fetch(`/brilink/${reportId}/validasi-mutasi`, {
@@ -620,7 +638,9 @@
         if (!setoranEl) return;
         const setoranRiil = parseInt(setoranEl.getAttribute('data-value')) || 0;
 
-        const inputEl = document.getElementById(`input-validasi-${reportId}`);
+        const inputEl = document.getElementById(`input-validasi-mutasi-${reportId}`);
+        if (!inputEl) return;
+        
         const validasiStr = inputEl.value.replace(/[^0-9]/g, '');
         const validasiMutasi = parseInt(validasiStr) || 0;
 
@@ -629,7 +649,7 @@
         const formatter = new Intl.NumberFormat('id-ID');
         const selisihFormatted = formatter.format(selisih);
 
-        const selisihEl = document.getElementById(`selisih-${reportId}`);
+        const selisihEl = document.getElementById(`selisih-rek-${reportId}`);
         if (selisihEl) {
             selisihEl.textContent = `Rp ${selisihFormatted}`;
 

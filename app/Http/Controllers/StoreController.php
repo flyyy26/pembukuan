@@ -35,6 +35,7 @@ class StoreController extends Controller
         $validated = $request->validate([
             'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
+            'kode_toko'   => 'required|string|max:10',
             'seller_id'   => 'nullable|string|max:100',
         ]);
 
@@ -56,6 +57,7 @@ class StoreController extends Controller
         $validated = $request->validate([
             'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
+            'kode_toko'   => 'required|string|max:10',
             'seller_id'   => 'nullable|string|max:100',
         ]);
 
@@ -85,6 +87,7 @@ class StoreController extends Controller
         $validated = $request->validate([
             'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
+            'kode_toko'   => 'required|string|max:10',
             'seller_id'   => 'nullable|string|max:100',
         ]);
 
@@ -104,6 +107,7 @@ class StoreController extends Controller
         $validated = $request->validate([
             'marketplace' => 'required|in:shopee,tiktok,tokopedia,lazada,brilink',
             'nama_toko'   => 'required|string|max:100',
+            'kode_toko'   => 'required|string|max:10',
             'seller_id'   => 'nullable|string|max:100',
         ]);
 

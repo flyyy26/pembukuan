@@ -115,6 +115,18 @@
             {{-- Filter Tanggal Riwayat --}}
             <form method="GET" action="{{ route('brilink.import') }}" class="flex flex-wrap items-center gap-2">
                 <div>
+                    <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Toko</label>
+                    <select name="store_id"
+                            class="border border-gray-300 rounded-lg px-2 py-1.5 text-xs focus:ring-2 focus:ring-emerald-500 focus:outline-none max-w-[180px]">
+                        <option value="">Semua Toko</option>
+                        @foreach($stores as $s)
+                            <option value="{{ $s->id }}" {{ (string) $storeIdInput === (string) $s->id ? 'selected' : '' }}>
+                                {{ $s->nama_toko }}
+                            </option>
+                        @endforeach
+                    </select>
+                </div>
+                <div>
                     <label class="block text-[10px] font-medium text-gray-500 mb-0.5">Dari</label>
                     <input type="date" name="from" 
                         value="{{ $fromInput ?? now()->startOfMonth()->format('Y-m-d') }}"

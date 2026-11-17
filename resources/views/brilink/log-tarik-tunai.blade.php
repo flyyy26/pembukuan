@@ -178,6 +178,7 @@
                                                                 event, 
                                                                 {{ $edc?->id ?? 'null' }}, 
                                                                 {{ $mb?->id ?? 'null' }}, 
+                                                                {{ $saldo?->id ?? 'null' }}, {{-- ✅ TAMBAHKAN INI --}}
                                                                 {{ $edc?->nominal ?? 0 }}, 
                                                                 {{ $edc?->admin_toko ?? 0 }}, 
                                                                 '{{ addslashes($edc?->ket_mesin_edc ?? '') }}', 
@@ -185,7 +186,7 @@
                                                                 {{ $mb?->nominal ?? 0 }}, 
                                                                 {{ $mb?->admin_toko ?? 0 }}, 
                                                                 0, 
-                                                                {{ $saldo?->nominal ?? 0 }}, {{-- ✅ Gunakan nominal dari baris ini saja --}}
+                                                                {{ $saldo?->nominal ?? 0 }}, 
                                                                 '{{ addslashes($mb?->keterangan_rek ?? '') }}', 
                                                                 '{{ addslashes($mb?->keterangan ?? ($edc?->keterangan ?? '')) }}', 
                                                                 {{ $report->id }},
@@ -409,6 +410,7 @@
             <input type="hidden" name="report_id" id="editReportId" value="">
             <input type="hidden" name="edc_id" id="editEdcId" value="">
             <input type="hidden" name="mb_id" id="editMbId" value="">
+            <input type="hidden" name="saldo_id" id="editSaldoId" value="">
             <input type="hidden" id="tarikMode" value="create">
 
             <div class="p-5 space-y-4">
@@ -523,6 +525,7 @@
         document.getElementById('tarikMode').value = 'create';
         document.getElementById('editEdcId').value = '';
         document.getElementById('editMbId').value = '';
+        document.getElementById('editSaldoId').value = '';
         document.getElementById('editReportId').value = '';
         
         document.getElementById('tarikTanggal').value = new Date().toISOString().slice(0, 10);
@@ -546,13 +549,14 @@
         document.getElementById('tarikTunaiModal').classList.add('flex');
     }
 
-    function openEditTarikModal(event, edcId, mbId, edcNom, edcAdm, edcKetMesin, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, bank, ket, reportId, reportTanggal) {
+    function openEditTarikModal(event, edcId, mbId, saldoId, edcNom, edcAdm, edcKetMesin, edcKmc, mbNom, mbAdm, mbSaldo, saldoPindah, bank, ket, reportId, reportTanggal) {
         document.getElementById('tarikTunaiForm').reset();
         document.getElementById('modalErrorTarik').classList.add('hidden');
         
         document.getElementById('tarikMode').value = 'edit';
         document.getElementById('editEdcId').value = edcId || '';
         document.getElementById('editMbId').value = mbId || '';
+        document.getElementById('editSaldoId').value = saldoId || ''; 
         document.getElementById('editReportId').value = reportId;
         
         // ✅ Isi tanggal dari parameter backend

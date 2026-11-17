@@ -62,7 +62,15 @@
         [
             'section' => 'Utama',
             'items' => array_values(array_filter([
-                $canView('view shopee') ? ['route' => 'shopee.index', 'label' => 'Laporan Shopee', 'icon' => 'mdi:shopping-outline'] : null,
+                $canView('view shopee') ? [
+                    'route' => 'shopee.index',
+                    'label' => 'Laporan Shopee',
+                    'icon'  => 'mdi:shopping-outline',
+                    'submenu' => array_values(array_filter([
+                        ['route' => 'shopee.index',           'label' => 'Ringkasan & Transaksi'],
+                        ['route' => 'shopee.optimasi.index',  'label' => 'Optimasi Produk'],
+                    ])),
+                ] : null,
                 ($canView('view tiktok') || $canView('view tiktok live')) ? [
                     'route' => $canView('view tiktok') ? 'tiktok.index' : 'tiktok.live.index',
                     'label' => 'Laporan TikTok',
@@ -74,20 +82,29 @@
                 ] : null,
                 $canView('view web-sales') ? ['route' => 'reports.web-sales.index', 'label' => 'Laporan Penjualan Web', 'icon' => 'mdi:web'] : null,
                 
-                $canView('view konveksi') ? [
+                $isAdmin && $canView('view konveksi') ? [
                     'route' => 'konveksi.potong-kain',
                     'label' => 'Laporan Konveksi',
                     'icon' => 'mdi:scissors-cutting',
-                    'submenu' => array_values(array_filter([
-                        $canView('view konveksi') ? ['route' => 'konveksi.potong-kain', 'label' => 'Data Potong Kain'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.ambil-hanca', 'label' => 'Data Ambil Hanca'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.setor-hanca', 'label' => 'Data Setor Hanca'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.hanca-selesai', 'label' => 'Data Hanca Selesai'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon'] : null,
-                        $canView('view konveksi') ? ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran'] : null,
-                    ])),
+                    'submenu' => [
+                        ['route' => 'konveksi.potong-kain', 'label' => 'Data Potong Kain'],
+                        ['route' => 'konveksi.ambil-hanca', 'label' => 'Data Ambil Hanca'],
+                        ['route' => 'konveksi.setor-hanca', 'label' => 'Data Setor Hanca'],
+                        ['route' => 'konveksi.hanca-selesai', 'label' => 'Data Hanca Selesai'],
+                        ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran'],
+                        ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon'],
+                        ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran'],
+                    ],
                 ] : null,
+
+                // Jika BUKAN ADMIN, jadikan submenu sebagai menu biasa di bawahnya
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.potong-kain', 'label' => 'Data Potong Kain', 'icon' => 'mdi:scissors-cutting'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.ambil-hanca', 'label' => 'Data Ambil Hanca', 'icon' => 'mdi:content-cut'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.setor-hanca', 'label' => 'Data Setor Hanca', 'icon' => 'mdi:package-up'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.hanca-selesai', 'label' => 'Data Hanca Selesai', 'icon' => 'mdi:check-decagram'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.data-bayaran', 'label' => 'Data Bayaran', 'icon' => 'mdi:cash-multiple'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.kasbon', 'label' => 'Data Kasbon', 'icon' => 'mdi:account-cash'] : null,
+                !$isAdmin && $canView('view konveksi') ? ['route' => 'konveksi.pengeluaran', 'label' => 'Data Pengeluaran', 'icon' => 'mdi:cash-minus'] : null,
             ])),
         ],
         [

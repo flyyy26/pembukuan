@@ -21,12 +21,14 @@ class BrilinkImportController extends Controller
     public function index(Request $request)
     {
         $request->validate([
-            'from' => ['nullable', 'date_format:Y-m-d'],
-            'to'   => ['nullable', 'date_format:Y-m-d'],
+            'from'     => ['nullable', 'date_format:Y-m-d'],
+            'to'       => ['nullable', 'date_format:Y-m-d'],
+            'store_id' => ['nullable', 'integer', 'exists:stores,id'],
         ]);
 
-        $fromInput = $request->input('from');
-        $toInput   = $request->input('to');
+        $fromInput    = $request->input('from');
+        $toInput      = $request->input('to');
+        $storeIdInput = $request->input('store_id');
 
         // Default filter: Awal bulan ini s/d Hari ini
         $from = $fromInput ?? now()->startOfMonth()->format('Y-m-d');
@@ -40,10 +42,11 @@ class BrilinkImportController extends Controller
 
         $imports = Import::with('store')
             ->where('tipe', 'brilink')
+            ->when($storeIdInput, fn($q) => $q->where('store_id', $storeIdInput))
             ->when($from, fn($q) => $q->whereDate('periode_start', '>=', $from))
             ->when($to,   fn($q) => $q->whereDate('periode_start', '<=', $to))
-            ->orderByDesc('periode_start')   // ✅ urut tanggal terbaru dulu
-            ->orderByDesc('id')              // tie-breaker: kalau tanggal sama, yang terakhir diupload di atas
+            ->orderByDesc('periode_start')
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
@@ -52,7 +55,13 @@ class BrilinkImportController extends Controller
             ->orderBy('nama_toko')
             ->get();
 
-        return view('brilink.import', compact('imports', 'stores', 'fromInput', 'toInput'));
+        return view('brilink.import', compact(
+            'imports',
+            'stores',
+            'fromInput',
+            'toInput',
+            'storeIdInput'
+        ));
     }
 
     public function import(Request $request)
@@ -630,6 +639,21 @@ class BrilinkImportController extends Controller
             return (int) round((float) ($val ?: 0));
         };
 
+        $findValueByText = function($searchText, $occurrence = 1) use ($sheet) {
+            $maxRow = $sheet->getHighestRow();
+            $found = 0;
+            for ($r = 1; $r <= $maxRow; $r++) {
+                $cellText = strtoupper(trim((string) $sheet->getCell("A{$r}")->getValue()));
+                if (str_contains($cellText, strtoupper($searchText))) {
+                    $found++;
+                    if ($found === $occurrence) {
+                        return (int) round((float) ($this->cellValue($sheet, "B{$r}") ?: 0));
+                    }
+                }
+            }
+            return 0;
+        };
+
         return [
             'total_omset_ppob'           => $safeInt('B5'),
             'total_tarik_tunai_edc'      => $safeInt('B6'),
@@ -640,13 +664,20 @@ class BrilinkImportController extends Controller
             'total_pengeluaran_riil'     => 0,
             'total_pindah_saldo'         => 0,
             
-            'volume_transaksi_agen'      => $safeInt('B19'),
-            'saldo_awal_total'           => $safeInt('B49'),
-            'saldo_akhir_total'          => $safeInt('B71'),
-            'manual_validasi_kas_uang'   => $safeInt('B24'),
+            'volume_transaksi_agen'      => $safeInt('B22'), 
             
-            'laba_kasir_pintar'          => $safeInt('B73'),
-            'penambahan_brangkas'        => $safeInt('B74'),
+            // ✅ Ambil occurrence ke-1 (yang pertama muncul di atas)
+            'saldo_awal_total'           => $findValueByText('TOTAL KESELURUHAN ASET LIKUID', 1), 
+            
+            // ✅ Ambil occurrence ke-2 (yang kedua muncul di bawah)
+            'saldo_akhir_total'          => $findValueByText('TOTAL KESELURUHAN ASET LIKUID', 2),
+            
+            // ✅ Dynamic search untuk Laba Rugi & Brangkas
+            'laba_kasir_pintar'          => $findValueByText('LABA RUGI BARANG'),
+            'penambahan_brangkas'        => $findValueByText('PENAMBAHAN BRANGKAS'),
+            
+            // Angka tetap yang posisinya tidak berubah
+            'manual_validasi_kas_uang'   => $safeInt('B28'), 
         ];
     }
 
@@ -654,41 +685,55 @@ class BrilinkImportController extends Controller
     {
         $accounts = [];
         $awalMap = [];
+        $maxRow = $sheet->getHighestRow();
 
-        for ($r = 32; $r <= 48; $r++) {
+        // ✅ 1. CARI REKAP SALDO AWAL (Mulai dari baris yang ada teks "SALDO AWAL")
+        $startAwal = 34; 
+        for ($r = 1; $r <= $maxRow; $r++) {
+            $text = strtoupper((string) $sheet->getCell("A{$r}")->getValue());
+            if (str_contains($text, 'SALDO AWAL')) {
+                $startAwal = $r + 1;
+                break;
+            }
+        }
+
+        // Looping sampai ketemu "TOTAL KESELURUHAN ASET"
+        for ($r = $startAwal; $r <= $maxRow; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
-            if (!$nama) continue;
-
             $namaStr = strtoupper(trim((string)$nama));
-            if (
-                str_contains($namaStr, 'TOTAL') ||
-                str_contains($namaStr, 'NAMA REKENING') ||
-                str_contains($namaStr, 'REKAPITULASI') ||
-                str_contains($namaStr, 'LABA RUGI') ||
-                str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
-            ) continue;
+            
+            if (str_contains($namaStr, 'TOTAL KESELURUHAN')) {
+                break; // Stop, karena ini akhir rekap awal
+            }
+            if (!$nama || str_contains($namaStr, 'NAMA REKENING')) continue;
 
-            $awalMap[(string) $nama] = [
+            $awalMap[$namaStr] = [
                 'nama_rekening' => (string) $nama,
                 'keterangan'    => (string) $sheet->getCell("C{$r}")->getValue(),
                 'saldo_awal'    => (int) round((float) ($this->cellValue($sheet, "B{$r}") ?: 0)),
             ];
         }
 
-        for ($r = 54; $r <= 70; $r++) {
+        // ✅ 2. CARI REKAP SALDO AKHIR (Mulai dari baris yang ada teks "SALDO AKHIR")
+        $startAkhir = 56;
+        for ($r = 1; $r <= $maxRow; $r++) {
+            $text = strtoupper((string) $sheet->getCell("A{$r}")->getValue());
+            if (str_contains($text, 'SALDO AKHIR')) {
+                $startAkhir = $r + 1;
+                break;
+            }
+        }
+
+        for ($r = $startAkhir; $r <= $maxRow; $r++) {
             $nama = $sheet->getCell("A{$r}")->getValue();
-            if (!$nama) continue;
-
             $namaStr = strtoupper(trim((string)$nama));
-            if (
-                str_contains($namaStr, 'TOTAL') ||
-                str_contains($namaStr, 'NAMA REKENING') ||
-                str_contains($namaStr, 'REKAPITULASI') ||
-                str_contains($namaStr, 'LABA RUGI') ||
-                str_contains($namaStr, 'PENAMBAHAN BRANGKAS')
-            ) continue;
 
-            $key = (string) $nama;
+            if (str_contains($namaStr, 'TOTAL KESELURUHAN')) {
+                break; // Stop, karena ini akhir rekap akhir
+            }
+            if (!$nama || str_contains($namaStr, 'NAMA REKENING')) continue;
+
+            $key = $namaStr;
             $akhir = (int) round((float) ($this->cellValue($sheet, "B{$r}") ?: 0));
 
             if (isset($awalMap[$key])) {
@@ -696,7 +741,7 @@ class BrilinkImportController extends Controller
                 $awalMap[$key]['selisih']     = $akhir - $awalMap[$key]['saldo_awal'];
             } else {
                 $awalMap[$key] = [
-                    'nama_rekening' => $key,
+                    'nama_rekening' => (string) $nama,
                     'keterangan'    => (string) $sheet->getCell("C{$r}")->getValue(),
                     'saldo_awal'    => 0,
                     'saldo_akhir'   => $akhir,
@@ -705,6 +750,7 @@ class BrilinkImportController extends Controller
             }
         }
 
+        // Format output
         foreach ($awalMap as $a) {
             $accounts[] = [
                 'nama_rekening' => $a['nama_rekening'],
@@ -718,7 +764,7 @@ class BrilinkImportController extends Controller
         return $accounts;
     }
 
-        private function parsePpob($sheet): array
+    private function parsePpob($sheet): array
     {
         $rows = [];
         $maxRow = $sheet->getHighestRow();

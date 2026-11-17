@@ -119,6 +119,26 @@
                     <div class="text-xs text-gray-500 mt-1">Nama toko seperti yang muncul di marketplace.</div>
                 </div>
 
+                {{-- ============ KODE TOKO ============ --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">
+                        Kode Toko (Singkatan) <span class="text-red-500">*</span>
+                    </label>
+                    <div class="relative">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                            <iconify-icon icon="mdi:tag-outline" class="text-gray-400 text-base"></iconify-icon>
+                        </div>
+                        <input type="text"
+                               name="kode_toko"
+                               value="{{ old('kode_toko', $store->kode_toko) }}"
+                               placeholder="cth: HM, CRH, AT"
+                               class="w-full border border-gray-300 rounded-lg pl-9 pr-3 py-2 text-sm uppercase
+                                      focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent"
+                               required>
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">Gunakan singkatan yang sama dengan yang ada di Excel kategori pengeluaran.</div>
+                </div>
+
                 {{-- ============ SELLER ID ============ --}}
                 <div>
                     <label class="block text-sm font-medium text-gray-700 mb-1">

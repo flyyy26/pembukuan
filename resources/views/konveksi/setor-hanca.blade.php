@@ -135,8 +135,9 @@
                     <thead class="bg-gray-50 border-b border-gray-100">
                         <tr>
                             <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Tanggal</th>
-                            <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Karyawan</th>
                             <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Kategori Kerja</th>
+                            <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Tukang Potong</th>
+                            <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Karyawan</th>
                             <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Nama Produk</th>
                             <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap">Warna / Ukuran</th>
                             <th class="py-2 px-3 text-[10px] sm:text-xs font-semibold text-gray-500 uppercase whitespace-nowrap text-right">Qty Hanca</th>
@@ -152,6 +153,7 @@
                                     @php
                                         $dibayarQty = $h->pembayarans->where('hanca_detail_id', $detail->id)->sum('qty_setor');
                                         $sisaQtyDetail = max(0, $detail->jumlah_hanca - $dibayarQty);
+                                        $tukangPotong = $detail->sumberPotong->hanca->karyawan->nama ?? '-';
 
                                         // ✅ Hitung Waktu
                                         $tanggalMulai = $h->tanggal ? \Carbon\Carbon::parse($h->tanggal)->startOfDay() : null;
@@ -171,8 +173,13 @@
 
                                     <tr class="hover:bg-gray-50 transition">
                                         <td class="py-2 px-3 text-xs text-gray-700 whitespace-nowrap">{{ $h->tanggal?->format('d/m/Y') ?? '-' }}</td>
+                                        <td class="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">
+                                            <span class="inline-flex items-center px-2 py-0.5 rounded text-[10px] text-uppercase font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                                                {{ $h->kategori }}
+                                            </span>
+                                        </td>
+                                        <td class="py-2 px-3 text-xs text-gray-600 font-medium whitespace-nowrap">{{ $tukangPotong }}</td>
                                         <td class="py-2 px-3 font-medium text-gray-800 whitespace-nowrap">{{ $h->karyawan->nama ?? '-' }}</td>
-                                        <td class="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">{{ $h->kategori }}</td>
                                         <td class="py-2 px-3 text-xs text-gray-800 whitespace-nowrap">{{ $detail->nama_produk }}</td>
                                         <td class="py-2 px-3 text-xs text-gray-600 whitespace-nowrap">{{ $detail->warna ?? '-' }} / {{ $detail->ukuran ?? '-' }}</td>
                                         <td class="py-2 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">{{ $detail->jumlah_hanca }}</td>

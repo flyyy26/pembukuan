@@ -140,6 +140,8 @@
                                 Laporan → <strong>Penghasilan</strong>
                             </div>
                         </div>
+
+
                     </div>
 
                     {{-- Info Box — ORANGE theme --}}
@@ -161,6 +163,111 @@
                     </button>
                 </div>
             </form>
+        </div>
+
+        {{-- ============ IMPORT PENGEMBALIAN / PEMBATALAN (MANDIRI) ============ --}}
+        <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden mb-6">
+            <div class="px-6 py-4 border-b border-red-100 bg-gradient-to-r from-red-50 to-white">
+                <div class="flex items-center gap-2">
+                    <iconify-icon icon="mdi:package-variant-remove" class="text-red-500 text-lg"></iconify-icon>
+                    <h3 class="font-semibold text-gray-800">Import Laporan Pengembalian / Pembatalan</h3>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">
+                    Upload file laporan return atau pembatalan secara mandiri, tanpa Order.all dan Income.
+                </p>
+            </div>
+
+            <form action="{{ route('import.shopee.return') }}" method="POST" enctype="multipart/form-data">
+                @csrf
+                <div class="p-6 grid grid-cols-1 md:grid-cols-[1fr_2fr_auto] gap-4 items-end">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Pilih Toko Shopee</label>
+                        <select name="store_id" required
+                                class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent">
+                            <option value="">-- Pilih Toko Shopee --</option>
+                            @foreach($shopeeStores as $s)
+                                <option value="{{ $s->id }}">{{ $s->nama_toko }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">File Excel (Order.return_refund / Order.cancelled)</label>
+                        <input type="file" name="file" required accept=".xlsx,.xls"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-500">
+                    </div>
+                    <button type="submit" class="inline-flex items-center justify-center gap-2 bg-red-600 text-white px-6 py-2 rounded-lg hover:bg-red-700 transition text-sm font-medium">
+                        <iconify-icon icon="mdi:cloud-upload" class="text-lg"></iconify-icon>
+                        Import Return
+                    </button>
+                </div>
+            </form>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <iconify-icon icon="mdi:message-text-outline" class="text-blue-500"></iconify-icon>
+                    Import Laporan Chat
+                </h3>
+                <form action="{{ route('import.shopee.chat') }}" method="POST" enctype="multipart/form-data" class="flex gap-4 items-end flex-wrap">
+                    @csrf
+                    <div class="w-48">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko</label>
+                        <select name="store_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500">
+                            @foreach($stores as $store)
+                                <option value="{{ $store->id }}">{{ $store->nama_toko }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="flex-1 min-w-[250px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">File Excel Chat</label>
+                        <input type="file" name="file" required accept=".xlsx, .xls"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-blue-500">
+                    </div>
+                    
+                    <button type="submit" class="bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium">
+                        Upload Data Chat
+                    </button>
+                </form>
+            </div>
+
+            <!-- Form Import Live & Video -->
+            <div class="bg-white p-6 rounded-xl shadow-sm border border-gray-100 mb-6">
+                <h3 class="font-semibold text-gray-800 mb-4 flex items-center gap-2">
+                    <iconify-icon icon="mdi:video-outline" class="text-purple-500"></iconify-icon>
+                    Import Daftar Livestream & Video
+                </h3>
+                <p class="text-xs text-gray-500 mb-4">
+                    Upload ekspor daftar livestream dan video dari Shopee. Data penjualan tersedia di ekspor livestream;
+                    ekspor video hanya memuat tayangan, suka, dan komentar.
+                </p>
+                <form action="{{ route('import.shopee.live_video') }}" method="POST" enctype="multipart/form-data" class="flex gap-4 items-end flex-wrap">
+                    @csrf
+                    <div class="w-48">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Pilih Toko</label>
+                        <select name="store_id" required class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500">
+                            @foreach($stores as $store)
+                                <option value="{{ $store->id }}">{{ $store->nama_toko }}</option>
+                            @endforeach
+                        </select>
+                    </div>
+                    
+                    <div class="flex-1 min-w-[250px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">File Daftar Livestream</label>
+                        <input type="file" name="live_file" required accept=".csv, .xlsx, .xls"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500">
+                    </div>
+
+                    <div class="flex-1 min-w-[250px]">
+                        <label class="block text-xs font-medium text-gray-600 mb-1">File Daftar Video</label>
+                        <input type="file" name="video_file" required accept=".csv, .xlsx, .xls"
+                            class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-purple-500">
+                    </div>
+                    
+                    <button type="submit" class="bg-purple-600 text-white px-6 py-2 rounded-lg hover:bg-purple-700 transition text-sm font-medium">
+                        Upload Daftar Live & Video
+                    </button>
+                </form>
+            </div>
         </div>
 
     @endif
@@ -205,6 +312,7 @@
                                 $badge = match($imp->tipe) {
                                     'shopee_order'  => ['bg-orange-50 text-orange-700', 'mdi:file-document-outline'],
                                     'shopee_income' => ['bg-amber-50 text-amber-700', 'mdi:cash-multiple'],
+                                    'shopee_return' => ['bg-red-50 text-red-700', 'mdi:package-variant-remove'],
                                     default         => ['bg-gray-50 text-gray-700', 'mdi:file'],
                                 };
                             @endphp
@@ -239,7 +347,7 @@
                             @endif
                         </td>
                         <td class="py-3 px-4 text-center">
-                            <button type="button" onclick="deleteImport({{ $imp->id }}, '{{ addslashes($imp->file_name) }}')"
+                            <button type="button" data-file-name="{{ $imp->file_name }}" onclick="deleteImport({{ $imp->id }}, this.dataset.fileName)"
                                 class="inline-flex items-center gap-1 text-red-600 hover:bg-red-50 px-2 py-1 rounded text-xs font-medium transition">
                                 <iconify-icon icon="mdi:delete" class="text-sm"></iconify-icon> Hapus
                             </button>
@@ -247,7 +355,7 @@
                     </tr>
                     @empty
                     <tr>
-                        <td colspan="6" class="py-12 text-center text-gray-500">
+                        <td colspan="7" class="py-12 text-center text-gray-500">
                             <iconify-icon icon="mdi:inbox-outline" class="text-4xl text-gray-300 block m-auto mb-2 w-max"></iconify-icon>
                             Belum ada riwayat import.
                         </td>
@@ -277,7 +385,7 @@
     const CSRF_TOKEN_IMPORT = document.querySelector('meta[name="csrf-token"]').content;
 
     async function deleteImport(id, fileName) {
-        if (!confirm(`Yakin ingin menghapus data import "${fileName}"?\n\nSEMUA data transaksi (Order.all & Income) dari file ini akan ikut terhapus permanen, dan laporan penjualan akan dihitung ulang.`)) {
+        if (!confirm(`Yakin ingin menghapus data import "${fileName}"?\n\nData terkait file ini akan ikut terhapus permanen. Import Order.all/Income akan menjalankan rekonsiliasi ulang.`)) {
             return;
         }
 

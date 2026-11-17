@@ -104,6 +104,7 @@ Route::middleware('auth')->group(function () {
     // ============ SHOPEE ============
     Route::middleware('permission:view shopee')->group(function () {
         Route::get('/shopee', [ShopeeController::class, 'index'])->name('shopee.index');
+        Route::post('/shopee/ad-spend', [ShopeeController::class, 'saveAdSpend'])->name('shopee.ad-spend.save');
 
         Route::get('/shopee/mapping/{store}', function () {
             return redirect()->route('products.index')
@@ -115,6 +116,17 @@ Route::middleware('auth')->group(function () {
         Route::get('/shopee/sku-table', [ShopeeController::class, 'skuTableHtml'])->name('shopee.sku.table');
         Route::get('/shopee/export-pdf', [ShopeeController::class, 'exportPdf'])->name('shopee.export.pdf');
         Route::get('/shopee/sku-detail', [ShopeeController::class, 'skuDetailHtml'])->name('shopee.sku.detail');
+
+        Route::prefix('shopee/optimasi')->name('shopee.optimasi.')->group(function () {
+            Route::get('/',              [\App\Http\Controllers\ShopeeOptimizationController::class, 'index'])->name('index');
+            Route::get('/create',        [\App\Http\Controllers\ShopeeOptimizationController::class, 'create'])->name('create');
+            Route::post('/',             [\App\Http\Controllers\ShopeeOptimizationController::class, 'store'])->name('store');
+            Route::get('/{optimasi}/edit',   [\App\Http\Controllers\ShopeeOptimizationController::class, 'edit'])->name('edit');
+            Route::put('/{optimasi}',        [\App\Http\Controllers\ShopeeOptimizationController::class, 'update'])->name('update');
+            Route::delete('/{optimasi}',     [\App\Http\Controllers\ShopeeOptimizationController::class, 'destroy'])->name('destroy');
+            Route::get('/export-pdf',    [\App\Http\Controllers\ShopeeOptimizationController::class, 'exportPdf'])->name('export.pdf');
+            Route::get('/export-excel',  [\App\Http\Controllers\ShopeeOptimizationController::class, 'exportExcel'])->name('export.excel');
+        });
     });
 
     // ============ TIKTOK ============
@@ -144,7 +156,10 @@ Route::middleware('auth')->group(function () {
     Route::middleware('permission:view import shopee')->group(function () {
         Route::get('/import', [ImportController::class, 'index'])->name('import.index');
         Route::post('/import/shopee-order', [ImportController::class, 'importShopeeOrder'])->name('import.shopee.order');
+        Route::post('/import/shopee-return', [ImportController::class, 'importShopeeReturn'])->name('import.shopee.return');
         Route::post('/import/shopee', [ImportController::class, 'importShopee'])->name('import.shopee');
+        Route::post('/import/shopee-chat', [ImportController::class, 'importShopeeChat'])->name('import.shopee.chat');
+        Route::post('/import/shopee-live-video', [App\Http\Controllers\ImportController::class, 'importShopeeLiveVideo'])->name('import.shopee.live_video');
         Route::post('/import/shopee-both', [ImportController::class, 'importShopeeBoth'])->name('import.shopee.both');
         Route::delete('/import/{id}', [ImportController::class, 'destroy'])->name('import.destroy');
     });
@@ -260,6 +275,8 @@ Route::middleware('auth')->group(function () {
         Route::delete('/brilink/{report}', [BrilinkController::class, 'destroy'])->name('brilink.destroy');
     });
 
+    
+
     // ===== KARYAWAN =====
     Route::middleware('permission:view karyawan')->group(function () {
         Route::get('karyawan', [GajiKaryawanController::class, 'indexKaryawan'])->name('karyawan.index');
@@ -346,6 +363,7 @@ Route::middleware('auth')->group(function () {
         Route::get('/potong-kain', [LaporanKonveksiController::class, 'potongKainIndex'])->name('potong-kain');
         Route::get('/ambil-hanca', [LaporanKonveksiController::class, 'ambilHancaIndex'])->name('ambil-hanca');
         Route::get('/setor-hanca', [LaporanKonveksiController::class, 'setorHancaIndex'])->name('setor-hanca');
+        Route::get('/pembayaran/print-kosong', [LaporanKonveksiController::class, 'printNotaKosongPdf'])->name('pembayaran.print-kosong-pdf');
 
         // Redirect root
         Route::get('/', fn() => redirect()->route('konveksi.potong-kain'))->name('index');
@@ -377,6 +395,8 @@ Route::middleware('auth')->group(function () {
         Route::get('/pembayaran/{pembayaran}/invoice-pdf', [LaporanKonveksiController::class, 'printInvoicePdf'])->name('pembayaran.invoice-pdf');
         Route::post('/pengeluaran/store-ajax', [LaporanKonveksiController::class, 'storePengeluaranAjax'])->name('pengeluaran.store-ajax');
 
+        
+
         // Kategori
         Route::post('/kategori/store-ajax', [LaporanKonveksiController::class, 'storeKategoriAjax'])->name('kategori.store-ajax');
         Route::delete('/kategori/{kategori}/ajax', [LaporanKonveksiController::class, 'destroyKategoriAjax'])->name('kategori.destroy-ajax');
@@ -394,6 +414,8 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/data-bayaran/bayar-massal-ajax', [LaporanKonveksiController::class, 'bayarMassalAjax'])->name('data-bayaran.bayar-massal-ajax');
         Route::get('/pembayaran/print-massal-pdf', [LaporanKonveksiController::class, 'printMassalPdf'])->name('pembayaran.print-massal-pdf');
+
+        Route::delete('/hanca-selesai/destroy-ajax', [LaporanKonveksiController::class, 'destroyHancaSelesaiAjax'])->name('hanca-selesai.destroy-ajax');
     });
 
     // ============================================

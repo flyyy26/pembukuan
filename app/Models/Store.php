@@ -10,6 +10,7 @@ class Store extends Model
         'marketplace',
         'nama_toko',
         'seller_id',
+        'kode_toko', 
         'is_active',
     ];
 
@@ -40,5 +41,10 @@ class Store extends Model
             'brilink'   => 'BRILink',
             default     => ucfirst($this->marketplace),
         };
+    }
+
+    public function optimizations()
+    {
+        return $this->hasMany(ProductOptimization::class);
     }
 }

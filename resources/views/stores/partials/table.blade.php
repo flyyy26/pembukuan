@@ -39,6 +39,7 @@
                 <thead class="bg-gray-50 border-b border-gray-100">
                     <tr>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Nama Toko</th>
+                        <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Kode Toko</th>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Marketplace</th>
                         <th class="text-left py-3 px-4 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Seller ID</th>
                         <th class="text-center py-3 px-4 w-40 text-xs font-semibold text-gray-500 uppercase tracking-wider whitespace-nowrap">Aksi</th>
@@ -60,6 +61,7 @@
                         class="hover:bg-gray-50 transition"
                         data-id="{{ $store->id }}"
                         data-nama="{{ $store->nama_toko }}"
+                        data-kode="{{ $store->kode_toko ?? '' }}"
                         data-marketplace="{{ $store->marketplace }}"
                         data-seller="{{ $store->seller_id ?? '' }}">
                         <td class="py-3 px-4">
@@ -69,6 +71,9 @@
                                 </div>
                                 <span class="font-medium text-gray-800 whitespace-nowrap">{{ $store->nama_toko }}</span>
                             </div>
+                        </td>
+                        <td class="py-3 px-4">
+                            <span class="font-mono text-xs text-gray-600">{{ $store->kode_toko ?: '-' }}</span>
                         </td>
                         <td class="py-3 px-4">
                             <span class="inline-flex items-center gap-1 {{ $market['badge'] }} px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap">
@@ -117,6 +122,7 @@
                     class="p-4 space-y-2 text-xs"
                     data-id="{{ $store->id }}"
                     data-nama="{{ $store->nama_toko }}"
+                    data-kode="{{ $store->kode_toko ?? '' }}"
                     data-marketplace="{{ $store->marketplace }}"
                     data-seller="{{ $store->seller_id ?? '' }}">
                     
@@ -131,6 +137,10 @@
                                     {{ $store->marketplace_label }}
                                 </span>
                             </div>
+                        </div>
+                        <div class="text-right">
+                            <span class="text-gray-400 block text-[10px]">Kode Toko</span>
+                            <span class="font-mono text-[10px] text-gray-600">{{ $store->kode_toko ?: '-' }}</span>
                         </div>
                         <div class="text-right">
                             <span class="text-gray-400 block text-[10px]">Seller ID</span>

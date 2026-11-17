@@ -3,7 +3,9 @@
         <thead>
             <tr class="bg-gray-100 text-gray-600">
                 <th class="p-2 border-b">Tgl / Order ID</th>
-                <th class="p-2 border-b text-right" title="Harga setelah diskon × Qty (dari Order.all)">Harga Barang</th>
+                <th class="p-2 border-b text-right" title="Harga awal per produk dari Shopee">Harga Barang</th>
+                <th class="p-2 border-b text-right" title="Jumlah produk dalam pesanan">Jumlah</th>
+                <th class="p-2 border-b text-right" title="Harga setelah diskon × Qty (dari Order.all)">Total Harga Barang</th>
                 <th class="p-2 border-b text-right" title="Biaya Administrasi + Biaya Komisi AMS">Adm</th>
                 <th class="p-2 border-b text-right" title="Biaya Proses Pesanan + Biaya Gratis Ongkir XTRA">Proses</th>
                 <th class="p-2 border-b text-right" title="Ongkos Kirim Dibayarkan − Gratis Ongkir dari Shopee">Ongkir</th>
@@ -28,6 +30,10 @@
                     <div class="font-medium text-gray-800">{{ \Carbon\Carbon::parse($s->tanggal)->format('d/m/Y') }}</div>
                     <div class="text-[10px] text-gray-400 font-mono">{{ $s->order_id }}</div>
                 </td>
+                <td class="p-2 text-right text-gray-700">
+                    {{ number_format($s->qty > 0 ? $s->harga_jual / $s->qty : 0, 0, ',', '.') }}
+                </td>
+                <td class="p-2 text-right text-gray-700">{{ number_format($s->qty) }}</td>
                 <td class="p-2 text-right text-gray-700">{{ number_format($s->subtotal, 0, ',', '.') }}</td>
                 <td class="p-2 text-right text-red-500">{{ $fmt($s->biaya_komisi) }}</td>
                 <td class="p-2 text-right text-red-500">{{ $fmt($s->biaya_layanan) }}</td>
@@ -43,13 +49,15 @@
             </tr>
             @empty
             <tr>
-                <td colspan="9" class="p-4 text-center text-gray-500">Tidak ada data transaksi.</td>
+                <td colspan="11" class="p-4 text-center text-gray-500">Tidak ada data transaksi.</td>
             </tr>
             @endforelse
         </tbody>
         <tfoot class="bg-gray-50 font-bold text-gray-800 border-t-2 border-gray-200">
             <tr>
                 <td class="p-2 text-right">TOTAL</td>
+                <td></td>
+                <td class="p-2 text-right">{{ number_format($sales->sum('qty')) }}</td>
                 <td class="p-2 text-right">{{ number_format($sales->sum('subtotal'), 0, ',', '.') }}</td>
                 <td class="p-2 text-right text-red-500">{{ $fmt($sales->sum('biaya_komisi')) }}</td>
                 <td class="p-2 text-right text-red-500">{{ $fmt($sales->sum('biaya_layanan')) }}</td>
@@ -68,7 +76,8 @@
 
     {{-- Legend sumber Excel --}}
     <div class="mt-3 pt-3 border-t border-gray-100 text-[10px] text-gray-500 space-y-1">
-        <div><strong>Harga Barang</strong> ← <em>Harga Setelah Diskon × Jumlah</em> (Order.all)</div>
+        <div><strong>Harga Barang</strong> ← <em>Harga Awal per produk</em> (Order.all)</div>
+        <div><strong>Total Harga Barang</strong> ← <em>Harga Setelah Diskon × Jumlah</em> (Order.all)</div>
         <div><strong>Adm</strong> ← <em>Biaya Administrasi</em> + <em>Biaya Komisi AMS</em></div>
         <div><strong>Proses</strong> ← <em>Biaya Proses Pesanan</em> + <em>Biaya Gratis Ongkir XTRA</em></div>
         <div><strong>Ongkir</strong> ← <em>Ongkos Kirim Dibayarkan</em> − <em>Gratis Ongkir dari Shopee</em> (bisa + jika subsidi &gt; ongkir)</div>

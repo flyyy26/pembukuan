@@ -29,6 +29,7 @@ class BrilinkReport extends Model
         'manual_validasi_kas_uang',
         'manual_validasi_mutasi_rek',
         'manual_validasi_mutasi_fisik',
+        'keterangan_selisih',
         'laba_kasir_pintar',
         'penambahan_brangkas',
         'manual_validasi_kas_uang',

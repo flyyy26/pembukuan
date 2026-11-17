@@ -423,7 +423,7 @@
 
                             <div class="border-t border-indigo-200 mt-4 pt-3 flex flex-col sm:flex-row justify-between sm:items-center gap-1">
                                 <span class="text-sm font-bold text-indigo-900">Selisih Validasi</span>
-                                <span id="viewSelisihValidasi" class="text-base font-bold {{ $summary['selisih_validasi'] == 0 ? 'text-indigo-900' : 'text-red-600' }}">
+                                <span id="viewSelisihValidasi" class="text-base font-bold {{ $summary['selisih_validasi'] == 0 ? 'text-indigo-900' : 'text-green-600' }}">
                                     Rp {{ number_format($summary['selisih_validasi'], 0, ',', '.') }}
                                 </span>
                             </div>
@@ -669,11 +669,11 @@
                 viewSelisih.innerText = 'Rp ' + formatted;
 
                 if (selisih === 0) {
-                    viewSelisih.classList.remove('text-red-600');
+                    viewSelisih.classList.remove('text-green-600');
                     viewSelisih.classList.add('text-indigo-900');
                 } else {
                     viewSelisih.classList.remove('text-indigo-900');
-                    viewSelisih.classList.add('text-red-600');
+                    viewSelisih.classList.add('text-green-600');
                 }
             };
 

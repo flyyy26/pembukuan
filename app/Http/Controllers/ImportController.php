@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Import;
 use App\Models\ShopeeIncomeRow;
 use App\Models\ShopeeOrderItem;
+use App\Models\ShopeeReturn;
 use App\Models\Store;
 use App\Support\ImportedFileStorage;
 use Carbon\Carbon;
@@ -18,8 +19,7 @@ class ImportController extends Controller
     public function index()
     {
         $imports = Import::with('store')
-            // TAMBAHKAN FILTER INI: Hanya ambil tipe shopee
-            ->whereIn('tipe', ['shopee_order', 'shopee_income']) 
+            ->whereIn('tipe', ['shopee_order', 'shopee_income', 'shopee_return', 'shopee_chat', 'shopee_live_video']) 
             ->orderByDesc('id')
             ->paginate(15);
 
@@ -512,7 +512,7 @@ class ImportController extends Controller
         }
 
         // Cek apakah ini benar-benar import Shopee
-        if (!in_array($import->tipe, ['shopee_order', 'shopee_income'])) {
+        if (!in_array($import->tipe, ['shopee_order', 'shopee_income', 'shopee_return', 'shopee_live_video'], true)) {
             return response()->json([
                 'success' => false,
                 'message' => 'Data ini bukan bagian dari import Shopee.'
@@ -530,13 +530,17 @@ class ImportController extends Controller
                 ShopeeOrderItem::where('import_id', $import->id)->delete();
             } elseif ($import->tipe === 'shopee_income') {
                 ShopeeIncomeRow::where('import_id', $import->id)->delete();
+            } elseif ($import->tipe === 'shopee_return') {
+                ShopeeReturn::where('import_id', $import->id)->delete();
+            } elseif ($import->tipe === 'shopee_live_video') {
+                \App\Models\ShopeeLiveVideo::where('import_id', $import->id)->delete();
             }
 
             // Hapus record import utama
             $import->delete();
 
             // Rekonsiliasi ulang untuk memperbarui tabel Sales
-            if ($storeId) {
+            if ($storeId && in_array($import->tipe, ['shopee_order', 'shopee_income'], true)) {
                 \Artisan::call('shopee:reconcile', ['store_id' => $storeId]);
             }
 
@@ -600,5 +604,580 @@ class ImportController extends Controller
     {
         if ($value === null || $value === '' || $value === '-') return null;
         return $value;
+    }
+
+    public function importShopeeReturn(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'file'     => 'required|file|mimes:xlsx,xls|max:10240',
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+        if ($store->marketplace !== 'shopee') {
+            return back()->with('error', 'Toko ini bukan Shopee.');
+        }
+
+        $file = $request->file('file');
+        $storedPath = $file->store('imports', 'local');
+        $fullPath = Storage::disk('local')->path($storedPath);
+        $fileHash = hash_file('sha256', $fullPath);
+
+        $existing = Import::where('store_id', $store->id)
+            ->where('tipe', 'shopee_return')
+            ->where('file_hash', $fileHash)
+            ->first();
+
+        if ($existing) {
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', "File ini sudah pernah diimport (Import #{$existing->id}).");
+        }
+
+        try {
+            $data = $this->parseShopeeReturnFile($fullPath, $file->getClientOriginalName());
+        } catch (\Exception $e) {
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', 'Gagal parse file: ' . $e->getMessage());
+        }
+
+        DB::beginTransaction();
+        try {
+            $import = Import::create([
+                'store_id'      => $store->id,
+                'tipe'          => 'shopee_return',
+                'file_name'     => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'file_hash'     => $fileHash,
+                'periode_start' => $data['periode_start'],
+                'periode_end'   => $data['periode_end'],
+                'total_rows'    => $data['total_rows'],
+                'status'        => 'pending',
+            ]);
+
+            foreach ($data['rows'] as $row) {
+                $row['import_id'] = $import->id;
+                ShopeeReturn::create($row);
+            }
+
+            $import->update(['status' => 'imported']);
+            DB::commit();
+
+            return redirect()->route('import.index')
+                ->with('success', "Berhasil import data Pengembalian/Pembatalan: {$data['total_rows']} baris.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', 'Gagal simpan ke database: ' . $e->getMessage());
+        }
+    }
+
+    private function parseShopeeReturnFile(string $fullPath, ?string $fileName = null): array
+    {
+        $spreadsheet = IOFactory::load($fullPath);
+        $sheet = $spreadsheet->getActiveSheet();
+        $reportName = strtolower(($fileName ?? '') . ' ' . $sheet->getTitle());
+        $tipeLaporan = str_contains($reportName, 'failed_delivery') || str_contains($reportName, 'failed delivery')
+            ? 'shipping_failed'
+            : ((str_contains($reportName, 'cancel') || str_contains($reportName, 'batal')) ? 'cancel' : 'return');
+        $data = $sheet->toArray(null, true, true, false);
+
+        // Cari baris header secara otomatis
+        $headerRowIndex = -1;
+        foreach ($data as $index => $row) {
+            $rowString = implode(' | ', array_filter($row, fn($v) => $v !== null));
+            if (stripos($rowString, 'No. Pesanan') !== false || stripos($rowString, 'No. Pengajuan') !== false) {
+                $headerRowIndex = $index;
+                break;
+            }
+        }
+
+        if ($headerRowIndex === -1) {
+            throw new \Exception("Format file tidak dikenali. Tidak menemukan kolom 'No. Pesanan' atau 'No. Pengajuan'.");
+        }
+
+        $headers = array_map('trim', $data[$headerRowIndex]);
+        $rows = [];
+
+        for ($i = $headerRowIndex + 1; $i < count($data); $i++) {
+            $row = $data[$i];
+            if (count(array_filter($row, fn($v) => $v !== null && $v !== '')) === 0) continue;
+
+            $assoc = [];
+            foreach ($headers as $idx => $header) {
+                if ($header === '') continue;
+                $assoc[$header] = trim($row[$idx] ?? '');
+            }
+
+            // Helper untuk mencari nilai dari nama kolom yang mirip
+            $getValue = function($possibleNames) use ($assoc) {
+                foreach ($possibleNames as $name) {
+                    foreach ($assoc as $key => $val) {
+                        if (stripos($key, $name) !== false) return $val;
+                    }
+                }
+                return null;
+            };
+
+            $noPesanan = $getValue(['No. Pesanan']);
+            if ($noPesanan === null || trim($noPesanan) === '') {
+                continue;
+            }
+
+            $statusPengirimanGagal = $getValue(['Status pengiriman gagal']);
+            $statusPengirimanPembeli = $getValue(['Solusi Pengembalian Barang/Dana', 'Status Pengiriman ke Pembeli']);
+            if ($statusPengirimanPembeli === null && $statusPengirimanGagal === null) {
+                $statusPengirimanPembeli = $getValue(['Status Pengiriman']);
+            }
+
+            $rows[] = [
+                'tipe_laporan'         => $tipeLaporan,
+                'no_pesanan'           => $getValue(['No. Pesanan']),
+                'no_pengajuan'         => $getValue(['No. Pengembalian', 'No. Pengajuan']),
+                'status_pengajuan'     => $getValue(['Status Pembatalan/ Pengembalian', 'Status Pengajuan', 'Status']),
+                'alasan_pengajuan'     => $getValue(['Alasan Pengajuan', 'Alasan']),
+                'sku_varian'           => $getValue(['Kode Variasi', 'Nomor Referensi SKU', 'Variasi', 'SKU']),
+                'nama_produk'          => $getValue(['Nama Produk']),
+                'jumlah'               => (int) preg_replace('/[^0-9]/', '', $getValue(['Jumlah Produk Dikembalikan', 'Jumlah', 'Qty']) ?? 0),
+                'nominal_pengembalian' => (int) preg_replace('/[^0-9]/', '', $getValue([
+                    'Total Pengembalian Dana',
+                    'Jumlah Pengembalian Dana ke Pembeli',
+                    'Jumlah Pengembalian Dana',
+                    'Dana Kembali',
+                    'Nominal',
+                ]) ?? 0),
+                'waktu_pengajuan'      => $this->toDate($getValue([
+                    'Waktu Pengembalian Diajukan',
+                    'Waktu Pengajuan',
+                    'Waktu Pembatalan', 
+                    'Tanggal Pembatalan', 
+                    'Waktu Selesai', 
+                    'Waktu Pesanan Dibuat',
+                    'Tanggal Pengajuan'
+                ])),
+                'status_pengiriman_ke_pembeli'   => $statusPengirimanPembeli,
+                'status_pengembalian_ke_penjual' => $getValue([
+                    'Status Pengembalian Barang',
+                    'Status Pengembalian ke Penjual',
+                    'Status Barang',
+                ]) ?: $statusPengirimanGagal,
+                'pengembalian_dana'              => (int) preg_replace('/[^0-9]/', '', $getValue([
+                    'Total Pengembalian Dana',
+                    'Jumlah Pengembalian Dana ke Pembeli',
+                    'Jumlah Pengembalian Dana',
+                    'Pengembalian Dana',
+                    'Dana Kembali',
+                ]) ?? 0),
+
+                'raw_data'             => $assoc,
+            ];
+        }
+
+        if (count($rows) === 0) {
+            throw new \Exception("Tidak ada baris pengembalian/pembatalan dengan nomor pesanan.");
+        }
+
+        $tanggalList = collect($rows)
+            ->pluck('waktu_pengajuan')
+            ->filter()
+            ->sort()
+            ->values();
+
+        return [
+            'rows'          => $rows,
+            'total_rows'    => count($rows),
+            'periode_start' => $tanggalList->first(),
+            'periode_end'   => $tanggalList->last(),
+        ];
+    }
+
+    public function importShopeeChat(Request $request)
+    {
+        $request->validate([
+            'store_id' => 'required|exists:stores,id',
+            'file'     => 'required|file|mimes:xlsx,xls|max:10240',
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+        
+        $file = $request->file('file');
+        $storedPath = $file->store('imports', 'local');
+        $fullPath = Storage::disk('local')->path($storedPath);
+        $fileHash = hash_file('sha256', $fullPath);
+
+        $existing = Import::where('store_id', $store->id)
+            ->where('tipe', 'shopee_chat')
+            ->where('file_hash', $fileHash)
+            ->first();
+
+        if ($existing) {
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', "File ini sudah pernah diimport.");
+        }
+
+        try {
+            $data = $this->parseShopeeChatFile($fullPath);
+        } catch (\Exception $e) {
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', 'Gagal parse file: ' . $e->getMessage());
+        }
+
+        DB::beginTransaction();
+        try {
+            $import = Import::create([
+                'store_id'      => $store->id,
+                'tipe'          => 'shopee_chat',
+                'file_name'     => $file->getClientOriginalName(),
+                'stored_path'   => $storedPath,
+                'file_hash'     => $fileHash,
+                'total_rows'    => $data['total_rows'],
+                'status'        => 'imported',
+            ]);
+
+            foreach ($data['rows'] as $row) {
+                $row['import_id'] = $import->id;
+                \App\Models\ShopeeChat::create($row);
+            }
+
+            DB::commit();
+            return back()->with('success', "Berhasil import data Chat: {$data['total_rows']} baris.");
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Storage::disk('local')->delete($storedPath);
+            return back()->with('error', 'Gagal simpan ke database: ' . $e->getMessage());
+        }
+    }
+
+    private function parseShopeeChatFile(string $fullPath): array
+    {
+        $spreadsheet = IOFactory::load($fullPath);
+        $sheet = $spreadsheet->getActiveSheet();
+        $data = $sheet->toArray(null, true, true, false);
+
+        // Cari baris header
+        $headerRowIndex = -1;
+        foreach ($data as $index => $row) {
+            $rowString = implode(' | ', array_filter($row, fn($v) => $v !== null));
+            if (stripos($rowString, 'Pengunjung') !== false && stripos($rowString, 'Jumlah Chat') !== false) {
+                $headerRowIndex = $index;
+                break;
+            }
+        }
+
+        if ($headerRowIndex === -1) throw new \Exception("Format file Chat tidak dikenali.");
+
+        $headers = array_map('trim', $data[$headerRowIndex]);
+        $rows = [];
+
+        // Helper konversi persen "15,5%" ke decimal 15.50
+        $parsePercent = function($val) {
+            if (!$val) return 0;
+            $str = str_replace('%', '', (string) $val);
+            $str = trim($str);
+            
+            // Jika pakai koma sebagai desimal (misal 90,18)
+            if (strpos($str, ',') !== false) {
+                $str = str_replace('.', '', $str); // Hapus titik ribuan jika ada
+                $str = str_replace(',', '.', $str); // Ubah koma jadi titik desimal
+            }
+            
+            return (float) $str;
+        };
+
+        for ($i = $headerRowIndex + 1; $i < count($data); $i++) {
+            $row = $data[$i];
+            if (count(array_filter($row, fn($v) => $v !== null && $v !== '')) === 0) continue;
+
+            $assoc = [];
+            foreach ($headers as $idx => $header) {
+                if ($header === '') continue;
+                $assoc[$header] = trim($row[$idx] ?? '');
+            }
+
+            $getValue = function($possibleNames) use ($assoc) {
+                foreach ($possibleNames as $name) {
+                    foreach ($assoc as $key => $val) {
+                        if (stripos($key, $name) !== false) return $val;
+                    }
+                }
+                return null;
+            };
+
+            $rows[] = [
+                'tanggal'                  => $this->toDate($getValue(['Tanggal', 'Date'])),
+                'pengunjung'               => (int) preg_replace('/[^0-9]/', '', $getValue(['Pengunjung']) ?? 0),
+                'jumlah_chat'              => (int) preg_replace('/[^0-9]/', '', $getValue(['Jumlah Chat']) ?? 0),
+                'pengunjung_bertanya'      => (int) preg_replace('/[^0-9]/', '', $getValue(['Pengunjung Bertanya']) ?? 0),
+                'pertanyaan_diajukan'      => (int) preg_replace('/[^0-9]/', '', $getValue(['Pertanyaan Diajukan']) ?? 0),
+                'chat_dibalas'             => (int) preg_replace('/[^0-9]/', '', $getValue(['Chat Dibalas']) ?? 0),
+                'chat_belum_dibalas'       => (int) preg_replace('/[^0-9]/', '', $getValue(['Chat Belum Dibalas']) ?? 0),
+                'waktu_respon_rata_rata'   => $getValue(['Waktu Respon Rata-rata']),
+                'csat_persen'              => $parsePercent($getValue(['CSAT %', 'CSAT'])),
+                'waktu_respon_pertama'     => $getValue(['Waktu Respon Chat Pertama Kali']),
+                'konversi_chat_direspon'   => $parsePercent($getValue(['Tingkat Konversi (Jumlah Chat yang Direspon)'])),
+                'total_pembeli'            => (int) preg_replace('/[^0-9]/', '', $getValue(['Total Pembeli']) ?? 0),
+                'total_pesanan'            => (int) preg_replace('/[^0-9]/', '', $getValue(['Total Pesanan']) ?? 0),
+                'produk'                   => $getValue(['Produk']),
+                'penjualan_idr'            => (float) preg_replace('/[^0-9]/', '', $getValue(['Penjualan (IDR)', 'Penjualan']) ?? 0),
+                'konversi_chat_dibalas'    => $parsePercent($getValue(['Tingkat Konversi (Chat Dibalas)'])),
+            ];
+        }
+
+        return ['rows' => $rows, 'total_rows' => count($rows)];
+    }
+
+    public function importShopeeLiveVideo(Request $request)
+    {
+        $fileRules = [
+            'required',
+            'file',
+            'extensions:csv,txt,xlsx,xls',
+            'mimetypes:text/csv,text/plain,application/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/octet-stream,application/zip,application/x-zip-compressed',
+            'max:10240',
+        ];
+
+        $request->validate([
+            'store_id'   => 'required|exists:stores,id',
+            'live_file'  => $fileRules,
+            'video_file' => $fileRules,
+        ]);
+
+        $store = Store::findOrFail($request->store_id);
+
+        $files = [
+            'Live' => $request->file('live_file'),
+            'Video' => $request->file('video_file'),
+        ];
+        $prepared = [];
+        $seenHashes = [];
+
+        foreach ($files as $type => $file) {
+            $fileHash = hash_file('sha256', $file->getRealPath());
+            if (isset($seenHashes[$fileHash])) {
+                return back()->with('error', 'File Live dan Video harus berbeda.');
+            }
+            $seenHashes[$fileHash] = true;
+
+            $existing = Import::where('store_id', $store->id)
+                ->where('tipe', 'shopee_live_video')
+                ->where('file_hash', $fileHash)
+                ->first();
+            if ($existing) {
+                return back()->with('error', "File {$type} ini sudah pernah diimport (Import #{$existing->id}).");
+            }
+
+            try {
+                $data = $this->parseShopeeLiveVideoFile($file->getRealPath(), $type);
+            } catch (\Exception $e) {
+                return back()->with('error', "Gagal parse file {$type}: " . $e->getMessage());
+            }
+
+            $prepared[] = compact('type', 'file', 'fileHash', 'data');
+        }
+
+        DB::beginTransaction();
+        $storedPaths = [];
+        try {
+            foreach ($prepared as $item) {
+                $storedPath = $item['file']->store('imports', 'local');
+                if (!$storedPath) {
+                    throw new \RuntimeException("Gagal menyimpan file {$item['type']}.");
+                }
+                $storedPaths[] = $storedPath;
+
+                $import = Import::create([
+                    'store_id'      => $store->id,
+                    'tipe'          => 'shopee_live_video',
+                    'file_name'     => $item['file']->getClientOriginalName(),
+                    'stored_path'   => $storedPath,
+                    'file_hash'     => $item['fileHash'],
+                    'periode_start' => $item['data']['periode_start'],
+                    'periode_end'   => $item['data']['periode_end'],
+                    'total_rows'    => $item['data']['total_rows'],
+                    'status'        => 'imported',
+                ]);
+
+                foreach ($item['data']['rows'] as $row) {
+                    $row['import_id'] = $import->id;
+                    \App\Models\ShopeeLiveVideo::create($row);
+                }
+            }
+
+            DB::commit();
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Storage::disk('local')->delete($storedPaths);
+            return back()->with('error', 'Gagal simpan ke database: ' . $e->getMessage());
+        }
+
+        $liveRows = $prepared[0]['data']['total_rows'];
+        $videoRows = $prepared[1]['data']['total_rows'];
+
+        return back()->with('success', "Berhasil import Live ({$liveRows} baris) dan Video ({$videoRows} baris).");
+    }
+
+    private function parseShopeeLiveVideoFile(string $fullPath, string $type): array
+    {
+        $spreadsheet = IOFactory::load($fullPath);
+        try {
+            $data = $spreadsheet->getActiveSheet()->toArray(null, true, true, false);
+        } finally {
+            $spreadsheet->disconnectWorksheets();
+        }
+
+        if (!in_array($type, ['Live', 'Video'], true)) {
+            throw new \RuntimeException('Jenis laporan Live/Video tidak valid.');
+        }
+
+        $headers = $data[0] ?? [];
+        $headerIndexes = [];
+        foreach ($headers as $index => $header) {
+            $headerIndexes[mb_strtolower(trim((string) $header))] = $index;
+        }
+
+        $findColumn = function (array $names, bool $required = true) use ($headerIndexes): ?int {
+            foreach ($names as $name) {
+                $key = mb_strtolower(trim($name));
+                if (array_key_exists($key, $headerIndexes)) {
+                    return $headerIndexes[$key];
+                }
+            }
+
+            if ($required) {
+                throw new \RuntimeException('Kolom "' . $names[0] . '" tidak ditemukan di file Excel.');
+            }
+
+            return null;
+        };
+
+        $periodColumn = $findColumn(['Periode Data']);
+        $numberColumn = $findColumn(['No.'], false);
+        $titleColumn = $findColumn([$type === 'Live' ? 'Nama Livestream' : 'Judul Video']);
+        $dateColumn = $findColumn([$type === 'Live' ? 'Start Time' : 'Date posted']);
+        $viewsColumn = $findColumn([$type === 'Live' ? 'Penonton' : 'Ditonton']);
+
+        $periodText = '';
+        foreach (array_slice($data, 1) as $row) {
+            $periodText = trim((string) ($row[$periodColumn] ?? ''));
+            if ($periodText !== '') {
+                break;
+            }
+        }
+
+        preg_match_all('/\d{1,2}[-\/]\d{1,2}[-\/]\d{4}/', $periodText, $periodMatches);
+        if (count($periodMatches[0]) < 2) {
+            throw new \RuntimeException('Rentang Periode Data tidak ditemukan di file Excel.');
+        }
+
+        try {
+            $periodStart = Carbon::createFromFormat('d-m-Y', str_replace('/', '-', $periodMatches[0][0]))->format('Y-m-d');
+            $periodEnd = Carbon::createFromFormat('d-m-Y', str_replace('/', '-', $periodMatches[0][1]))->format('Y-m-d');
+        } catch (\Exception $e) {
+            throw new \RuntimeException('Format tanggal Periode Data harus dd-mm-yyyy.', 0, $e);
+        }
+
+        $columns = [];
+        if ($type === 'Live') {
+            $columns = [
+                'duration' => $findColumn(['Durasi:']),
+                'active_viewers' => $findColumn(['Penonton Aktif']),
+                'comments' => $findColumn(['Komentar']),
+                'add_to_cart' => $findColumn(['Tambah ke Keranjang']),
+                'average_watch_duration' => $findColumn(['Rata-rata durasi ditonton']),
+                'orders_created' => $findColumn(['Pesanan(Pesanan Dibuat)']),
+                'orders_ready_to_ship' => $findColumn(['Pesanan(Pesanan Siap Dikirim)']),
+                'products_sold_created' => $findColumn(['Produk Terjual(Pesanan Dibuat)']),
+                'products_sold_ready_to_ship' => $findColumn(['Produk Terjual(Pesanan Siap Dikirim)']),
+                'sales_created' => $findColumn(['Penjualan(Pesanan Dibuat)']),
+                'sales_ready_to_ship' => $findColumn(['Penjualan(Pesanan Siap Dikirim)']),
+            ];
+        } else {
+            $columns = [
+                'likes' => $findColumn(['Suka']),
+                'comments' => $findColumn(['Komentar']),
+                'average_watch_duration' => $findColumn(['Durasi Rata-rata Menonton/Jumlah Video']),
+            ];
+        }
+
+        $rows = [];
+        foreach (array_slice($data, 1) as $index => $record) {
+            $title = trim((string) ($record[$titleColumn] ?? ''));
+            $dateText = trim((string) ($record[$dateColumn] ?? ''));
+            if ($title === '' && $dateText === '') {
+                continue;
+            }
+            if ($title === '' || $dateText === '') {
+                throw new \RuntimeException('Judul atau tanggal konten kosong pada baris ' . ($index + 2) . '.');
+            }
+
+            try {
+                $contentDate = Carbon::createFromFormat('!d-m-Y H:i', $dateText);
+            } catch (\Exception $e) {
+                throw new \RuntimeException('Format tanggal konten tidak valid pada baris ' . ($index + 2) . '.', 0, $e);
+            }
+
+            $valueAt = static fn (?int $column) => $column === null ? '' : trim((string) ($record[$column] ?? ''));
+            $numberAt = fn (?int $column) => $column === null ? 0 : $this->toInt($record[$column] ?? 0);
+            $views = $numberAt($viewsColumn);
+            $metrics = [
+                'record_type' => $type === 'Live' ? 'livestream' : 'video',
+                'period' => $periodText,
+                'number' => $numberAt($numberColumn),
+                'published_at' => $contentDate->format('Y-m-d H:i:s'),
+                'views' => $views,
+            ];
+
+            if ($type === 'Live') {
+                foreach ([
+                    'active_viewers',
+                    'comments',
+                    'add_to_cart',
+                    'orders_created',
+                    'orders_ready_to_ship',
+                    'products_sold_created',
+                    'products_sold_ready_to_ship',
+                    'sales_created',
+                    'sales_ready_to_ship',
+                ] as $key) {
+                    $metrics[$key] = $numberAt($columns[$key] ?? null);
+                }
+                $metrics['duration'] = $valueAt($columns['duration']);
+                $metrics['average_watch_duration'] = $valueAt($columns['average_watch_duration']);
+                $metrics['sales_available'] = true;
+                $totalOrders = $metrics['orders_ready_to_ship'];
+                $productsSold = $metrics['products_sold_ready_to_ship'];
+                $sales = $metrics['sales_ready_to_ship'];
+            } else {
+                $metrics['likes'] = $numberAt($columns['likes']);
+                $metrics['comments'] = $numberAt($columns['comments']);
+                $metrics['average_watch_duration'] = $valueAt($columns['average_watch_duration']);
+                $metrics['sales_available'] = false;
+                $totalOrders = 0;
+                $productsSold = 0;
+                $sales = 0;
+            }
+
+            $rows[] = [
+                'tanggal' => $contentDate->format('Y-m-d'),
+                'judul' => $title,
+                'tipe' => $type,
+                'penonton' => $views,
+                'produk_terjual' => $productsSold,
+                'total_pesanan' => $totalOrders,
+                'penjualan_idr' => $sales,
+                'produk' => null,
+                'metrics' => $metrics,
+            ];
+        }
+
+        if ($rows === []) {
+            throw new \RuntimeException('Daftar konten tidak ditemukan di file Excel.');
+        }
+
+        return [
+            'rows'          => $rows,
+            'total_rows'    => count($rows),
+            'periode_start' => $periodStart,
+            'periode_end'   => $periodEnd,
+        ];
     }
 }

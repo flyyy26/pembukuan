@@ -17,6 +17,14 @@
         </div>
     </div>
 
+    {{-- FLASH MESSAGE --}}
+    @if(session('success'))
+        <div class="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-6 flex items-start gap-2">
+            <iconify-icon icon="mdi:check-circle" class="text-green-600 text-lg mt-0.5"></iconify-icon>
+            <div>{{ session('success') }}</div>
+        </div>
+    @endif
+
     {{-- FILTER --}}
     <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-4 mb-6">
         <form method="GET" class="grid grid-cols-1 sm:grid-cols-2 md:flex md:flex-wrap gap-3 items-end">
@@ -80,6 +88,7 @@
                         <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-right">Qty Potong</th>
                         <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-center">Status Jahit</th>
                         <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase">Tukang Jahit</th>
+                        <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-center w-10">Aksi</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-100">
@@ -88,11 +97,29 @@
                             @php
                                 $jahitDetail = $detailPotong->turunanJahit->first();
                                 
-                                // ✅ Validasi: hanya anggap "Selesai Jahit" jika Qty Jahit sudah lunas
-                                $isJahitSelesai = $jahitDetail && $jahitDetail->sisa_hanca <= 0;
+                                // Hitung total Qty yang sudah disetor ke jahit
+                                $qtyJahitDisetor = 0;
+                                if ($jahitDetail) {
+                                    $qtyJahitDisetor = $jahitDetail->jumlah_hanca - $jahitDetail->sisa_hanca;
+                                }
+
+                                $totalQtyPotong = $detailPotong->jumlah_hanca;
                                 
-                                $tukangJahit = $isJahitSelesai ? ($jahitDetail->hanca->karyawan->nama ?? '-') : null;
-                                $tglJahit = $isJahitSelesai ? $jahitDetail->hanca->tanggal->format('d/m/Y') : null;
+                                // Tentukan status
+                                if ($qtyJahitDisetor <= 0) {
+                                    $statusJahit = 'Belum Dijahit';
+                                    $statusClass = 'bg-orange-100 text-orange-700 border-orange-200';
+                                } elseif ($qtyJahitDisetor < $totalQtyPotong) {
+                                    $statusJahit = 'Sebagian';
+                                    $statusClass = 'bg-yellow-100 text-yellow-700 border-yellow-200';
+                                } else {
+                                    $statusJahit = 'Selesai Jahit';
+                                    $statusClass = 'bg-green-100 text-green-700 border-green-200';
+                                }
+
+                                // Tukang jahit muncul jika sudah ada data jahit
+                                $tukangJahit = $jahitDetail ? ($jahitDetail->hanca->karyawan->nama ?? '-') : null;
+                                $tglJahit = $jahitDetail ? $jahitDetail->hanca->tanggal->format('d/m/Y') : null;
                             @endphp
                             <tr class="hover:bg-gray-50 transition">
                                 <td class="py-2 px-3 text-xs text-gray-700 whitespace-nowrap text-center">{{ $hancaPotong->tanggal->format('d/m/Y') }}</td>
@@ -105,15 +132,26 @@
                                 
                                 {{-- STATUS JAHIT --}}
                                 <td class="py-2 px-3 text-center whitespace-nowrap">
-                                    @if($isJahitSelesai)
-                                        <span class="inline-flex items-center gap-1 text-[10px] bg-green-100 text-green-700 border border-green-200 px-2 py-1 rounded font-semibold">
-                                            <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon> Selesai Jahit
-                                        </span>
-                                        <div class="text-[10px] text-gray-500 mt-1">{{ $tglJahit }}</div>
-                                    @else
-                                        <span class="inline-flex items-center gap-1 text-[10px] bg-orange-100 text-orange-700 border border-orange-200 px-2 py-1 rounded font-semibold">
-                                            <iconify-icon icon="mdi:clock-outline" class="text-xs"></iconify-icon> Belum Dijahit
-                                        </span>
+                                    <span class="inline-flex items-center gap-1 text-[10px] {{ $statusClass }} border px-2 py-1 rounded font-semibold">
+                                        @if($statusJahit === 'Selesai Jahit')
+                                            <iconify-icon icon="mdi:check-circle" class="text-xs"></iconify-icon>
+                                        @elseif($statusJahit === 'Sebagian')
+                                            <iconify-icon icon="mdi:progress-clock" class="text-xs"></iconify-icon>
+                                        @else
+                                            <iconify-icon icon="mdi:clock-outline" class="text-xs"></iconify-icon>
+                                        @endif
+                                        {{ $statusJahit }}
+                                    </span>
+                                    
+                                    {{-- Tampilkan Qty jika sebagian atau selesai --}}
+                                    @if($qtyJahitDisetor > 0)
+                                        <div class="text-[10px] text-gray-600 mt-1 font-medium">
+                                            {{ $qtyJahitDisetor }} / {{ $totalQtyPotong }} pcs
+                                        </div>
+                                    @endif
+                                    
+                                    @if($tglJahit)
+                                        <div class="text-[10px] text-gray-400 mt-0.5">{{ $tglJahit }}</div>
                                     @endif
                                 </td>
 
@@ -121,11 +159,18 @@
                                 <td class="py-2 px-3 font-medium whitespace-nowrap {{ $tukangJahit ? 'text-indigo-600' : 'text-gray-400' }}">
                                     {{ $tukangJahit ?? '-' }}
                                 </td>
+
+                                {{-- AKSI HAPUS --}}
+                                <td class="py-2 px-3 text-center">
+                                    <button type="button" onclick="hapusHancaSelesai({{ $hancaPotong->id }}, {{ $detailPotong->id }})" class="text-red-400 hover:text-red-600 transition" title="Hapus Data">
+                                        <iconify-icon icon="mdi:trash-can-outline" class="text-lg"></iconify-icon>
+                                    </button>
+                                </td>
                             </tr>
                         @endforeach
                     @empty
                         <tr>
-                            <td colspan="6" class="py-8 text-center text-gray-500">
+                            <td colspan="7" class="py-8 text-center text-gray-500">
                                 Belum ada data Potong Kain yang selesai.
                             </td>
                         </tr>
@@ -161,6 +206,7 @@
                     <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase">Tukang Jahit</th>
                     <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase">Produk</th>
                     <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-right">Qty</th>
+                    <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-center w-10">Aksi</th>
                 </tr>
             </thead>
             <tbody class="divide-y divide-gray-100">
@@ -170,6 +216,11 @@
                         <td class="py-2 px-3 font-medium text-gray-800">{{ $item['hanca']->karyawan->nama ?? '-' }}</td>
                         <td class="py-2 px-3 text-xs text-gray-800">{{ $item['detail']->nama_produk }} ({{ $item['detail']->warna }} / {{ $item['detail']->ukuran }})</td>
                         <td class="py-2 px-3 text-right font-bold text-gray-800">{{ $item['detail']->jumlah_hanca }} pcs</td>
+                        <td class="py-2 px-3 text-center">
+                            <button type="button" onclick="hapusHancaSelesai({{ $item['hanca']->id }}, {{ $item['detail']->id }})" class="text-red-400 hover:text-red-600 transition" title="Hapus Data">
+                                <iconify-icon icon="mdi:trash-can-outline" class="text-lg"></iconify-icon>
+                            </button>
+                        </td>
                     </tr>
                 @endforeach
             </tbody>
@@ -200,6 +251,7 @@
                             <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase">Produk</th>
                             <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-center">Warna / Ukuran</th>
                             <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-right">Qty Total</th>
+                            <th class="py-2 px-3 text-[10px] font-semibold text-gray-500 uppercase text-center w-10">Aksi</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -211,6 +263,11 @@
                                     <td class="py-2 px-3 text-xs text-gray-800 whitespace-nowrap">{{ $detail->nama_produk }}</td>
                                     <td class="py-2 px-3 text-center text-xs text-gray-600 whitespace-nowrap">{{ $detail->warna ?? '-' }} / {{ $detail->ukuran ?? '-' }}</td>
                                     <td class="py-2 px-3 text-right font-semibold text-gray-800 whitespace-nowrap">{{ $detail->jumlah_hanca }} pcs</td>
+                                    <td class="py-2 px-3 text-center">
+                                        <button type="button" onclick="hapusHancaSelesai({{ $hanca->id }}, {{ $detail->id }})" class="text-red-400 hover:text-red-600 transition" title="Hapus Data">
+                                            <iconify-icon icon="mdi:trash-can-outline" class="text-lg"></iconify-icon>
+                                        </button>
+                                    </td>
                                 </tr>
                             @endforeach
                         @endforeach
@@ -220,4 +277,41 @@
         @endforeach
     @endif
 </div>
+
+<script>
+    const CSRF_TOKEN = document.querySelector('meta[name="csrf-token"]').content;
+
+    async function hapusHancaSelesai(hancaId, detailId = null) {
+        if (!confirm('Apakah Anda yakin ingin menghapus data ini? Tindakan ini tidak dapat dibatalkan.')) {
+            return;
+        }
+
+        try {
+            const res = await fetch("{{ route('konveksi.hanca-selesai.destroy-ajax') }}", {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': CSRF_TOKEN,
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify({
+                    hanca_id: hancaId,
+                    detail_id: detailId
+                })
+            });
+
+            const data = await res.json();
+
+            if (!res.ok) {
+                throw new Error(data.message || 'Gagal menghapus data.');
+            }
+
+            // Reload halaman setelah berhasil
+            window.location.reload();
+
+        } catch (err) {
+            alert(err.message);
+        }
+    }
+</script>
 @endsection

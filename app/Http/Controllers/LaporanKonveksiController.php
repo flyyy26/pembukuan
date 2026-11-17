@@ -609,7 +609,7 @@ class LaporanKonveksiController extends Controller
         $kategoriProdukFilter = $request->input('kategori_produk', 'all');
         $bulanFilter = $request->input('bulan', 'all');
 
-        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans', 'details.sumberPotong.hanca.karyawan'])
             ->where('kategori', '!=', 'Potong Kain')
             ->whereHas('details', function($q) {
                 $q->where('sisa_hanca', '>', 0);
@@ -694,7 +694,7 @@ class LaporanKonveksiController extends Controller
         $kategoriProdukFilter = $request->input('kategori_produk', 'all');
         $bulanFilter = $request->input('bulan', 'all');
 
-        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans'])
+        $query = Hanca::with(['karyawan', 'details.kategoriProduk', 'pembayarans', 'details.sumberPotong.hanca.karyawan'])
             ->where('kategori', '!=', 'Potong Kain')   // ✅ EXCLUDE Potong Kain
             ->whereHas('details', fn($q) => $q->where('sisa_hanca', '>', 0))
             ->when($karyawanId !== 'all', fn($q) => $q->where('konveksi_karyawan_id', $karyawanId))
@@ -1443,5 +1443,77 @@ class LaporanKonveksiController extends Controller
         return view('konveksi.hanca-selesai', compact(
             'groupedByKategori', 'karyawanList', 'search', 'karyawanId', 'bulanFilter', 'bulanList'
         ));
+    }
+
+    public function printNotaKosongPdf(Request $request)
+    {
+        // Tangkap data dari form popup
+        $nama = $request->input('nama', '');
+        $items = json_decode($request->input('items', '[]'), true) ?? [];
+        $tanggal = $request->input('tanggal', now()->format('d/m/Y'));
+
+        // Hitung total pesanan
+        $total_pesanan = 0;
+        foreach ($items as $item) {
+            $total_pesanan += (int) preg_replace('/[^0-9]/', '', $item['jumlah'] ?? 0);
+        }
+
+        $data = [
+            'nama'          => $nama,
+            'tanggal'       => $tanggal,
+            'items'         => $items,
+            'total_pesanan' => $total_pesanan,
+        ];
+
+        // Gunakan view baru yang sudah kita buat
+        $pdf = Pdf::loadView('konveksi.nota-kosong-pdf', $data)
+            ->setPaper('a4', 'portrait')
+            ->setOptions([
+                'isRemoteEnabled' => true,
+                'isHtml5ParserEnabled' => true,
+                'defaultFont' => 'sans-serif',
+            ]);
+
+        return $pdf->stream('Nota-Pesanan-' . now()->format('YmdHis') . '.pdf');
+    }
+    public function destroyHancaSelesaiAjax(Request $request)
+    {
+        $hancaId = $request->input('hanca_id');
+        $detailId = $request->input('detail_id');
+
+        DB::beginTransaction();
+        try {
+            if ($detailId) {
+                // Hapus satu detail spesifik
+                $detail = HancaDetail::find($detailId);
+                if (!$detail) {
+                    return response()->json(['message' => 'Detail hanca tidak ditemukan.'], 404);
+                }
+                $hanca = $detail->hanca;
+                $detail->delete();
+
+                // Jika hanca tidak punya detail lagi, hapus hancanya
+                if ($hanca && $hanca->details()->count() === 0) {
+                    $hanca->delete();
+                } else if ($hanca) {
+                    $hanca->recalculateSisa();
+                }
+            } elseif ($hancaId) {
+                // Hapus seluruh hanca beserta detailnya
+                $hanca = Hanca::find($hancaId);
+                if (!$hanca) {
+                    return response()->json(['message' => 'Data hanca tidak ditemukan.'], 404);
+                }
+                $hanca->delete();
+            } else {
+                return response()->json(['message' => 'Parameter tidak valid.'], 422);
+            }
+
+            DB::commit();
+            return response()->json(['success' => true, 'message' => 'Data hanca selesai berhasil dihapus.']);
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'Gagal menghapus: ' . $e->getMessage()], 500);
+        }
     }
 }
